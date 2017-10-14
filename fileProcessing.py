@@ -12,7 +12,7 @@ import yaml
 import cv2
 
 PROCESSING_FILE_NAME = "processingFile"
-PROCESSED_FILE_NAME = "processedFil.ogg"
+PROCESSED_FILE_NAME = "processedFile"
 JOBS_FOLDER = "Jobs"
 
 with open("config.yaml") as stream:
@@ -57,11 +57,11 @@ def upload(file_name):
     s3.Bucket(BUCKET_NAME).upload_file(file_name, key)
     return key
 
-def thermalRaw_toOggVideo():
+def thermalRaw_toMp4():
     # Get new job.
-    folder, recording = getNewJob("thermalRaw", "toOggVideo")
+    folder, recording = getNewJob("thermalRaw", "toMp4")
     if folder == None:
-        print("No thermalRaw_toOggVideo job to do.")
+        print("No thermalRaw_toMp4 job to do.")
         return False
 
     thermal_data, fps = cptv_decompile(join(folder, PROCESSING_FILE_NAME))
@@ -76,8 +76,8 @@ def thermalRaw_toOggVideo():
 
     # Convert to video (ogg)
     inputF = join(folder, "%06d.png")
-    outputF = join(folder, PROCESSED_FILE_NAME)
-    command = "ffmpeg -v error -r {f} -i {i} {o}".format(
+    outputF = join(folder, PROCESSED_FILE_NAME + ".mp4")
+    command = "ffmpeg -v error -r {f} -i {i} -pix_fmt yuv420p {o}".format(
         f = fps, i = inputF, o = outputF)
     os.system(command)
 
@@ -118,4 +118,4 @@ def getNewJob(recording_type, state):
     download(recording['rawFileKey'], join(folder, PROCESSING_FILE_NAME))
     return folder, recording
 
-thermalRaw_toOggVideo()
+thermalRaw_toMp4()
