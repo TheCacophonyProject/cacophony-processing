@@ -11,6 +11,7 @@ import uuid
 import yaml
 import cv2
 import json
+import time
 
 PROCESSING_FILE_NAME = "processingFile"
 PROCESSED_FILE_NAME = "processedFile"
@@ -104,15 +105,24 @@ def thermalRaw_toMp4():
         'newProcessedFileKey': newKey,
         'result': json.dumps(result),
     }
-    r = requests.put(API_URL, data = params)
-    print(r.status_code)
-    print(r.json())
-
+    try:
+        r = requests.put(API_URL, data = params)
+    except:
+        print("Error with connecting to server.")
+        return False
+    if r.status_code == 200:
+        print("Finished file processing")
+        return True
+    return False
 
 def getNewJob(recording_type, state):
     print("Getting a new job.")
     params = {'type': recording_type, 'state': state}
-    r = requests.get(API_URL, params = params)
+    try:
+        r = requests.get(API_URL, params = params)
+    except:
+        print("Can't connect to server.")
+        return None, None
     if r.status_code == 204:
         print("No jobs ready")
         return None, None
@@ -122,7 +132,6 @@ def getNewJob(recording_type, state):
     elif r.status_code != 200:
         print("Unknowen status code: " + str(r.status_code))
         return None, None
-
     # Process new Job
     print("New Job.")
     folder = join(JOBS_FOLDER, str(uuid.uuid1()))
@@ -133,4 +142,6 @@ def getNewJob(recording_type, state):
     download(recording['rawFileKey'], join(folder, PROCESSING_FILE_NAME))
     return folder, recording
 
-thermalRaw_toMp4()
+while True:
+    if not thermalRaw_toMp4():
+        time.sleep(10)
