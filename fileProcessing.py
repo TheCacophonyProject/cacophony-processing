@@ -10,6 +10,7 @@ import os
 import uuid
 import yaml
 import cv2
+import json
 
 PROCESSING_FILE_NAME = "processingFile"
 PROCESSED_FILE_NAME = "processedFile"
@@ -87,6 +88,13 @@ def thermalRaw_toMp4():
         f = fps, i = inputF, o = outputF)
     os.system(command)
 
+    # result
+    result = {
+        'fieldUpdates': {
+            'fileMimeType': 'video/mp4',
+        },
+    }
+
     # Uplaod processed file
     newKey = upload(outputF)
     params = {
@@ -94,6 +102,7 @@ def thermalRaw_toMp4():
         'jobKey': recording['jobKey'],
         'success': True,
         'newProcessedFileKey': newKey,
+        'result': json.dumps(result),
     }
     r = requests.put(API_URL, data = params)
     print(r.status_code)
