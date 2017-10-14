@@ -20,11 +20,17 @@ with open("config.yaml") as stream:
         y = yaml.load(stream)
         BUCKET_NAME = y["s3"]["default_bucket"]
         ENDPOINT_URL = y["s3"]["endpoint"]
+        ACCESS_KEY_ID = y["s3"]["access_key_id"]
+        SECRET_ACCESS_KEY = y["s3"]["secret_access_key"]
         API_URL = y["api_url"]
     except yaml.YAMLError as exc:
         print(exc)
 
-s3 = boto3.resource('s3', endpoint_url=ENDPOINT_URL)
+s3 = boto3.resource(
+    's3',
+    endpoint_url = ENDPOINT_URL,
+    aws_access_key_id = ACCESS_KEY_ID,
+    aws_secret_access_key = SECRET_ACCESS_KEY)
 
 def process_frame_to_rgb(frame):
     a = np.zeros((120, 160))
