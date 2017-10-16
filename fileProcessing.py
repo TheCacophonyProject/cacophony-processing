@@ -10,9 +10,11 @@ import os
 import uuid
 import yaml
 import cv2
+import json
+import time
 
 PROCESSING_FILE_NAME = "processingFile"
-PROCESSED_FILE_NAME = "processedFil.ogg"
+PROCESSED_FILE_NAME = "processedFile"
 JOBS_FOLDER = "Jobs"
 
 with open("config.yaml") as stream:
@@ -20,11 +22,17 @@ with open("config.yaml") as stream:
         y = yaml.load(stream)
         BUCKET_NAME = y["s3"]["default_bucket"]
         ENDPOINT_URL = y["s3"]["endpoint"]
+        ACCESS_KEY_ID = y["s3"]["access_key_id"]
+        SECRET_ACCESS_KEY = y["s3"]["secret_access_key"]
         API_URL = y["api_url"]
     except yaml.YAMLError as exc:
         print(exc)
 
-s3 = boto3.resource('s3', endpoint_url=ENDPOINT_URL)
+s3 = boto3.resource(
+    's3',
+    endpoint_url = ENDPOINT_URL,
+    aws_access_key_id = ACCESS_KEY_ID,
+    aws_secret_access_key = SECRET_ACCESS_KEY)
 
 def process_frame_to_rgb(frame):
     a = np.zeros((120, 160))
@@ -57,11 +65,11 @@ def upload(file_name):
     s3.Bucket(BUCKET_NAME).upload_file(file_name, key)
     return key
 
-def thermalRaw_toOggVideo():
+def thermalRaw_toMp4():
     # Get new job.
-    folder, recording = getNewJob("thermalRaw", "toOggVideo")
+    folder, recording = getNewJob("thermalRaw", "toMp4")
     if folder == None:
-        print("No thermalRaw_toOggVideo job to do.")
+        print("No thermalRaw_toMp4 job to do.")
         return False
 
     thermal_data, fps = cptv_decompile(join(folder, PROCESSING_FILE_NAME))
@@ -76,10 +84,17 @@ def thermalRaw_toOggVideo():
 
     # Convert to video (ogg)
     inputF = join(folder, "%06d.png")
-    outputF = join(folder, PROCESSED_FILE_NAME)
-    command = "ffmpeg -v error -r {f} -i {i} {o}".format(
+    outputF = join(folder, PROCESSED_FILE_NAME + ".mp4")
+    command = "ffmpeg -v error -r {f} -i {i} -pix_fmt yuv420p {o}".format(
         f = fps, i = inputF, o = outputF)
     os.system(command)
+
+    # result
+    result = {
+        'fieldUpdates': {
+            'fileMimeType': 'video/mp4',
+        },
+    }
 
     # Uplaod processed file
     newKey = upload(outputF)
@@ -88,16 +103,26 @@ def thermalRaw_toOggVideo():
         'jobKey': recording['jobKey'],
         'success': True,
         'newProcessedFileKey': newKey,
+        'result': json.dumps(result),
     }
-    r = requests.put(API_URL, data = params)
-    print(r.status_code)
-    print(r.json())
-
+    try:
+        r = requests.put(API_URL, data = params)
+    except:
+        print("Error with connecting to server.")
+        return False
+    if r.status_code == 200:
+        print("Finished file processing")
+        return True
+    return False
 
 def getNewJob(recording_type, state):
     print("Getting a new job.")
     params = {'type': recording_type, 'state': state}
-    r = requests.get(API_URL, params = params)
+    try:
+        r = requests.get(API_URL, params = params)
+    except:
+        print("Can't connect to server.")
+        return None, None
     if r.status_code == 204:
         print("No jobs ready")
         return None, None
@@ -107,7 +132,6 @@ def getNewJob(recording_type, state):
     elif r.status_code != 200:
         print("Unknowen status code: " + str(r.status_code))
         return None, None
-
     # Process new Job
     print("New Job.")
     folder = join(JOBS_FOLDER, str(uuid.uuid1()))
@@ -118,4 +142,6 @@ def getNewJob(recording_type, state):
     download(recording['rawFileKey'], join(folder, PROCESSING_FILE_NAME))
     return folder, recording
 
-thermalRaw_toOggVideo()
+while True:
+    if not thermalRaw_toMp4():
+        time.sleep(10)
