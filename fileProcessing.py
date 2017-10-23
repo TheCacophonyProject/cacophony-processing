@@ -12,6 +12,7 @@ import yaml
 import cv2
 import json
 import time
+import shutil
 
 PROCESSING_FILE_NAME = "processingFile"
 PROCESSED_FILE_NAME = "processedFile"
@@ -82,7 +83,7 @@ def thermalRaw_toMp4():
         rgb = process_frame_to_rgb(frame)
         save_rgb_as_image(rgb, n, folder)
 
-    # Convert to video (ogg)
+    # Convert to video (mp4)
     inputF = join(folder, "%06d.png")
     outputF = join(folder, PROCESSED_FILE_NAME + ".mp4")
     command = "ffmpeg -v error -r {f} -i {i} -pix_fmt yuv420p {o}".format(
@@ -105,15 +106,16 @@ def thermalRaw_toMp4():
         'newProcessedFileKey': newKey,
         'result': json.dumps(result),
     }
+    success = False
     try:
         r = requests.put(API_URL, data = params)
     except:
         print("Error with connecting to server.")
-        return False
     if r.status_code == 200:
         print("Finished file processing")
-        return True
-    return False
+        success = True
+    shutil.rmtree(folder)
+    return success
 
 def getNewJob(recording_type, state):
     print("Getting a new job.")
