@@ -67,55 +67,55 @@ def upload(file_name):
     return key
 
 def thermalRaw_toMp4():
-    # Get new job.
-    folder, recording = getNewJob("thermalRaw", "toMp4")
-    if folder == None:
-        print("No thermalRaw_toMp4 job to do.")
-        return False
-
-    thermal_data, fps = cptv_decompile(join(folder, PROCESSING_FILE_NAME))
-
-    # Convert to images
-    n = 0
-    for frame in thermal_data:
-        n += 1
-        #print(frame)
-        rgb = process_frame_to_rgb(frame)
-        save_rgb_as_image(rgb, n, folder)
-
-    # Convert to video (mp4)
-    inputF = join(folder, "%06d.png")
-    outputF = join(folder, PROCESSED_FILE_NAME + ".mp4")
-    command = "ffmpeg -v error -r {f} -i {i} -pix_fmt yuv420p {o}".format(
-        f = fps, i = inputF, o = outputF)
-    os.system(command)
-
-    # result
-    result = {
-        'fieldUpdates': {
-            'fileMimeType': 'video/mp4',
-        },
-    }
-
-    # Uplaod processed file
-    newKey = upload(outputF)
-    params = {
-        'id': recording['id'],
-        'jobKey': recording['jobKey'],
-        'success': True,
-        'newProcessedFileKey': newKey,
-        'result': json.dumps(result),
-    }
     success = False
     try:
+        # Get new job.
+        folder, recording = getNewJob("thermalRaw", "toMp4")
+        if folder == None:
+            print("No thermalRaw_toMp4 job to do.")
+            return success
+        thermal_data, fps = cptv_decompile(join(folder, PROCESSING_FILE_NAME))
+
+        # Convert to images
+        n = 0
+        for frame in thermal_data:
+            n += 1
+            rgb = process_frame_to_rgb(frame)
+            save_rgb_as_image(rgb, n, folder)
+
+        # Convert to video (mp4)
+        inputF = join(folder, "%06d.png")
+        outputF = join(folder, PROCESSED_FILE_NAME + ".mp4")
+        command = "ffmpeg -v error -r {f} -i {i} -pix_fmt yuv420p {o}".format(
+            f = fps, i = inputF, o = outputF)
+        os.system(command)
+
+        # result
+        result = {
+            'fieldUpdates': {
+                'fileMimeType': 'video/mp4',
+            },
+        }
+
+        # Uplaod processed file
+        newKey = upload(outputF)
+        params = {
+            'id': recording['id'],
+            'jobKey': recording['jobKey'],
+            'success': True,
+            'newProcessedFileKey': newKey,
+            'result': json.dumps(result),
+        }
         r = requests.put(API_URL, data = params)
-    except:
+        if r.status_code == 200:
+            print("Finished file processing")
+            success = True
+    except requests.ConnectionError:
         print("Error with connecting to server.")
-    if r.status_code == 200:
-        print("Finished file processing")
-        success = True
-    shutil.rmtree(folder)
-    return success
+    finally:
+        if folder != None:
+            shutil.rmtree(folder)
+        return success
 
 def getNewJob(recording_type, state):
     print("Getting a new job.")
