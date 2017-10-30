@@ -6,9 +6,9 @@ from cptv.image import process_frame_to_rgb
 from pathlib import Path
 import boto3
 import json
-import os
 import requests
 import shutil
+import subprocess
 import tempfile
 import time
 import traceback
@@ -82,11 +82,14 @@ def cptv_to_mp4(recording):
 
         # Convert to video (mp4)
         fps = (n - 1) * 1000000 / offset
-        input_pattern = str(working_dir / "%06d.png")
         output_name = str(working_dir / PROCESSED_FILENAME) + ".mp4"
-        command = "ffmpeg -v error -r {f} -i {i} -pix_fmt yuv420p {o}".format(
-            f=fps, i=input_pattern, o=output_name)
-        os.system(command)
+        command = [
+            "ffmpeg", "-v", "error",
+            "-r",  str(fps),
+            "-i", str(working_dir / "%06d.png"),
+            "-pix_fmt", "yuv420p",
+            output_name]
+        subprocess.check_call(command)
 
         # Upload processed file
         newKey = upload_object(output_name)
