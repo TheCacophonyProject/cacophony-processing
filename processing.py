@@ -4,8 +4,10 @@ from PIL import Image
 from cptv import CPTVReader
 from cptv.image import process_frame_to_rgb
 from pathlib import Path
+from pprint import pformat
 import boto3
 import json
+import logging
 import requests
 import shutil
 import subprocess
@@ -20,6 +22,8 @@ UNPROCESSED_FILENAME = "unprocessed"
 PROCESSED_FILENAME = "processed"
 SLEEP_SECS = 10
 
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s %(message)s")
 
 with open("config.yaml") as stream:
     y = yaml.load(stream)
@@ -43,17 +47,17 @@ def save_rgb_as_image(rgb, n, folder):
 
 
 def get_next_job(recording_type, state):
-    print("Getting a new job")
+    logging.info("Getting a new job")
     params = {'type': recording_type, 'state': state}
     r = requests.get(API_URL, params=params)
     if r.status_code == 204:
-        print("No jobs ready")
+        logging.info("No jobs ready")
         return None
     elif r.status_code == 400:
-        print("Bad request")
+        logging.error("Bad request")
         return None
     elif r.status_code != 200:
-        print("Unexpected status code: " + str(r.status_code))
+        logging.error("Unexpected status code: " + str(r.status_code))
         return None
 
     # Job is ready, download the file to be processed.
@@ -63,7 +67,7 @@ def get_next_job(recording_type, state):
     recording = r.json()['recording']
     recording['directory'] = working_dir
     recording['filename'] = filename
-    print(recording)
+    logging.info("recording to process:\n" + pformat(recording))
     download_object(recording['rawFileKey'], filename)
 
     return recording
@@ -108,7 +112,7 @@ def cptv_to_mp4(recording):
         }
         r = requests.put(API_URL, data=params)
         if r.status_code == 200:
-            print("Finished processing")
+            logging.info("Finished processing")
         else:
             raise IOError("Failed to report processing completion (HTTP status {})".format(r.status_code))
     finally:
@@ -136,7 +140,7 @@ def main():
         except KeyboardInterrupt:
             break
         except:
-            traceback.print_exc()
+            logging.error(traceback.format_exc())
             time.sleep(SLEEP_SECS)
 
 
