@@ -1,29 +1,32 @@
 #!/usr/bin/python3
 
-from PIL import Image
-from cptv import CPTVReader
-from cptv.image import process_frame_to_rgb
-from pathlib import Path
-from pprint import pformat
-import boto3
 import json
 import logging
-import requests
-import shutil
 import subprocess
 import tempfile
 import time
 import traceback
 import uuid
+from itertools import groupby
+from operator import itemgetter
+from pprint import pformat
+
+from pathlib import Path
+import boto3
+import requests
 import yaml
 
 
-UNPROCESSED_FILENAME = "unprocessed"
-PROCESSED_FILENAME = "processed"
+DOWNLOAD_FILENAME = "recording.cptv"
 SLEEP_SECS = 10
 
+MIN_TRACK_CONFIDENCE = 0.85
+DEFAULT_CONFIDENCE = 0.8
+FALSE_POSITIVE = "false-positive"
+UNIDENTIFIED = "unidentified"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s %(message)s")
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)-15s %(levelname)s %(message)s")
 
 with open("config.yaml") as stream:
     y = yaml.load(stream)
@@ -32,18 +35,14 @@ with open("config.yaml") as stream:
     ACCESS_KEY_ID = y["s3"]["access_key_id"]
     SECRET_ACCESS_KEY = y["s3"]["secret_access_key"]
     API_URL = y["api_url"]
+    CLASSIFY_DIR = y["classify_command_dir"]
+    CLASSIFY_CMD = y["classify_command"]
 
 s3 = boto3.resource(
     's3',
-    endpoint_url = ENDPOINT_URL,
-    aws_access_key_id = ACCESS_KEY_ID,
-    aws_secret_access_key = SECRET_ACCESS_KEY)
-
-
-def save_rgb_as_image(rgb, n, folder):
-    im = Image.fromarray(rgb, "RGB")
-    filename = '{:06}.png'.format(n)
-    im.save(str(folder / filename))
+    endpoint_url=ENDPOINT_URL,
+    aws_access_key_id=ACCESS_KEY_ID,
+    aws_secret_access_key=SECRET_ACCESS_KEY)
 
 
 def get_next_job(recording_type, state):
@@ -57,67 +56,112 @@ def get_next_job(recording_type, state):
         logging.error("Bad request")
         return None
     elif r.status_code != 200:
-        logging.error("Unexpected status code: " + str(r.status_code))
+        logging.error("Unexpected status code: %s", r.status_code)
         return None
 
     # Job is ready, download the file to be processed.
     working_dir = Path(tempfile.mkdtemp())
-    filename = str(working_dir / UNPROCESSED_FILENAME)
-
+    filename = working_dir / DOWNLOAD_FILENAME
     recording = r.json()['recording']
     recording['directory'] = working_dir
     recording['filename'] = filename
-    logging.info("recording to process:\n" + pformat(recording))
-    download_object(recording['rawFileKey'], filename)
+    logging.info("recording to process:\n%s", pformat(recording))
+    download_object(recording['rawFileKey'], str(filename))
 
     return recording
 
 
-def cptv_to_mp4(recording):
+def classify(recording):
     working_dir = recording['directory']
+    command = CLASSIFY_CMD.format(
+        source_dir=str(working_dir),
+        output_dir=str(working_dir),
+        source=recording['filename'].name)
 
-    try:
-        # Convert frames to images
-        with open(recording['filename'], "rb") as f:
-            reader = CPTVReader(f)
-            for n, (frame, offset) in enumerate(reader):
-                rgb = process_frame_to_rgb(frame)
-                save_rgb_as_image(rgb, n, working_dir)
+    logging.info('processing %s', recording['filename'])
+    p = subprocess.run(command, cwd=CLASSIFY_DIR,
+                       shell=True, stdout=subprocess.PIPE)
+    p.check_returncode()
+    classify_info = json.loads(p.stdout.decode('ascii'))
+    logging.info("classify info:\n%s", pformat(classify_info))
+    track_info = classify_info['tracks']
 
-        # Convert to video (mp4)
-        fps = (n - 1) * 1000000 / offset
-        output_name = str(working_dir / PROCESSED_FILENAME) + ".mp4"
-        command = [
-            "ffmpeg", "-v", "error",
-            "-r",  str(fps),
-            "-i", str(working_dir / "%06d.png"),
-            "-pix_fmt", "yuv420p",
-            output_name]
-        subprocess.check_call(command)
+    # Auto tag the video
+    tag, confidence = calculate_tag(track_info)
+    logging.info("tag: %s (%.2f)", tag, confidence)
+    tag_recording(recording['id'], tag, confidence)
 
-        # Upload processed file
-        newKey = upload_object(output_name)
+    # Upload mp4
+    video_filename = str(replace_ext(recording['filename'], '.mp4'))
+    logging.info('uploading %s', video_filename)
+    new_key = upload_object(video_filename)
 
-        # Report processing done
-        params = {
-            'id': recording['id'],
-            'jobKey': recording['jobKey'],
-            'success': True,
-            'newProcessedFileKey': newKey,
-            'result': json.dumps({
-                'fieldUpdates': {
-                    'fileMimeType': 'video/mp4',
-                },
-            }),
-        }
-        r = requests.put(API_URL, data=params)
-        if r.status_code == 200:
-            logging.info("Finished processing")
-        else:
-            raise IOError("Failed to report processing completion (HTTP status {})".format(r.status_code))
-    finally:
-        shutil.rmtree(str(working_dir))
+    report_processing_done(recording, new_key)
+    logging.info("Finished processing")
 
+
+def calculate_tag(tracks):
+    # No tracks found so tag as FALSE_POSITIVE
+    if not tracks:
+        return FALSE_POSITIVE, DEFAULT_CONFIDENCE
+
+    # Find labels with confidence higher than MIN_TRACK_CONFIDENCE
+    candidates = {}
+    for label, label_tracks in groupby(tracks, itemgetter("label")):
+        confidence = max(t['confidence'] for t in label_tracks)
+        if confidence >= MIN_TRACK_CONFIDENCE:
+            candidates[label] = confidence
+
+    # If there's one label then use that.
+    if len(candidates) == 1:
+        return list(candidates.items())[0]
+
+    # Remove FALSE_POSITIVE if it's there.
+    candidates.pop(FALSE_POSITIVE, None)
+
+    # If there's one candidate now, use that.
+    if len(candidates) == 1:
+        return list(candidates.items())[0]
+
+    # Not sure.
+    return UNIDENTIFIED, DEFAULT_CONFIDENCE
+
+
+def tag_recording(recording_id, label, confidence):
+    tag = {
+        'automatic': True,
+        'confidence': confidence,
+    }
+
+    # Convert "false positive" to API representation.
+    if label == FALSE_POSITIVE:
+        tag['event'] = 'false positive'
+    else:
+        tag['event'] = 'just wandering about'
+        tag['animal'] = label
+
+    r = requests.post(
+        API_URL + "/tags",
+        data={
+            'recordingId': recording_id,
+            'tag': json.dumps(tag),
+        })
+    r.raise_for_status()
+
+def report_processing_done(recording, newKey):
+    params = {
+        'id': recording['id'],
+        'jobKey': recording['jobKey'],
+        'success': True,
+        'newProcessedFileKey': newKey,
+        'result': json.dumps({
+            'fieldUpdates': {
+                'fileMimeType': 'video/mp4',
+            },
+        }),
+    }
+    r = requests.put(API_URL, data=params)
+    r.raise_for_status()
 
 def download_object(key, file_name):
     s3.Bucket(BUCKET_NAME).download_file(key, file_name)
@@ -129,17 +173,22 @@ def upload_object(file_name):
     return key
 
 
+def replace_ext(filename, ext):
+    return filename.parent / (filename.stem + ext)
+
+
 def main():
     while True:
         try:
             recording = get_next_job("thermalRaw", "toMp4")
             if recording:
-                cptv_to_mp4(recording)
+                classify(recording)
             else:
                 time.sleep(SLEEP_SECS)
         except KeyboardInterrupt:
             break
         except:
+            # TODO - failures should be reported back over the API
             logging.error(traceback.format_exc())
             time.sleep(SLEEP_SECS)
 

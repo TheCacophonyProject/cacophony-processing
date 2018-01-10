@@ -6,4 +6,8 @@ s3:
     default_bucket:
     endpoint: http://localhost:8080
     tls: False
+
 api_url: http://localhost:3002/api/fileProcessing
+
+classify_command_dir: "/path/to/cptv-classify"
+classify_command: "venv/bin/python classify.py --enable-preview --meta-to-stdout -s {source_dir} -o {output_dir} {source}"
