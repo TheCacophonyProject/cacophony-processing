@@ -10,12 +10,11 @@ import uuid
 from itertools import groupby
 from operator import itemgetter
 from pprint import pformat
-
 from pathlib import Path
+
 import boto3
 import requests
 import yaml
-
 
 DOWNLOAD_FILENAME = "recording.cptv"
 SLEEP_SECS = 10
@@ -25,8 +24,10 @@ DEFAULT_CONFIDENCE = 0.8
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)-15s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)-15s %(levelname)s %(message)s",
+)
 
 with open("config.yaml") as stream:
     y = yaml.load(stream)
@@ -59,29 +60,25 @@ def get_next_job(recording_type, state):
         logging.error("Unexpected status code: %s", r.status_code)
         return None
 
-    # Job is ready, download the file to be processed.
-    working_dir = Path(tempfile.mkdtemp())
-    filename = working_dir / DOWNLOAD_FILENAME
-    recording = r.json()['recording']
-    recording['directory'] = working_dir
-    recording['filename'] = filename
-    logging.info("recording to process:\n%s", pformat(recording))
-    download_object(recording['rawFileKey'], str(filename))
-
-    return recording
+    return r.json()['recording']
 
 
 def classify(recording):
-    working_dir = recording['directory']
+    working_dir = recording['filename'].parent
     command = CLASSIFY_CMD.format(
         source_dir=str(working_dir),
         output_dir=str(working_dir),
         source=recording['filename'].name)
 
     logging.info('processing %s', recording['filename'])
-    p = subprocess.run(command, cwd=CLASSIFY_DIR,
-                       shell=True, stdout=subprocess.PIPE)
+    p = subprocess.run(
+        command,
+        cwd=CLASSIFY_DIR,
+        shell=True,
+        stdout=subprocess.PIPE,
+    )
     p.check_returncode()
+
     classify_info = json.loads(p.stdout.decode('ascii'))
     logging.info("classify info:\n%s", pformat(classify_info))
     track_info = classify_info['tracks']
@@ -148,6 +145,7 @@ def tag_recording(recording_id, label, confidence):
         })
     r.raise_for_status()
 
+
 def report_processing_done(recording, newKey):
     params = {
         'id': recording['id'],
@@ -162,6 +160,7 @@ def report_processing_done(recording, newKey):
     }
     r = requests.put(API_URL, data=params)
     r.raise_for_status()
+
 
 def download_object(key, file_name):
     s3.Bucket(BUCKET_NAME).download_file(key, file_name)
@@ -182,7 +181,14 @@ def main():
         try:
             recording = get_next_job("thermalRaw", "toMp4")
             if recording:
-                classify(recording)
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    filename = Path(temp_dir) / DOWNLOAD_FILENAME
+                    recording['filename'] = filename
+                    logging.info("downloading recording:\n%s",
+                                 pformat(recording))
+                    download_object(recording['rawFileKey'], str(filename))
+
+                    classify(recording)
             else:
                 time.sleep(SLEEP_SECS)
         except KeyboardInterrupt:
