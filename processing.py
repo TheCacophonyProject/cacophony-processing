@@ -64,7 +64,7 @@ def get_next_job(recording_type, state):
 
 
 def classify(recording):
-    working_dir = recording['directory']
+    working_dir = recording['filename'].parent
     command = CLASSIFY_CMD.format(
         source_dir=str(working_dir),
         output_dir=str(working_dir),
@@ -181,10 +181,8 @@ def main():
         try:
             recording = get_next_job("thermalRaw", "toMp4")
             if recording:
-                with tempfile.TemporaryDirectory() as temp_dir_name:
-                    temp_path = Path(temp_dir_name)
-                    filename = temp_path / DOWNLOAD_FILENAME
-                    recording['directory'] = temp_path
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    filename = Path(temp_dir) / DOWNLOAD_FILENAME
                     recording['filename'] = filename
                     logging.info("downloading recording:\n%s",
                                  pformat(recording))
