@@ -79,7 +79,13 @@ def classify(recording):
     )
     p.check_returncode()
 
-    classify_info = json.loads(p.stdout.decode('ascii'))
+    output = p.stdout.decode('ascii')
+    try:
+        classify_info = json.loads(output)
+    except json.decoder.JSONDecodeError as err:
+        raise ValueError("failed to JSON decode classifier output:\n{}"
+                         .format(output)) from err
+
     logging.info("classify info:\n%s", pformat(classify_info))
     track_info = classify_info['tracks']
 
