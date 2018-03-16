@@ -20,7 +20,6 @@ DOWNLOAD_FILENAME = "recording.cptv"
 SLEEP_SECS = 10
 
 MIN_TRACK_CONFIDENCE = 0.85
-DEFAULT_CONFIDENCE = 0.8
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 
@@ -106,28 +105,39 @@ def classify(recording):
 def calculate_tag(tracks):
     # No tracks found so tag as FALSE_POSITIVE
     if not tracks:
-        return FALSE_POSITIVE, DEFAULT_CONFIDENCE
+        return FALSE_POSITIVE, MIN_TRACK_CONFIDENCE
 
     # Find labels with confidence higher than MIN_TRACK_CONFIDENCE
     candidates = {}
+    tracks = sorted(tracks, key=itemgetter("label"))
     for label, label_tracks in groupby(tracks, itemgetter("label")):
-        confidence = max(t['confidence'] for t in label_tracks)
-        if confidence >= MIN_TRACK_CONFIDENCE:
-            candidates[label] = confidence
+        if label == FALSE_POSITIVE:
+            confidence = MIN_TRACK_CONFIDENCE
+        else:
+            confidence = max(t['confidence'] for t in label_tracks)
+        candidates[label] = confidence
 
     # If there's one label then use that.
     if len(candidates) == 1:
-        return list(candidates.items())[0]
+        return one_candidate(candidates)
 
     # Remove FALSE_POSITIVE if it's there.
     candidates.pop(FALSE_POSITIVE, None)
 
     # If there's one candidate now, use that.
     if len(candidates) == 1:
-        return list(candidates.items())[0]
+        return one_candidate(candidates)
 
     # Not sure.
-    return UNIDENTIFIED, DEFAULT_CONFIDENCE
+    return UNIDENTIFIED, MIN_TRACK_CONFIDENCE
+
+
+def one_candidate(candidates):
+    assert len(candidates) == 1
+    label, confidence = list(candidates.items())[0]
+    if confidence < MIN_TRACK_CONFIDENCE:
+        return UNIDENTIFIED, MIN_TRACK_CONFIDENCE
+    return label, confidence
 
 
 def tag_recording(recording_id, label, confidence):
