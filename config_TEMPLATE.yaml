@@ -9,5 +9,7 @@ s3:
 
 api_url: http://localhost:3002/api/fileProcessing
 
-classify_command_dir: "/path/to/cptv-classify"
+# Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
+classify_command_dir: "/path/to/classifier_pipeline"
+# Relative paths in this command are relative from the classify_command_dir. Should be run using the classifier_pipeline python3.6 virtial environment.
 classify_command: "venv/bin/python classify.py --enable-preview --meta-to-stdout -s {source_dir} -o {output_dir} {source}"
