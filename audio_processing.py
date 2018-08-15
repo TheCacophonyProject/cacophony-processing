@@ -32,7 +32,7 @@ import processing
 SLEEP_SECS = 10
 
 processing.init_logging()
-conf = processing.Config.load("config.yaml")
+conf = processing.Config.load()
 
 # These input MIME types will be converted to mp4
 MIME_TYPES_TO_PROCESS = {

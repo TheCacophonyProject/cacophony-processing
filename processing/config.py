@@ -18,8 +18,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from collections import namedtuple
+from pathlib import Path
 
 import yaml
+
+
+CONFIG_FILENAME = "processing.yaml"
+CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 
 
 configTuple = namedtuple(
@@ -38,7 +43,12 @@ configTuple = namedtuple(
 
 class Config(configTuple):
     @classmethod
-    def load(cls, filename):
+    def load(cls):
+        filename = find_config()
+        return cls.load_from(filename)
+
+    @classmethod
+    def load_from(cls, filename):
         with open(filename) as stream:
             y = yaml.load(stream)
             return cls(
@@ -50,3 +60,11 @@ class Config(configTuple):
                 classify_dir=y["classify_command_dir"],
                 classify_cmd=y["classify_command"],
             )
+
+
+def find_config():
+    for directory in CONFIG_DIRS:
+        p = directory / CONFIG_FILENAME
+        if p.is_file():
+            return str(p)
+    raise FileNotFoundError("no configuration file found")
