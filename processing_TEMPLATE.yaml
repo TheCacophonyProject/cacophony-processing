@@ -1,4 +1,4 @@
-# enter in S3/LeoFS settings and save as config.yaml
+# enter object store and API settings and save as processing.yaml
 ---
 s3:
     access_key_id:

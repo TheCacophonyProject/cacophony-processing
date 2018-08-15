@@ -41,7 +41,7 @@ FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 
 processing.init_logging()
-conf = processing.Config.load("config.yaml")
+conf = processing.Config.load()
 
 
 def classify(recording, api, s3):
