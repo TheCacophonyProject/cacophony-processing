@@ -12,7 +12,6 @@ Currently it supports two kinds of processing:
 2. Converting uploaded audio files to MP3 format (if required). This
    is handled by audio_processing.py
 
-
 ## Configuration
 
 cacophony-processing requires access to the Cacophony API's
@@ -23,19 +22,35 @@ edit as appropriate.
 The processing.yaml file may either be placed in /etc/cacophony or in
 the same directory as the code.
 
+## Running on a developer machine
 
-## Installing & Running
+* Start cacophony-api locally.
+* Copy processing_TEMPLATE.yaml to processing.yaml and edit as appropriate.
+* Create and activate a virtualenv. This virtualenv must use Python 3.5 or later.
+* Install dependencies: `pip install -r requirements.txt`
+* Run `python audio_processing.py` and/or `python thermal_processing.py`.
 
-The processing component requires Python 3. Use of virtualenv is highly recommended.
+## Creating releases
 
-Install dependencies like this:
+In order to create releases you'll need to install number of packages:
 
 ```
-pip install -r requirements.txt
+apt install dh-virtualenv devscripts
 ```
 
-Run like this:
+To create a new release:
 
-```
-python thermal_processing.py
-```
+* Ensure all work has been merged and your working copy has all the
+  changes to be released.
+* Increment the version in the changelog, for example: `dch -v 1.4`.
+  This will open an editor. Add a dummy comment like "1.4 release"
+  and then save and exit.
+* Finalise the release: `dch --release ""`
+* Commit the changelog change.
+* Tag the release with an annotated tag. For example:
+  `git tag -a "v1.4" -m "1.4 release"`
+* Push the tag to Github: `git push --tags origin`
+* Build the release: `dpkg-buildpackage -us -uc -tc`
+* The resulting deb package ends up in the parent directory.
+* Upload the relevant file to the Github release at
+  https://github.com/TheCacophonyProject/cacophony-processing/releases

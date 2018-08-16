@@ -1,0 +1,12 @@
+[Unit]
+Description=Cacophony Project audio upload processing
+After=network.target
+
+[Service]
+ExecStart=/srv/cacophony/cacophony-processing/bin/audio_processing.py
+Restart=on-failure
+User=fullnoise
+Group=fullnoise
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=Cacophony Project thermal upload processing
+After=network.target
+
+[Service]
+ExecStart=/srv/cacophony/cacophony-processing/bin/thermal_processing.py
+Restart=on-failure
+User=fullnoise
+Group=fullnoise
+
+[Install]
+WantedBy=multi-user.target
