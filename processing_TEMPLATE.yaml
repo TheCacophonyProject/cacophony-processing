@@ -9,6 +9,8 @@ s3:
 
 api_url: http://localhost:3002/api/fileProcessing
 
+classify: False
+
 # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
 classify_command_dir: "/path/to/classifier_pipeline"
 # Relative paths in this command are relative from the classify_command_dir. Should be run using the classifier_pipeline python3.6 virtual environment.

@@ -47,6 +47,29 @@ class API:
         r = requests.put(self.url, data=params)
         r.raise_for_status()
 
+    def update_metadata(self, recording, fieldUpdates, completed):
+        params = {
+            "id": recording["id"],
+            "jobKey": recording["jobKey"],
+            "success": True,
+            "result": json.dumps({"fieldUpdates": fieldUpdates}),
+            "complete": completed
+        }
+        r = requests.put(self.url, data=params)
+        r.raise_for_status()
+
+
+    def report_done(self, recording, newKey, newMimeType):
+        params = {
+            "id": recording["id"],
+            "jobKey": recording["jobKey"],
+            "success": True,
+            "newProcessedFileKey": newKey,
+            "result": json.dumps({"fieldUpdates": {"fileMimeType": newMimeType}}),
+        }
+        r = requests.put(self.url, data=params)
+        r.raise_for_status()
+
     def tag_recording(self, recording, label, confidence):
         tag = {"automatic": True, "confidence": confidence}
 
@@ -62,3 +85,5 @@ class API:
             data={"recordingId": recording["id"], "tag": json.dumps(tag)},
         )
         r.raise_for_status()
+
+
