@@ -131,14 +131,15 @@ def update_metadata(recording, api):
         reader = CPTVReader(f)
         metadata = {}
         metadata["recordingDateTime"] = reader.timestamp.isoformat()
-        # Add device name when it can be processed on api server
+        # TODO Add device name when it can be processed on api server
         # metadata["device_name"] = reader.device_name
 
         count = 0.0
         for frame in reader:
             count += 1
         metadata["duration"] = round(count / FRAME_RATE)
-    api.update_metadata(recording, metadata, not conf.do_classify)
+    complete = not conf.do_classify
+    api.update_metadata(recording, metadata, complete)
 
 
 def main():
