@@ -29,12 +29,14 @@ from itertools import groupby
 from operator import itemgetter
 from pprint import pformat
 from pathlib import Path
+from cptv import CPTVReader
 
 import processing
 
 
 DOWNLOAD_FILENAME = "recording.cptv"
 SLEEP_SECS = 10
+FRAME_RATE = 9
 
 MIN_TRACK_CONFIDENCE = 0.85
 FALSE_POSITIVE = "false-positive"
@@ -124,6 +126,21 @@ def one_candidate(candidates):
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
+def update_metadata(recording, api):
+    with open(recording["filename"], "rb") as f:
+        reader = CPTVReader(f)
+        metadata = {}
+        metadata["recordingDateTime"] = reader.timestamp.isoformat()
+        # TODO Add device name when it can be processed on api server
+        # metadata["device_name"] = reader.device_name
+
+        count = 0.0
+        for frame in reader:
+            count += 1
+        metadata["duration"] = round(count / FRAME_RATE)
+    complete = not conf.do_classify
+    api.update_metadata(recording, metadata, complete)
+
 
 def main():
     api = processing.API(conf.api_url)
@@ -131,7 +148,7 @@ def main():
 
     while True:
         try:
-            recording = api.next_job("thermalRaw", "toMp4")
+            recording = api.next_job("thermalRaw", "getMetadata")
             if recording:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     filename = Path(temp_dir) / DOWNLOAD_FILENAME
@@ -139,7 +156,10 @@ def main():
                     logging.info("downloading recording:\n%s", pformat(recording))
                     s3.download(recording["rawFileKey"], str(filename))
 
-                    classify(recording, api, s3)
+                    update_metadata(recording, api)
+
+                    if (conf.do_classify):
+                        classify(recording, api, s3)
             else:
                 time.sleep(SLEEP_SECS)
         except KeyboardInterrupt:

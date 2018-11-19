@@ -36,6 +36,18 @@ class API:
         r.raise_for_status()
         return r.json()["recording"]
 
+    def update_metadata(self, recording, fieldUpdates, completed):
+        params = {
+            "id": recording["id"],
+            "jobKey": recording["jobKey"],
+            "success": completed,
+            "result": json.dumps({"fieldUpdates": fieldUpdates}),
+            "complete": completed
+        }
+        r = requests.put(self.url, data=params)
+        r.raise_for_status()
+
+
     def report_done(self, recording, newKey, newMimeType):
         params = {
             "id": recording["id"],
@@ -62,3 +74,5 @@ class API:
             data={"recordingId": recording["id"], "tag": json.dumps(tag)},
         )
         r.raise_for_status()
+
+
