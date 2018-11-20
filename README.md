@@ -42,11 +42,14 @@ To create a new release:
 
 * Ensure all work has been merged and your working copy has all the
   changes to be released.
+* Update the version number in setup.py to the new number.
 * Increment the version in the changelog, for example: `dch -v 1.4`.
   This will open an editor. Add a dummy comment like "1.4 release"
   and then save and exit.
 * Finalise the release: `dch --release ""`
-* Commit the changelog change.
+* Commit these changes.
+* Merge these changes into master via a pull request.
+* Update your local branch: `git pull origin master`
 * Tag the release with an annotated tag. For example:
   `git tag -a "v1.4" -m "1.4 release"`
 * Push the tag to Github: `git push --tags origin`
