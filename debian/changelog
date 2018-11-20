@@ -1,8 +1,8 @@
-cacophony-processing (1.6) xenial; urgency=medium
+cacophony-processing (0.4.0) xenial; urgency=medium
 
-  * Released changes processing including metadata
+  * 0.4.0 release
 
- -- Clare McLennan <clare@ubuntu-c>  Mon, 19 Nov 2018 16:10:08 +1300
+ -- Menno Finlay-Smits <menno@localhost>  Wed, 21 Nov 2018 10:52:40 +1300
 
 cacophony-processing (0.3.1) xenial; urgency=medium
 

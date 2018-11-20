@@ -127,7 +127,7 @@ def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
 def update_metadata(recording, api):
-    with open(recording["filename"], "rb") as f:
+    with open(str(recording["filename"]), "rb") as f:
         reader = CPTVReader(f)
         metadata = {}
         metadata["recordingDateTime"] = reader.timestamp.isoformat()
@@ -135,7 +135,7 @@ def update_metadata(recording, api):
         # metadata["device_name"] = reader.device_name
 
         count = 0.0
-        for frame in reader:
+        for _ in reader:
             count += 1
         metadata["duration"] = round(count / FRAME_RATE)
     complete = not conf.do_classify

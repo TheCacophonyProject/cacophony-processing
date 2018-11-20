@@ -60,7 +60,7 @@ class Config(configTuple):
                 api_url=y["api_url"],
                 classify_dir=y["classify_command_dir"],
                 classify_cmd=y["classify_command"],
-                do_classify=y["do_classify"],
+                do_classify=y.get("do_classify", True),
             )
 
 
