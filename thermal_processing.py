@@ -126,15 +126,20 @@ def one_candidate(candidates):
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
+
 def update_metadata(recording, api):
     with open(str(recording["filename"]), "rb") as f:
         reader = CPTVReader(f)
         metadata = {}
         metadata["recordingDateTime"] = reader.timestamp.isoformat()
+
         # TODO Add device name when it can be processed on api server
         # metadata["device_name"] = reader.device_name
 
-        count = 0.0
+        if reader.preview_secs:
+            metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
+
+        count = 0
         for _ in reader:
             count += 1
         metadata["duration"] = round(count / FRAME_RATE)
@@ -158,7 +163,7 @@ def main():
 
                     update_metadata(recording, api)
 
-                    if (conf.do_classify):
+                    if conf.do_classify:
                         classify(recording, api, s3)
             else:
                 time.sleep(SLEEP_SECS)
