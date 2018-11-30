@@ -48,13 +48,14 @@ class API:
         r.raise_for_status()
 
 
-    def report_done(self, recording, newKey, newMimeType):
+    def report_done(self, recording, newKey, newMimeType, metadata = {}):
+        metadata["fileMimeType"] = newMimeType
         params = {
             "id": recording["id"],
             "jobKey": recording["jobKey"],
             "success": True,
             "newProcessedFileKey": newKey,
-            "result": json.dumps({"fieldUpdates": {"fileMimeType": newMimeType}}),
+            "result": json.dumps({"fieldUpdates": metadata}),
         }
         r = requests.put(self.url, data=params)
         r.raise_for_status()
