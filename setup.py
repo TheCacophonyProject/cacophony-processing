@@ -10,7 +10,7 @@ Project API, performing post-upload processing tasks.
 
 setuptools.setup(
     name="cacophony-processing",
-    version="0.4.0",
+    version="0.5.0",
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     maintainer=AUTHOR,
