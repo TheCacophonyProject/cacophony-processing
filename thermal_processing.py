@@ -42,10 +42,6 @@ MIN_TRACK_CONFIDENCE = 0.85
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 
-processing.init_logging()
-conf = processing.Config.load()
-
-
 def classify(recording, api, s3):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
@@ -167,6 +163,10 @@ def update_metadata(recording, api):
 
 
 def main():
+    processing.init_logging()
+    global conf
+    conf = processing.Config.load()
+
     api = processing.API(conf.api_url)
     s3 = processing.S3(conf)
 
