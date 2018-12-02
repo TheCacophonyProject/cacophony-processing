@@ -68,7 +68,6 @@ def classify(recording, api, s3):
             "failed to JSON decode classifier output:\n{}".format(output)
         ) from err
 
-    logging.info("classify info:\n%s", pformat(classify_info))
     track_info = classify_info["tracks"]
 
     # Auto tag the video
@@ -76,13 +75,32 @@ def classify(recording, api, s3):
     logging.info("tag: %s (%.2f)", tag, confidence)
     api.tag_recording(recording, tag, confidence)
 
+    formated_tracks = format_track_data(track_info)
+    logging.info("classify info:\n%s", pformat(formated_tracks))
+
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
     logging.info("uploading %s", video_filename)
     new_key = s3.upload(video_filename)
 
-    api.report_done(recording, new_key, "video/mp4")
+    metadata = {"additionalMetadata": {"tracks" : formated_tracks}}
+    api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
+
+def format_track_data(tracks):
+    if not tracks:
+        return {}
+
+    for track in tracks:
+        del track['start_time']
+        del track['end_time']
+        track['start_s'] = round(float(track['frame_start'])/FRAME_RATE, 1)
+        track['end_s'] = round(float(track['frame_start'] + track['frames'] - 1)/FRAME_RATE, 1)
+        del track['frame_start']
+        del track['frames']
+    return tracks
+
+
 
 
 def calculate_tag(tracks):
@@ -145,6 +163,7 @@ def update_metadata(recording, api):
         metadata["duration"] = round(count / FRAME_RATE)
     complete = not conf.do_classify
     api.update_metadata(recording, metadata, complete)
+    logging.info("Metadata updated")
 
 
 def main():
