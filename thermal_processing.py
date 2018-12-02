@@ -94,8 +94,8 @@ def format_track_data(tracks):
     for track in tracks:
         del track['start_time']
         del track['end_time']
-        track['s_start'] = round(float(track['frame_start'])/FRAME_RATE, 1)
-        track['s_end'] = round(float(track['frame_start'] + track['frames'] - 1)/FRAME_RATE, 1)
+        track['start_s'] = round(float(track['frame_start'])/FRAME_RATE, 1)
+        track['end_s'] = round(float(track['frame_start'] + track['frames'] - 1)/FRAME_RATE, 1)
         del track['frame_start']
         del track['frames']
     return tracks
