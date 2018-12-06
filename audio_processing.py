@@ -51,9 +51,8 @@ def process(recording, api, s3):
     newMetadata = {}
 
     if not input_extension:
-        # Nothing to do so just mirror the raw key and MIME type to
-        # the processes column.
-        print("no processing required, mirroring raw key to processed key")
+        # Unsupported mimetype. If needed more mimetypes can be added above.
+        print("unsupported mimetype. Not processing")
         api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
 
@@ -74,9 +73,9 @@ def process(recording, api, s3):
     api.report_done(recording, new_key, new_mime_type, newMetadata)
     logging.info("Finished processing")
 
-def normalize(data, maxAmp):
+def normalize(data, max_amp):
     a = 1.0/data.max()
-    a = min(a, maxAmp)
+    a = min(a, max_amp)
     data *= a
     return a
 
