@@ -25,12 +25,10 @@ import subprocess
 import tempfile
 import time
 import traceback
-from itertools import groupby
-from operator import itemgetter
 from pprint import pformat
 from pathlib import Path
 from cptv import CPTVReader
-
+from processing.tagger import calculate_tags
 import processing
 
 
@@ -67,10 +65,12 @@ def classify(recording, api, s3):
     track_info = classify_info["tracks"]
 
     # Auto tag the video
-    tag, confidence = calculate_tag(track_info)
-    logging.info("tag: %s (%.2f)", tag, confidence)
-    api.tag_recording(recording, tag, confidence)
+    tags = calculate_tags(track_info, conf)
+    for tag in tags.keys():
+        logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
+        api.tag_recording(recording, tag, tags[tag])
 
+    # format track data for GUI
     formated_tracks = format_track_data(track_info)
     logging.info("classify info:\n%s", pformat(formated_tracks))
 
@@ -96,47 +96,6 @@ def format_track_data(tracks):
         del track['num_frames']
     return tracks
 
-
-
-
-def calculate_tag(tracks):
-    # No tracks found so tag as FALSE_POSITIVE
-    if not tracks:
-        return FALSE_POSITIVE, MIN_TRACK_CONFIDENCE
-
-    # Find labels with confidence higher than MIN_TRACK_CONFIDENCE
-    candidates = {}
-    tracks = sorted(tracks, key=itemgetter("label"))
-    for label, label_tracks in groupby(tracks, itemgetter("label")):
-        if label == FALSE_POSITIVE:
-            confidence = MIN_TRACK_CONFIDENCE
-        else:
-            confidence = max(t["confidence"] for t in label_tracks)
-        candidates[label] = confidence
-
-    # If there's one label then use that.
-    if len(candidates) == 1:
-        return one_candidate(candidates)
-
-    # Remove FALSE_POSITIVE if it's there.
-    candidates.pop(FALSE_POSITIVE, None)
-
-    # If there's one candidate now, use that.
-    if len(candidates) == 1:
-        return one_candidate(candidates)
-
-    # Not sure.
-    return UNIDENTIFIED, MIN_TRACK_CONFIDENCE
-
-
-def one_candidate(candidates):
-    assert len(candidates) == 1
-    label, confidence = list(candidates.items())[0]
-    if confidence < MIN_TRACK_CONFIDENCE:
-        return UNIDENTIFIED, MIN_TRACK_CONFIDENCE
-    return label, confidence
-
-
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
@@ -151,7 +110,7 @@ def update_metadata(recording, api):
         # metadata["device_name"] = reader.device_name
 
         if reader.preview_secs:
-            metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
+            metadata["additionalMetadata"] = {"Preview secs": reader.preview_secs}
 
         count = 0
         for _ in reader:

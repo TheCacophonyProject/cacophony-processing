@@ -16,3 +16,19 @@ classify: True
 classify_command_dir: "/path/to/classifier_pipeline"
 # Relative paths in this command are relative from the classify_command_dir. Should be run using the classifier_pipeline python3.6 virtual environment.
 classify_command: "venv/bin/python classify.py --enable-preview --meta-to-stdout -s {source_dir} -o {output_dir} {source}"
+
+tagging:
+    # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
+    min_confidence: .4
+
+    # This is the minimum confidence a track should have in order to tag as animal
+    min_tag_confidence: .8
+
+    # This is the minimum confidence a track should have in order to tag it as the chosen animal
+    max_tag_novelty: .6
+
+    # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
+    min_tag_clarity: .2
+
+    # This is the minimum length of a track.
+    min_frames: 3

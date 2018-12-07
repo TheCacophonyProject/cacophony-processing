@@ -60,8 +60,9 @@ class API:
         r = requests.put(self.url, data=params)
         r.raise_for_status()
 
-    def tag_recording(self, recording, label, confidence):
-        tag = {"automatic": True, "confidence": confidence}
+    def tag_recording(self, recording, label, metadata):
+        tag = metadata
+        tag["automatic"] = True
 
         # Convert "false positive" to API representation.
         if label == FALSE_POSITIVE:

@@ -38,9 +38,13 @@ configTuple = namedtuple(
         "classify_dir",
         "classify_cmd",
         "do_classify",
+        "min_confidence",
+        "min_tag_confidence",
+        "max_tag_novelty",
+        "min_tag_clarity",
+        "min_frames"
     ],
 )
-
 
 class Config(configTuple):
     @classmethod
@@ -61,8 +65,11 @@ class Config(configTuple):
                 classify_dir=y["classify_command_dir"],
                 classify_cmd=y["classify_command"],
                 do_classify=y.get("do_classify", True),
-            )
-
+                min_confidence=y["tagging"]["min_confidence"],
+                min_tag_confidence=y["tagging"]["min_tag_confidence"],
+                max_tag_novelty=y["tagging"]["max_tag_novelty"],
+                min_tag_clarity=y["tagging"]["min_tag_clarity"],
+                min_frames=y["tagging"]["min_frames"])
 
 def find_config():
     for directory in CONFIG_DIRS:
