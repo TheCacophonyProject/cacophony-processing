@@ -1,3 +1,9 @@
+cacophony-processing (0.6.0) xenial; urgency=medium
+
+  * 0.6.0 release
+
+ -- Menno Finlay-Smits <menno@localhost>  Fri, 07 Dec 2018 15:21:50 +1300
+
 cacophony-processing (0.5.0) xenial; urgency=medium
 
   * 0.5.0 release
