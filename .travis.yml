@@ -1,11 +1,27 @@
 dist: xenial
-
 language: python
 python:
-  - "3.6"
+- '3.6'
 
 install:
- - pip install -r requirements.txt
+- pip install -r requirements.txt
 
 script:
- - pytest
+- pytest
+
+before_deploy:
+- "pip install pex"
+- "mkdir -p /tmp/x"
+- "curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz | tar -C /tmp/x -xzf -"
+- "PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}"
+
+deploy:
+  provider: releases
+  api_key:
+    secure: az49+PeDdyovj/E1GqgcBLfBwQPP6Qo29l8cnGxUvegpwqnEgvLJxJtamvEShos29CZs/9lFy524wbUVNoC/1ITzdi54bO+C7G+aBRaERPL8Ud6aH5hZXHGPFBHV9NC777EJKenC9D0QKC5uOt8EOpmmkSrr/MLe/K+i2qd+yVFZp6rZ/6y6i08Ddvi+cGmmF948QGppdCpwlHZI7Q7/XZ7pLgt3jT2vWhPJUnDfdDyDquX536ehX/jtIKhvapqFXRqcZQQV0UMDW33Kl4/aMF2y0Djm3SBuTOSgAAfHmHKubCuB2EvM+jzB1hisUozW7eZd3JYGZwzpgWiljfmBULnZWQOLK4dn89IPr0MpGaXyLSMkkmiBoYnFmHD73Y1xi4snhxc/hxiPfdlx7/7jBgSUhMQTyDidDNMPNRDUz9wQMj5LffxKDdBK/k+mw9kDnyICZ3fJ7Hf4767C2Nz6K80gKOlWXO3Cd7hJHi2e8jsVKcZPPphe7dKOdQIFiScSYEupFjFPJ+hl5e50A/gyYRmWwk1hZ41fxZlMp9T3F2w6cf0GYN/NeK9CJARjy54gxhuRdr68RRI/FEjwaJ+UdO08wtJN0Q9ArK0tgCSq/ifT8CJS6Swr+WOB94pNXtReeNTd0bk2omDvEgaG5T0WAq9BH2cFGff0965OEPsoL6Q=
+  skip_cleanup: true
+  file_glob: true
+  file: "build/*.deb"
+  on:
+    repo: TheCacophonyProject/cacophony-processing
+    tags: true
