@@ -1,0 +1,24 @@
+name: "cacophony-processing"
+arch: "amd64"
+platform: "linux"
+version: "0.0.0"
+maintainer: "Cacophony Developers <dev@cacophony.org.nz>"
+description: |
+  Server side component that runs alongside the Cacophony
+  Project API, performing post-upload processing tasks.
+vendor: "The Cacophony Project"
+homepage: https://github.com/TheCacophonyProject
+license: "GPLv3"
+
+overrides:
+  deb:
+    depends:
+      - python3.6
+
+files:
+  build/cacophony-processing.pex: "/usr/bin/cacophony-processing.pex"
+  _release/cacophony-processing.thermal@.service: "/etc/systemd/system/cacophony-processing.thermal@.service"
+  _release/cacophony-processing.audio@.service: "/etc/systemd/system/cacophony-processing.audio@.service"
+
+config_files:
+  processing_TEMPLATE.yaml: "/etc/cacophony/processing.yaml"

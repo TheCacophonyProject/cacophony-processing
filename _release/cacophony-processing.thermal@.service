@@ -3,7 +3,7 @@ Description=Cacophony Project thermal upload processing
 After=network.target
 
 [Service]
-ExecStart=/srv/cacophony/cacophony-processing/bin/thermal_processing.py
+ExecStart=/usr/bin/cacophony-processing.pex -m thermal_processing
 Restart=on-failure
 User=fullnoise
 Group=fullnoise

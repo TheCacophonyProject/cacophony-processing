@@ -24,52 +24,60 @@ import subprocess
 import tempfile
 import time
 import traceback
+import librosa
+import mimetypes
 from pprint import pformat
 from pathlib import Path
 
 import processing
 
 SLEEP_SECS = 10
+MAX_AMPLIFICATION = 20
 
 processing.init_logging()
 conf = processing.Config.load()
 
-# These input MIME types will be converted to mp4
-MIME_TYPES_TO_PROCESS = {
-    "video/3gpp": "3gpp",
-    "audio/3gpp": "3gpp",
-    "audio/wav": "wav",
-    "audio/x-flac": "flac",
-}
+mimetypes.add_type("audio/mp4", '.mp3')
+mimetypes.add_type("video/3gpp", '.3gpp')
+mimetypes.add_type("audio/3gpp", '.3gpp')
+mimetypes.add_type("audio/wav", '.wav')
+mimetypes.add_type("audio/x-flac", '.flac')
 
 BIT_RATE = "128k"
 
 
 def process(recording, api, s3):
-    input_extension = MIME_TYPES_TO_PROCESS.get(recording["rawMimeType"])
+    input_extension = mimetypes.guess_extension(recording["rawMimeType"])
+    newMetadata = {}
 
     if not input_extension:
-        # Nothing to do so just mirror the raw key and MIME type to
-        # the processes column.
-        print("no processing required, mirroring raw key to processed key")
+        # Unsupported mimetype. If needed more mimetypes can be added above.
+        print("unsupported mimetype. Not processing")
         api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
 
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
-        input_filename = temp_path / ("recording." + input_extension)
-
+        input_filename = temp_path / ("recording" + input_extension)
+        wav_filename = temp_path / "output.wav"
         logging.info("downloading recording to %s", input_filename)
         s3.download(recording["rawFileKey"], str(input_filename))
-
-        output_filename, new_mime_type = encode_file(input_filename)
-
+        data, sr = librosa.core.load(str(input_filename), sr=None)
+        amplification = normalize(data, MAX_AMPLIFICATION)
+        newMetadata["additionalMetadata"] = { "amplification": amplification }
+        librosa.output.write_wav(str(wav_filename), data, sr)
+        output_filename, new_mime_type = encode_file(wav_filename)
         logging.info("uploading from %s", output_filename)
         new_key = s3.upload(str(output_filename))
 
-    api.report_done(recording, new_key, new_mime_type)
+    api.report_done(recording, new_key, new_mime_type, newMetadata)
     logging.info("Finished processing")
 
+def normalize(data, max_amp):
+    a = 1.0/data.max()
+    a = min(a, max_amp)
+    data *= a
+    return a
 
 def encode_file(input_filename):
     output_filename = replace_ext(input_filename, ".mp3")
