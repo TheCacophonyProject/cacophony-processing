@@ -3,9 +3,7 @@ arch: "amd64"
 platform: "linux"
 version: "0.0.0"
 maintainer: "Cacophony Developers <dev@cacophony.org.nz>"
-description: |
-  Server side component that runs alongside the Cacophony
-  Project API, performing post-upload processing tasks.
+description: "Server side component that runs alongside the Cacophony Project API, performing post-upload processing tasks."
 vendor: "The Cacophony Project"
 homepage: https://github.com/TheCacophonyProject
 license: "GPLv3"
