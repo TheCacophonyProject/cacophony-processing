@@ -1,4 +1,4 @@
-from processing.tagger import findSignificantTracks, calculate_tags, FALSE_POSITIVE, UNIDENTIFIED, MESSAGE, CONFIDENCE
+from processing.tagger import findSignificantTracks, calculate_tags, MULTIPLE, FALSE_POSITIVE, UNIDENTIFIED, MESSAGE, CONFIDENCE
 import json
 import processing
 
@@ -9,13 +9,14 @@ class TestTagCalculations:
   conf.max_tag_novelty = .6
   conf.min_tag_clarity = .1
   conf.min_frames = 4
+  time = -2
 
   def test_no_tracks(self):
-    assert self.getTags([]) == {FALSE_POSITIVE: {CONFIDENCE: 0.85}}
+    assert self.getTags([]) == falsePositiveResult()
 
   def test_one_false_positive_track(self):
     falsy = self.createGoodTrack(FALSE_POSITIVE)
-    assert self.getTags([falsy]) == {FALSE_POSITIVE: {CONFIDENCE: 0.85}}
+    assert self.getTags([falsy]) == falsePositiveResult()
 
   def test_one_track(self):
     goodRatty = self.createGoodTrack("rat")
@@ -25,8 +26,7 @@ class TestTagCalculations:
     shortRatty = self.createGoodTrack("rat")
     shortRatty["num_frames"] = 2
     shortRatty[CONFIDENCE] = .65
-    assert self.getTags([shortRatty]) == {FALSE_POSITIVE: {CONFIDENCE: 0.85}};
-
+    assert self.getTags([shortRatty]) == falsePositiveResult()
 
   def test_one_track_middle_confidence(self):
     rat = self.createGoodTrack("rat")
@@ -37,7 +37,7 @@ class TestTagCalculations:
   def test_one_track_poor_confidence(self):
     poorRatty = self.createGoodTrack("rat")
     poorRatty[CONFIDENCE] = 0.3
-    assert self.getTags([poorRatty]) == {FALSE_POSITIVE: {CONFIDENCE: 0.85}}
+    assert self.getTags([poorRatty]) == falsePositiveResult()
     assert poorRatty[MESSAGE] == "Very low confidence - ignore"
 
   def test_one_track_poor_clarity_gives_unidentified(self):
@@ -97,6 +97,53 @@ class TestTagCalculations:
     falsy = self.createGoodTrack(FALSE_POSITIVE)
     assert self.getTags([ratty1, falsy]) == {UNIDENTIFIED: {CONFIDENCE: 0.85}}
 
+  def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
+    ratty1 = self.createGoodTrack("rat")
+    ratty2 = self.createGoodTrack("rat")
+    ratty1["start_s"] = 5
+    ratty1["end_s"] = 8
+    ratty2["start_s"] = 3
+    ratty2["end_s"] = 7
+    ratty2[CONFIDENCE] = .6
+    assert self.getTags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.6}
+
+
+  def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
+    ratty1 = self.createGoodTrack("rat")
+    ratty2 = self.createGoodTrack("rat")
+    ratty1["start_s"] = 5
+    ratty1["end_s"] = 8
+    ratty2["start_s"] = 3
+    ratty2["end_s"] = 7
+    ratty2[CONFIDENCE] = .6
+    assert self.getTags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.6}
+
+  def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
+    ratty1 = self.createGoodTrack("rat")
+    ratty2 = self.createGoodTrack("rat")
+    ratty1["start_s"] = 5
+    ratty1["end_s"] = 8
+    ratty2["start_s"] = 3
+    ratty2["end_s"] = 7
+    ratty2[CONFIDENCE] = .6
+    assert self.getTags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.6}
+
+  def test_not_first_tracks_overlap(self):
+    ratty1 = self.createGoodTrack("rat")
+    ratty2 = self.createGoodTrack("rat")
+    ratty3 = self.createGoodTrack("rat")
+    ratty1["start_s"] = 1
+    ratty1["end_s"] = 8
+    ratty1[CONFIDENCE] = .9
+    ratty2["start_s"] = 5
+    ratty2["end_s"] = 8
+    ratty2[CONFIDENCE] = .6
+    ratty3["start_s"] = 7
+    ratty3["end_s"] = 11
+    ratty2[CONFIDENCE] = .7
+    assert self.getTags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.7}
+
+
   # def test_multi_false_positive(self):
   #     assert calculate_tag(
   #         [
@@ -123,9 +170,14 @@ class TestTagCalculations:
     return calculate_tags(tracks, self.conf)
 
   def createGoodTrack(self, animal):
+    self.time += 3
     return {"label": animal,
         CONFIDENCE: 0.9,
         "clarity": 0.2,
         "average_novelty": 0.5,
-        "num_frames": 10}
+        "num_frames": 18,
+        "start_s": self.time,
+        "end_s": self.time + 2}
 
+def falsePositiveResult():
+  return {FALSE_POSITIVE: {"event": FALSE_POSITIVE, CONFIDENCE: 0.85}}

@@ -63,15 +63,15 @@ def classify(recording, api, s3):
         ) from err
 
     track_info = classify_info["tracks"]
+    formated_tracks = format_track_data(track_info)
 
     # Auto tag the video
-    tags = calculate_tags(track_info, conf)
+    tags = calculate_tags(formated_tracks, conf)
     for tag in tags.keys():
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         api.tag_recording(recording, tag, tags[tag])
 
     # format track data for GUI
-    formated_tracks = format_track_data(track_info)
     logging.info("classify info:\n%s", pformat(formated_tracks))
 
     # Upload mp4
@@ -93,7 +93,6 @@ def format_track_data(tracks):
         track['start_s'] = round(float(track['frame_start'])/FRAME_RATE, 1)
         track['end_s'] = round(float(track['frame_start'] + track['num_frames'] - 1)/FRAME_RATE, 1)
         del track['frame_start']
-        del track['num_frames']
     return tracks
 
 def replace_ext(filename, ext):

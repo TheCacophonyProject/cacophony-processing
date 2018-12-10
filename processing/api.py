@@ -21,8 +21,6 @@ import json
 
 import requests
 
-FALSE_POSITIVE = "false-positive"
-
 
 class API:
     def __init__(self, url):
@@ -65,9 +63,7 @@ class API:
         tag["automatic"] = True
 
         # Convert "false positive" to API representation.
-        if label == FALSE_POSITIVE:
-            tag["event"] = "false positive"
-        else:
+        if not "event" in metadata:
             tag["event"] = "just wandering about"
             tag["animal"] = label
 
