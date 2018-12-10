@@ -3,3 +3,4 @@ PyYAML~=3.12
 requests~=2.20.0
 cptv~=0.3.0
 librosa~=0.6.2
+setuptools~=40.6.2
