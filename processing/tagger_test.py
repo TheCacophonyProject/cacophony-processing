@@ -77,18 +77,23 @@ class TestTagCalculations:
     hedgehog[CONFIDENCE] = 0.35
     assert self.getTags([ratty, hedgehog]) == {"rat": {CONFIDENCE: 0.9}}
 
-
   def test_multi_track_same_animal_and_poor_confidence_gives_one_tags(self):
-    # Is this the right result given they are both rats?!!
+    ratty1 = self.createGoodTrack("rat")
+    ratty2 = self.createGoodTrack("rat")
+    ratty2[CONFIDENCE] = 0.3
+    assert self.getTags([ratty1, ratty2]) == {"rat": {CONFIDENCE: 0.9}}
+
+  def test_multi_track_same_animal_one_poor_confidence_good_clarity(self):
     ratty1 = self.createGoodTrack("rat")
     ratty2 = self.createGoodTrack("rat")
     ratty2[CONFIDENCE] = 0.6
-    assert self.getTags([ratty1, ratty2]) == {"rat": {CONFIDENCE: 0.9}, UNIDENTIFIED: {CONFIDENCE: 0.85}}
+    ratty2["clarity"] = 0.06
+    assert self.getTags([ratty1, ratty2]) == {"rat": {CONFIDENCE: 0.9}}
 
-  def test_multi_track_animal_and_inconclusive_gives_two_tags(self):
+  def test_multi_track_same_animal_but_poor_clarity(self):
     ratty1 = self.createGoodTrack("rat")
     ratty2 = self.createGoodTrack("rat")
-    ratty2["clarity"] = 0.02
+    ratty2["clarity"] = 0.01
     assert self.getTags([ratty1, ratty2]) == {"rat": {CONFIDENCE: 0.9}, UNIDENTIFIED: {CONFIDENCE: 0.85}}
 
   def test_multi_track_ignores_false_positives_if_animal(self):
@@ -180,4 +185,4 @@ class TestTagCalculations:
         "end_s": self.time + 2}
 
 def falsePositiveResult():
-  return {FALSE_POSITIVE: {"event": FALSE_POSITIVE, CONFIDENCE: 0.85}}
+  return {FALSE_POSITIVE: {"event": "false positive", CONFIDENCE: 0.85}}

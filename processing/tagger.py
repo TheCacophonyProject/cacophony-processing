@@ -1,34 +1,44 @@
 from operator import itemgetter
 from itertools import groupby
 
-MIN_TRACK_CONFIDENCE = 0.85
+DEFAULT_CONFIDENCE = 0.85
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 STATUS = "status"
+CLARITY = "clarity"
 
 MESSAGE = 'message'
 CONFIDENCE = 'confidence'
+FALSE_POSITIVE_TAG = {"event": "false positive", CONFIDENCE: DEFAULT_CONFIDENCE}
+
 
 def calculate_tags(tracks, conf):
   # No tracks found so tag as FALSE_POSITIVE
   tags = {}
   if not tracks:
-    tags[FALSE_POSITIVE] = {"event": FALSE_POSITIVE, CONFIDENCE: MIN_TRACK_CONFIDENCE}
+    tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
     return tags
 
   toBeTagged, unknowns = findSignificantTracks(tracks, conf)
 
-  if len(unknowns) > 0:
-    tags[UNIDENTIFIED] = {CONFIDENCE: MIN_TRACK_CONFIDENCE}
-
+  # definites
   sortedTags = sorted(toBeTagged, key=itemgetter("label"))
   for label, label_tracks in groupby(toBeTagged, itemgetter("label")):
     confidence = max(t[CONFIDENCE] for t in label_tracks)
     tags[label] = {CONFIDENCE: confidence}
 
+  # unknowns
+  for track in unknowns:
+    if track[CLARITY] > .5 * conf.min_tag_clarity / 2 and track["label"] in tags:
+      continue  # other tracks have same animal so lets assume it's correct
+    else:
+      # there might be something else going on here...
+      tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
+      break
+
   if len(tags) == 0:
-    tags[FALSE_POSITIVE] = {"event": FALSE_POSITIVE, CONFIDENCE: MIN_TRACK_CONFIDENCE}
+    tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
   else:
     multipleConfidence = multipleAnimalConfidence(toBeTagged, unknowns)
     if multipleConfidence > conf.min_confidence:
@@ -45,12 +55,12 @@ def findSignificantTracks(tracks, conf):
   for track in tracks:
     if track['confidence'] < conf.min_confidence:
       track[MESSAGE] = "Very low confidence - ignore"
-    elif track["label"] == FALSE_POSITIVE and track["clarity"] > conf.min_tag_clarity / 2:
+    elif track["label"] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity / 2:
       continue
     else:
       if track[CONFIDENCE] < conf.min_tag_confidence:
         track[MESSAGE] = "Low confidence - no tag"
-      elif track["clarity"] < conf.min_tag_clarity:
+      elif track[CLARITY] < conf.min_tag_clarity:
         track[MESSAGE] = "Confusion between two classes (similar confidence)"
       elif track["average_novelty"] > conf.max_tag_novelty:
         track[MESSAGE] = "High novelty"
