@@ -55,7 +55,7 @@ def find_significant_tracks(tracks, conf):
     if track['confidence'] < conf.min_confidence:
       track[MESSAGE] = "Very low confidence - ignore"
     # Use secondary clarity here as guessing it is less likely to confuse a false positive with an animal.
-    elif track["label"] == FALSE_POSITIVE and track[CLARITY] > min_tag_clarity_secondary:
+    elif track["label"] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity_secondary:
       continue
     else:
       if track[CONFIDENCE] < conf.min_tag_confidence:
@@ -70,7 +70,7 @@ def find_significant_tracks(tracks, conf):
         continue
 
       if track["num_frames"] < conf.min_frames:
-        # Ignore min_frames if we are sure we know what it is else throw it away
+        # If we have clear identication keep the track, else ignore it if it is short
         track[MESSAGE] = "Short track"
       else:
         unclear_animals.append(track)
