@@ -109,7 +109,7 @@ def update_metadata(recording, api):
         # metadata["device_name"] = reader.device_name
 
         if reader.preview_secs:
-            metadata["additionalMetadata"] = {"Preview secs": reader.preview_secs}
+            metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
 
         count = 0
         for _ in reader:
