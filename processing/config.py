@@ -42,6 +42,7 @@ configTuple = namedtuple(
         "min_tag_confidence",
         "max_tag_novelty",
         "min_tag_clarity",
+        "min_tag_clarity_secondary",
         "min_frames"
     ],
 )
@@ -69,6 +70,7 @@ class Config(configTuple):
                 min_tag_confidence=y["tagging"]["min_tag_confidence"],
                 max_tag_novelty=y["tagging"]["max_tag_novelty"],
                 min_tag_clarity=y["tagging"]["min_tag_clarity"],
+                min_tag_clarity_secondary=y["tagging"]["min_tag_clarity_secondary"],
                 min_frames=y["tagging"]["min_frames"])
 
 def find_config():

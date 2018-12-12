@@ -20,18 +20,18 @@ def calculate_tags(tracks, conf):
     tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
     return tags
 
-  toBeTagged, unknowns = findSignificantTracks(tracks, conf)
+  clear_animals, unclear_animals = find_significant_tracks(tracks, conf)
 
   # definites
-  sortedTags = sorted(toBeTagged, key=itemgetter("label"))
-  for label, label_tracks in groupby(toBeTagged, itemgetter("label")):
+  for label, label_tracks in groupby(clear_animals, itemgetter("label")):
     confidence = max(t[CONFIDENCE] for t in label_tracks)
     tags[label] = {CONFIDENCE: confidence}
 
   # unknowns
-  for track in unknowns:
-    if track[CLARITY] > .5 * conf.min_tag_clarity / 2 and track["label"] in tags:
-      continue  # other tracks have same animal so lets assume it's correct
+  for track in unclear_animals:
+    # Reduce clarity required when there is clear existing track with same label
+    if track[CLARITY] > conf.min_tag_clarity_secondary and track["label"] in tags:
+      continue
     else:
       # there might be something else going on here...
       tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
@@ -40,22 +40,22 @@ def calculate_tags(tracks, conf):
   if len(tags) == 0:
     tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
   else:
-    multipleConfidence = multipleAnimalConfidence(toBeTagged, unknowns)
-    if multipleConfidence > conf.min_confidence:
-      tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multipleConfidence}
+    multiple_confidence = calculate_multiple_animal_confidence(clear_animals + unclear_animals)
+    if multiple_confidence > conf.min_confidence:
+      tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
 
-  print(tags)
   return tags
 
 
-def findSignificantTracks(tracks, conf):
-  toBeTagged = []
-  unknowns = []
+def find_significant_tracks(tracks, conf):
+  clear_animals = []
+  unclear_animals = []
 
   for track in tracks:
     if track['confidence'] < conf.min_confidence:
       track[MESSAGE] = "Very low confidence - ignore"
-    elif track["label"] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity / 2:
+    # Use secondary clarity here as guessing it is less likely to confuse a false positive with an animal.
+    elif track["label"] == FALSE_POSITIVE and track[CLARITY] > min_tag_clarity_secondary:
       continue
     else:
       if track[CONFIDENCE] < conf.min_tag_confidence:
@@ -65,7 +65,7 @@ def findSignificantTracks(tracks, conf):
       elif track["average_novelty"] > conf.max_tag_novelty:
         track[MESSAGE] = "High novelty"
       else:
-        toBeTagged.append(track)
+        clear_animals.append(track)
         track[STATUS] = 'tag'
         continue
 
@@ -73,25 +73,20 @@ def findSignificantTracks(tracks, conf):
         # Ignore min_frames if we are sure we know what it is else throw it away
         track[MESSAGE] = "Short track"
       else:
-        unknowns.append(track)
+        unclear_animals.append(track)
         track[STATUS] = 'unknown'
-  return (toBeTagged, unknowns)
+  return (clear_animals, unclear_animals)
 
-def byStartTime(elem):
+def by_start_time(elem):
     return elem["start_s"]
 
-def multipleAnimalConfidence(animals, possibles):
+def calculate_multiple_animal_confidence(all_animals):
   confidence = 0
-
-  animalTracks = animals + possibles
-  animalTracks.sort(key=byStartTime)
-  print (animalTracks)
-  for i in range(0, len(animalTracks) - 1):
-    for j in range(i+1, len(animalTracks)):
-      if animalTracks[j]["start_s"] < animalTracks[i]["end_s"]:
-        thisMatchConf = min(animalTracks[i][CONFIDENCE], animalTracks[j][CONFIDENCE])
-        confidence = max(confidence, thisMatchConf)
-  print("Confidence")
-  print(confidence)
+  all_animals.sort(key=by_start_time)
+  for i in range(0, len(all_animals) - 1):
+    for j in range(i+1, len(all_animals)):
+      if all_animals[j]["start_s"] < all_animals[i]["end_s"]:
+        this_conf = min(all_animals[i][CONFIDENCE], all_animals[j][CONFIDENCE])
+        confidence = max(confidence, this_conf)
   return confidence
 

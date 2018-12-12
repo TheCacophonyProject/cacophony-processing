@@ -30,5 +30,8 @@ tagging:
     # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
     min_tag_clarity: .2
 
+    # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
+    min_tag_clarity_secondary: .05
+
     # This is the minimum length of a track.
     min_frames: 3

@@ -1,4 +1,4 @@
-from processing.tagger import findSignificantTracks, calculate_tags, MULTIPLE, FALSE_POSITIVE, UNIDENTIFIED, MESSAGE, CONFIDENCE
+from processing.tagger import calculate_tags, MULTIPLE, FALSE_POSITIVE, UNIDENTIFIED, MESSAGE, CONFIDENCE
 import json
 import processing
 
@@ -8,6 +8,7 @@ class TestTagCalculations:
   conf.min_tag_confidence = .8
   conf.max_tag_novelty = .6
   conf.min_tag_clarity = .1
+  conf.min_tag_clarity_secondary = .05
   conf.min_frames = 4
   time = -2
 
@@ -147,29 +148,6 @@ class TestTagCalculations:
     ratty3["end_s"] = 11
     ratty2[CONFIDENCE] = .7
     assert self.getTags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.7}
-
-
-  # def test_multi_false_positive(self):
-  #     assert calculate_tag(
-  #         [
-  #             {"label": "false-positive", CONFIDENCE: 0.39},
-  #             {"label": "false-positive", CONFIDENCE: 0.50},
-  #             {"label": "false-positive", CONFIDENCE: 0.12},
-  #         ]
-  #     ) == (FALSE_POSITIVE, 0.85)
-
-
-
-
-  # def test_format_output(self):
-  #     with open('/Users/clare/cacophony/model/runs/20181111-212514.txt') as f:
-  #         try:
-  #             classify_info = json.loads(f.read())
-  #         except json.decoder.JSONDecodeError as err:
-  #             raise ValueError(
-  #                 "failed to JSON decode classifier output:\n{}".format(f)
-  #             ) from err
-  #         format_track_data(classify_info['tracks'])
 
   def getTags(self, tracks):
     return calculate_tags(tracks, self.conf)

@@ -59,7 +59,7 @@ class API:
         r.raise_for_status()
 
     def tag_recording(self, recording, label, metadata):
-        tag = metadata
+        tag = metadata.copy()
         tag["automatic"] = True
 
         # Convert "false positive" to API representation.
