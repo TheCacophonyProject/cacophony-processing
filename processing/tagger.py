@@ -29,11 +29,9 @@ def calculate_tags(tracks, conf):
 
   # unknowns
   for track in unclear_animals:
-    # Reduce clarity required when there is clear existing track with same label
-    if track[CLARITY] > conf.min_tag_clarity_secondary and track["label"] in tags:
-      continue
-    else:
-      # there might be something else going on here...
+    # Assume the track is correct if there is reasonable clarity and video has been tagged with the same animal
+    # Otherwise tag as unidentified because some track in the video is unidentified
+    if not (track[CLARITY] > conf.min_tag_clarity_secondary and track["label"] in tags):
       tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
       break
 

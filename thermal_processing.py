@@ -63,24 +63,24 @@ def classify(recording, api, s3):
         ) from err
 
     track_info = classify_info["tracks"]
-    formated_tracks = format_track_data(track_info)
+    formatted_tracks = format_track_data(track_info)
 
     # Auto tag the video
-    tags = calculate_tags(formated_tracks, conf)
+    tags = calculate_tags(formatted_tracks, conf)
     for tag in tags.keys():
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         api.tag_recording(recording, tag, tags[tag])
 
     # format track data for GUI
-    logging.info("classify info:\n%s", pformat(formated_tracks))
+    logging.info("classify info:\n%s", pformat(formatted_tracks))
 
     # Upload mp4
-    video_filename = str(replace_ext(recording["filename"], ".mp4"))
-    logging.info("uploading %s", video_filename)
-    new_key = s3.upload(video_filename)
+    # video_filename = str(replace_ext(recording["filename"], ".mp4"))
+    # logging.info("uploading %s", video_filename)
+    # new_key = s3.upload(video_filename)
 
-    metadata = {"additionalMetadata": {"tracks" : formated_tracks}}
-    api.report_done(recording, new_key, "video/mp4", metadata)
+    metadata = {"additionalMetadata": {"tracks" : formatted_tracks}}
+    api.report_done(recording, recording["rawFileKey"], "video/mp4", metadata)
     logging.info("Finished processing")
 
 def format_track_data(tracks):
