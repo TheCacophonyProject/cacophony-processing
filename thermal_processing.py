@@ -75,12 +75,12 @@ def classify(recording, api, s3):
     logging.info("classify info:\n%s", pformat(formatted_tracks))
 
     # Upload mp4
-    # video_filename = str(replace_ext(recording["filename"], ".mp4"))
-    # logging.info("uploading %s", video_filename)
-    # new_key = s3.upload(video_filename)
+    video_filename = str(replace_ext(recording["filename"], ".mp4"))
+    logging.info("uploading %s", video_filename)
+    new_key = s3.upload(video_filename)
 
     metadata = {"additionalMetadata": {"tracks" : formatted_tracks}}
-    api.report_done(recording, recording["rawFileKey"], "video/mp4", metadata)
+    api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
 
 def format_track_data(tracks):
