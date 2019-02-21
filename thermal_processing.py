@@ -43,8 +43,7 @@ UNIDENTIFIED = "unidentified"
 def classify(recording, api, s3):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
-        source_dir=str(working_dir),
-        output_dir=str(working_dir),
+        folder=str(working_dir),
         source=recording["filename"].name,
     )
 
@@ -88,11 +87,8 @@ def format_track_data(tracks):
         return {}
 
     for track in tracks:
-        del track['start_time']
-        del track['end_time']
-        track['start_s'] = round(float(track['frame_start'])/FRAME_RATE, 1)
-        track['end_s'] = round(float(track['frame_start'] + track['num_frames'] - 1)/FRAME_RATE, 1)
-        del track['frame_start']
+        if 'frame_start' in track:
+            del track['frame_start']
     return tracks
 
 def replace_ext(filename, ext):
