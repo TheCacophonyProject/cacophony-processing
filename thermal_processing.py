@@ -43,8 +43,7 @@ UNIDENTIFIED = "unidentified"
 def classify(recording, api, s3):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
-        source_dir=str(working_dir),
-        output_dir=str(working_dir),
+        folder=str(working_dir),
         source=recording["filename"].name,
     )
 

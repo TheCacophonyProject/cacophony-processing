@@ -15,8 +15,7 @@ classify: True
 # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
 classify_command_dir: "/path/to/classifier_pipeline"
 # Relative paths in this command are relative from the classify_command_dir. Should be run using the classifier_pipeline python3.6 virtual environment.
-classify_command: "venv/bin/python classify.py --enable-preview --meta-to-stdout -s {source_dir} -o {output_dir} {source}"
-
+classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"
 tagging:
     # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
     min_confidence: .4
