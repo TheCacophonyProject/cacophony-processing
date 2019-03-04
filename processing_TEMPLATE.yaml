@@ -34,3 +34,6 @@ tagging:
 
     # This is the minimum length of a track.
     min_frames: 3
+
+    # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
+    animal_movement: 50

@@ -70,8 +70,8 @@ def classify(recording, api, s3):
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         api.tag_recording(recording, tag, tags[tag])
 
-    # format track data for GUI
-    logging.info("classify info:\n%s", pformat(formatted_tracks))
+    # print output:
+    print_results(formatted_tracks)
 
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
@@ -81,6 +81,19 @@ def classify(recording, api, s3):
     metadata = {"additionalMetadata": {"tracks" : formatted_tracks}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
+
+def print_results(tracks):
+    for track in tracks:
+        message = track["message"] if "message" in track else ""
+        logging.info("Track found: {}-{}s, {}, confidence: {} ({}), novelty: {}, status: {}".format(
+            track["start_s"],
+            track["end_s"],
+            track["label"],
+            track["confidence"],
+            track["clarity"],
+            track["average_novelty"],
+            message
+        ))
 
 def format_track_data(tracks):
     if not tracks:

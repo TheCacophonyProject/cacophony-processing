@@ -1,4 +1,4 @@
-from processing.tagger import calculate_tags, MULTIPLE, FALSE_POSITIVE, UNIDENTIFIED, MESSAGE, CONFIDENCE
+from processing.tagger import calc_track_movement, calculate_tags, MULTIPLE, FALSE_POSITIVE, UNIDENTIFIED, MESSAGE, CONFIDENCE
 import json
 import processing
 
@@ -13,7 +13,7 @@ class TestTagCalculations:
     time = -2
 
     def test_no_tracks(self):
-        assert self.get_tags([]) == false_positive_result()
+        assert self.get_tags([]) == {}
 
     def test_one_false_positive_track(self):
         falsy = self.create_good_track(FALSE_POSITIVE)
@@ -46,7 +46,7 @@ class TestTagCalculations:
         poorRatty = self.create_good_track("rat")
         poorRatty[CONFIDENCE] = 0.3
         assert self.get_tags([poorRatty]) == false_positive_result()
-        assert poorRatty[MESSAGE] == "Very low confidence - ignore"
+        assert poorRatty[MESSAGE] == "Low movement and poor confidence - ignore"
 
     def test_one_track_poor_clarity_gives_unidentified(self):
         poorRatty = self.create_good_track("rat")
@@ -155,6 +155,21 @@ class TestTagCalculations:
         ratty3["end_s"] = 11
         ratty2[CONFIDENCE] = .7
         assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.7}
+
+    def test_calc_track_movement(self):
+        positions = [(1, (2, 24, 42, 44))]
+        assert calc_track_movement({"positions": positions}) == 0.0
+        positions.append((2, (40, 14, 48, 54)))
+        assert calc_track_movement({"positions": positions}) == 22.0
+        positions.append((3, (40, 106, 48, 146)))
+        assert calc_track_movement({"positions": positions}) == 92.0
+
+    def test_large_track_movement_means_actual_track_even_with_low_confidence(self):
+        poor_rat = self.create_good_track("rat")
+        poor_rat[CONFIDENCE] = .3
+        poor_rat["positions"] = [(1, (2, 24, 42, 44)), (2, (102, 24, 142, 44))]
+        assert self.get_tags([poor_rat]) == {UNIDENTIFIED: {CONFIDENCE: 0.85}}
+
 
     def get_tags(self, tracks):
         return calculate_tags(tracks, self.conf)

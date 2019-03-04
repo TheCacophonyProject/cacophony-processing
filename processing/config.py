@@ -43,7 +43,8 @@ configTuple = namedtuple(
         "max_tag_novelty",
         "min_tag_clarity",
         "min_tag_clarity_secondary",
-        "min_frames"
+        "min_frames",
+        "animal_movement",
     ],
 )
 
@@ -71,7 +72,9 @@ class Config(configTuple):
                 max_tag_novelty=y["tagging"]["max_tag_novelty"],
                 min_tag_clarity=y["tagging"]["min_tag_clarity"],
                 min_tag_clarity_secondary=y["tagging"]["min_tag_clarity_secondary"],
-                min_frames=y["tagging"]["min_frames"])
+                min_frames=y["tagging"]["min_frames"],
+                animal_movement=y["tagging"]["animal_movement"],
+            )
 
 def find_config():
     for directory in CONFIG_DIRS:

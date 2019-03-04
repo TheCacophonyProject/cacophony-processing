@@ -17,7 +17,6 @@ def calculate_tags(tracks, conf):
     # No tracks found so tag as FALSE_POSITIVE
     tags = {}
     if not tracks:
-        tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
         return tags
 
     clear_animals, unclear_animals = find_significant_tracks(tracks, conf)
@@ -41,35 +40,57 @@ def calculate_tags(tracks, conf):
         multiple_confidence = calculate_multiple_animal_confidence(clear_animals + unclear_animals)
         if multiple_confidence > conf.min_confidence:
             tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
-
     return tags
+
+
+def calc_track_movement(track):
+    if not "positions" in track:
+        return 0
+    mid_xs = []
+    mid_ys = []
+    for frame in track["positions"]:
+        coords = frame[1]
+        mid_xs.append((coords[0] + coords[2])/2)
+        mid_ys.append((coords[1] + coords[3])/2)
+    delta_x = max(mid_xs) - min(mid_xs)
+    delta_y = max(mid_ys) - min(mid_ys)
+    return max(delta_x, delta_y)
+
+def is_significant_track(track, conf):
+    if track["num_frames"] < conf.min_frames:
+        track[MESSAGE] = "Short track"
+        return False
+    if track['confidence'] > conf.min_confidence:
+        return True
+    if calc_track_movement(track) > 50:
+        return True
+    track[MESSAGE] = "Low movement and poor confidence - ignore"
+    return False
+
+def track_is_taggable(track, conf):
+    if track[CONFIDENCE] < conf.min_tag_confidence:
+        track[MESSAGE] = "Low confidence - no tag"
+        return False
+    if track[CLARITY] < conf.min_tag_clarity:
+        track[MESSAGE] = "Confusion between two classes (similar confidence)"
+        return False
+    if track["average_novelty"] > conf.max_tag_novelty:
+        track[MESSAGE] = "High novelty"
+        return False
+    return True
 
 
 def find_significant_tracks(tracks, conf):
     clear_animals = []
     unclear_animals = []
-
     for track in tracks:
-        if track['confidence'] < conf.min_confidence:
-            track[MESSAGE] = "Very low confidence - ignore"
-        # Use secondary clarity here as guessing it is less likely to confuse a false positive with an animal.
-        elif track["label"] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity_secondary:
-            continue
-        else:
-            if track[CONFIDENCE] < conf.min_tag_confidence:
-                track[MESSAGE] = "Low confidence - no tag"
-            elif track[CLARITY] < conf.min_tag_clarity:
-                track[MESSAGE] = "Confusion between two classes (similar confidence)"
-            elif track["average_novelty"] > conf.max_tag_novelty:
-                track[MESSAGE] = "High novelty"
-            else:
-                clear_animals.append(track)
-                track[STATUS] = 'tag'
+        if is_significant_track(track, conf):
+            if track["label"] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity_secondary:
                 continue
 
-            if track["num_frames"] < conf.min_frames:
-                # If we have clear identication keep the track, else ignore it if it is short
-                track[MESSAGE] = "Short track"
+            if track_is_taggable(track, conf):
+                clear_animals.append(track)
+                track[STATUS] = 'tag'
             else:
                 unclear_animals.append(track)
                 track[STATUS] = 'unknown'
