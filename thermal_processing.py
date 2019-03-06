@@ -65,10 +65,12 @@ def classify(recording, api, s3):
     formatted_tracks = format_track_data(track_info)
 
     # Auto tag the video
-    tags = calculate_tags(formatted_tracks, conf)
+    tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
     for tag in tags.keys():
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         api.tag_recording(recording, tag, tags[tag])
+
+    upload_tracks(api, recording, tagged_tracks)
 
     # print output:
     print_results(formatted_tracks)
@@ -128,6 +130,15 @@ def update_metadata(recording, api):
     api.update_metadata(recording, metadata, complete)
     logging.info("Metadata updated")
 
+def upload_tracks(api, recording, tracks):
+    print ("uploading tracks...")
+    for track in tracks:
+        track["algorithm"] = 2
+        track["id"] = api.add_track(recording, track)
+        if ('tag' in track):
+            logging.info("Adding label {} to track {}".format(track['tag'], track["id"]))
+            api.add_track_tag(recording, track)
+
 
 def main():
     processing.init_logging()
@@ -159,7 +170,6 @@ def main():
             # TODO - failures should be reported back over the API
             logging.error(traceback.format_exc())
             time.sleep(SLEEP_SECS)
-
 
 if __name__ == "__main__":
     main()

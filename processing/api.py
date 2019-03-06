@@ -73,4 +73,30 @@ class API:
         )
         r.raise_for_status()
 
+    def delete_tracks(self, recording):
+        url = self.url + "/{}/tracks".format(recording["id"])
+        r = requests.delete(url)
+        r.raise_for_status()
+
+    def add_track(self, recording, track):
+        url = self.url + "/{}/tracks".format(recording["id"])
+        post_data = {"data": json.dumps(track), "algorithm": 1}
+        r = requests.post(url, data=post_data)
+        if r.status_code == 200:
+            return r.json()["trackId"]
+        raise IOError(r.text)
+
+    def add_track_tag(self, recording, track):
+        url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track["id"])
+        print(url)
+        post_data = {
+            "what": track["tag"],
+            "confidence": track["confidence"],
+            "data" : json.dumps(''),
+        }
+        print(post_data)
+        r = requests.post(url, data=post_data)
+        if r.status_code == 200:
+            return r.json()["trackTagId"]
+        raise IOError(r.text)
 

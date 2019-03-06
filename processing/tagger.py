@@ -5,8 +5,9 @@ DEFAULT_CONFIDENCE = 0.85
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
-STATUS = "status"
+TAG = "tag"
 CLARITY = "clarity"
+LABEL = 'label'
 
 MESSAGE = 'message'
 CONFIDENCE = 'confidence'
@@ -15,9 +16,9 @@ FALSE_POSITIVE_TAG = {"event": "false positive", CONFIDENCE: DEFAULT_CONFIDENCE}
 
 def calculate_tags(tracks, conf):
     # No tracks found so tag as FALSE_POSITIVE
-    tags = {}
     if not tracks:
-        return tags
+        return tracks, {}
+    tags = {}
 
     clear_animals, unclear_animals = find_significant_tracks(tracks, conf)
 
@@ -30,9 +31,10 @@ def calculate_tags(tracks, conf):
     for track in unclear_animals:
         # Assume the track is correct if there is reasonable clarity and video has been tagged with the same animal
         # Otherwise tag as unidentified because some track in the video is unidentified
-        if not (track[CLARITY] > conf.min_tag_clarity_secondary and track["label"] in tags):
+        if (track[CLARITY] > conf.min_tag_clarity_secondary and track["label"] in tags):
+            track[TAG] = track[LABEL]
+        else:
             tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-            break
 
     if len(tags) == 0:
         tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
@@ -40,7 +42,7 @@ def calculate_tags(tracks, conf):
         multiple_confidence = calculate_multiple_animal_confidence(clear_animals + unclear_animals)
         if multiple_confidence > conf.min_confidence:
             tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
-    return tags
+    return tracks, tags
 
 
 def calc_track_movement(track):
@@ -85,15 +87,15 @@ def find_significant_tracks(tracks, conf):
     unclear_animals = []
     for track in tracks:
         if is_significant_track(track, conf):
-            if track["label"] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity_secondary:
+            if track[LABEL] == FALSE_POSITIVE and track[CLARITY] > conf.min_tag_clarity_secondary:
                 continue
 
             if track_is_taggable(track, conf):
                 clear_animals.append(track)
-                track[STATUS] = 'tag'
+                track[TAG] = track[LABEL]
             else:
                 unclear_animals.append(track)
-                track[STATUS] = 'unknown'
+                track[TAG] = UNIDENTIFIED
     return (clear_animals, unclear_animals)
 
 def by_start_time(elem):
