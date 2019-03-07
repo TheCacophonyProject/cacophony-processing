@@ -120,17 +120,6 @@ class TestTagCalculations:
         ratty2[CONFIDENCE] = .6
         assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.6}
 
-
-    def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
-        ratty1 = self.create_good_track("rat")
-        ratty2 = self.create_good_track("rat")
-        ratty1["start_s"] = 5
-        ratty1["end_s"] = 8
-        ratty2["start_s"] = 3
-        ratty2["end_s"] = 7
-        ratty2[CONFIDENCE] = .6
-        assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {'event': MULTIPLE, CONFIDENCE: 0.6}
-
     def test_not_first_tracks_overlap(self):
         ratty1 = self.create_good_track("rat")
         ratty2 = self.create_good_track("rat")

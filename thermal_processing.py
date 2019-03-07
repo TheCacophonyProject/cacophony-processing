@@ -80,6 +80,10 @@ def classify(recording, api, s3):
     logging.info("uploading %s", video_filename)
     new_key = s3.upload(video_filename)
 
+    # delete track positions before saving metadata
+    for track in formatted_tracks:
+        del track["positions"]
+
     metadata = {"additionalMetadata": {"tracks" : formatted_tracks}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
