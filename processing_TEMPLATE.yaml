@@ -23,8 +23,8 @@ tagging:
     # This is the minimum confidence a track should have in order to tag as animal
     min_tag_confidence: .8
 
-    # This is the minimum confidence a track should have in order to tag it as the chosen animal
-    max_tag_novelty: .6
+    # Classifications with a novelty above this value will be ignored for tagging.
+    max_tag_novelty: .7
 
     # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
     min_tag_clarity: .2
