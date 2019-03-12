@@ -149,7 +149,6 @@ class TestTagCalculations:
         poor_rat["positions"] = [(1, (2, 24, 42, 44)), (2, (102, 24, 142, 44))]
         assert self.get_tags([poor_rat]) == {UNIDENTIFIED: {CONFIDENCE: 0.85}}
 
-
     def get_tags(self, tracks):
         _, tags = calculate_tags(tracks, self.conf)
         return tags
