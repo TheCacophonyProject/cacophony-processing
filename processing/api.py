@@ -78,9 +78,17 @@ class API:
         r = requests.delete(url)
         r.raise_for_status()
 
-    def add_track(self, recording, track):
+    def get_algorithm_id(self, algorithm):
+        url = self.url + "/algorithm"
+        post_data = {"algorithm": json.dumps(algorithm)}
+        r = requests.post(url, data=post_data)
+        if r.status_code == 200:
+            return r.json()["algorithmId"]
+        raise IOError(r.text)
+
+    def add_track(self, recording, track, algorithm_id):
         url = self.url + "/{}/tracks".format(recording["id"])
-        post_data = {"data": json.dumps(track), "algorithm": 1}
+        post_data = {"data": json.dumps(track), "algorithmId": algorithm_id}
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackId"]

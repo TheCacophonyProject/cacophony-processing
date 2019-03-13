@@ -70,7 +70,7 @@ def classify(recording, api, s3):
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         api.tag_recording(recording, tag, tags[tag])
 
-    upload_tracks(api, recording, tagged_tracks)
+    upload_tracks(api, recording, classify_info["algorithm"], tagged_tracks)
 
     # print output:
     print_results(formatted_tracks)
@@ -84,7 +84,10 @@ def classify(recording, api, s3):
     for track in formatted_tracks:
         del track["positions"]
 
-    metadata = {"additionalMetadata": {"tracks" : formatted_tracks}}
+    metadata = {"additionalMetadata": {
+        "tracks" : formatted_tracks,
+        "algorithm" : classify_info["algorithm"]
+    }}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
 
@@ -113,7 +116,6 @@ def format_track_data(tracks):
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
-
 def update_metadata(recording, api):
     with open(str(recording["filename"]), "rb") as f:
         reader = CPTVReader(f)
@@ -134,11 +136,14 @@ def update_metadata(recording, api):
     api.update_metadata(recording, metadata, complete)
     logging.info("Metadata updated")
 
-def upload_tracks(api, recording, tracks):
+def upload_tracks(api, recording, algorithm, tracks):
     print ("uploading tracks...")
+    print("algorithm is {}".format(algorithm))
+    algorithm_id = api.get_algorithm_id(algorithm)
+
+    print("algorithm Id is {}".format(algorithm_id))
     for track in tracks:
-        track["algorithm"] = 2
-        track["id"] = api.add_track(recording, track)
+        track["id"] = api.add_track(recording, track, algorithm_id)
         if ('tag' in track):
             logging.info("Adding label {} to track {}".format(track['tag'], track["id"]))
             api.add_track_tag(recording, track)
