@@ -86,7 +86,6 @@ def classify(recording, api, s3):
 
     metadata = {"additionalMetadata": {
         "tracks" : formatted_tracks,
-        "algorithm" : classify_info["algorithm"]
     }}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
