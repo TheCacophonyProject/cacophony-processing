@@ -39,6 +39,7 @@ FRAME_RATE = 9
 MIN_TRACK_CONFIDENCE = 0.85
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
+MULTIPLE = "multiple animals"
 
 def classify(recording, api, s3):
     working_dir = recording["filename"].parent
@@ -68,9 +69,12 @@ def classify(recording, api, s3):
     tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
     for tag in tags.keys():
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
-        api.tag_recording(recording, tag, tags[tag])
+        if tag == MULTIPLE:
+            api.tag_recording(recording, tag, tags[tag])
 
-    upload_tracks(api, recording, classify_info["algorithm"], tagged_tracks)
+    algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
+
+    upload_tracks(api, recording, algorithm_id, tagged_tracks)
 
     # print output:
     print_results(formatted_tracks)
@@ -80,13 +84,8 @@ def classify(recording, api, s3):
     logging.info("uploading %s", video_filename)
     new_key = s3.upload(video_filename)
 
-    # delete track positions before saving metadata
-    for track in formatted_tracks:
-        del track["positions"]
-
     metadata = {"additionalMetadata": {
-        "tracks" : formatted_tracks,
-        "algorithm" : classify_info["algorithm"]
+        "algorithm" : algorithm_id,
     }}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing")
@@ -136,12 +135,9 @@ def update_metadata(recording, api):
     api.update_metadata(recording, metadata, complete)
     logging.info("Metadata updated")
 
-def upload_tracks(api, recording, algorithm, tracks):
+def upload_tracks(api, recording, algorithm_id, tracks):
     print ("uploading tracks...")
-    print("algorithm is {}".format(algorithm))
-    algorithm_id = api.get_algorithm_id(algorithm)
 
-    print("algorithm Id is {}".format(algorithm_id))
     for track in tracks:
         track["id"] = api.add_track(recording, track, algorithm_id)
         if ('tag' in track):

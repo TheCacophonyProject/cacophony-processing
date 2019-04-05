@@ -106,7 +106,7 @@ def calculate_multiple_animal_confidence(all_animals):
     all_animals.sort(key=by_start_time)
     for i in range(0, len(all_animals) - 1):
         for j in range(i+1, len(all_animals)):
-            if all_animals[j]["start_s"] < all_animals[i]["end_s"]:
+            if all_animals[j]["start_s"] + 1 < all_animals[i]["end_s"]:
                 this_conf = min(all_animals[i][CONFIDENCE], all_animals[j][CONFIDENCE])
                 confidence = max(confidence, this_conf)
     return confidence
