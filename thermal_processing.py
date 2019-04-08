@@ -41,11 +41,11 @@ FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 
+
 def classify(recording, api, s3):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
-        folder=str(working_dir),
-        source=recording["filename"].name,
+        folder=str(working_dir), source=recording["filename"].name
     )
 
     logging.info("processing %s", recording["filename"])
@@ -67,7 +67,7 @@ def classify(recording, api, s3):
 
     # Auto tag the video
     tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
-    for tag in tags.keys():
+    for tag in tags:
         logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         if tag == MULTIPLE:
             api.tag_recording(recording, tag, tags[tag])
@@ -93,27 +93,32 @@ def classify(recording, api, s3):
 def print_results(tracks):
     for track in tracks:
         message = track["message"] if "message" in track else ""
-        logging.info("Track found: {}-{}s, {}, confidence: {} ({}), novelty: {}, status: {}".format(
-            track["start_s"],
-            track["end_s"],
-            track["label"],
-            track["confidence"],
-            track["clarity"],
-            track["average_novelty"],
-            message
-        ))
+        logging.info(
+            "Track found: {}-{}s, {}, confidence: {} ({}), novelty: {}, status: {}".format(
+                track["start_s"],
+                track["end_s"],
+                track["label"],
+                track["confidence"],
+                track["clarity"],
+                track["average_novelty"],
+                message,
+            )
+        )
+
 
 def format_track_data(tracks):
     if not tracks:
         return {}
 
     for track in tracks:
-        if 'frame_start' in track:
-            del track['frame_start']
+        if "frame_start" in track:
+            del track["frame_start"]
     return tracks
+
 
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
+
 
 def update_metadata(recording, api):
     with open(str(recording["filename"]), "rb") as f:
@@ -140,8 +145,10 @@ def upload_tracks(api, recording, algorithm_id, tracks):
 
     for track in tracks:
         track["id"] = api.add_track(recording, track, algorithm_id)
-        if ('tag' in track):
-            logging.info("Adding label {} to track {}".format(track['tag'], track["id"]))
+        if "tag" in track:
+            logging.info(
+                "Adding label {} to track {}".format(track["tag"], track["id"])
+            )
             api.add_track_tag(recording, track)
 
 
@@ -175,6 +182,7 @@ def main():
             # TODO - failures should be reported back over the API
             logging.error(traceback.format_exc())
             time.sleep(SLEEP_SECS)
+
 
 if __name__ == "__main__":
     main()
