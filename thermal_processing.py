@@ -49,12 +49,7 @@ def classify(recording, api, s3):
     )
 
     logging.info("processing %s", recording["filename"])
-    p = subprocess.run(
-        command, cwd=conf.classify_dir, shell=True, stdout=subprocess.PIPE
-    )
-    p.check_returncode()
-
-    output = p.stdout.decode("ascii")
+    output = subprocess.check_output(command, cwd=conf.classify_dir, shell=True, encoding="ascii")
     try:
         classify_info = json.loads(output)
     except json.decoder.JSONDecodeError as err:
