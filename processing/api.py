@@ -38,7 +38,7 @@ class API:
         params = {
             "id": recording["id"],
             "jobKey": recording["jobKey"],
-            "success": completed,
+            "success": True,
             "result": json.dumps({"fieldUpdates": fieldUpdates}),
             "complete": completed
         }
