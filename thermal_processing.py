@@ -77,13 +77,13 @@ def classify(recording, api, s3):
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
     logging.info("uploading %s", video_filename)
-    new_key = s3.upload(video_filename)
+    new_key = s3.upload_recording(video_filename)
 
     metadata = {"additionalMetadata": {
         "algorithm" : algorithm_id,
     }}
     api.report_done(recording, new_key, "video/mp4", metadata)
-    logging.info("Finished processing")
+    logging.info("Finished processing (new key: %s)", new_key)
 
 def print_results(tracks):
     for track in tracks:

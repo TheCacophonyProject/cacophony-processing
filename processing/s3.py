@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+from datetime import date
+
 import uuid
 import boto3
 
@@ -34,7 +36,7 @@ class S3:
     def download(self, key, file_name):
         self.bucket.download_file(key, file_name)
 
-    def upload(self, file_name):
-        key = str(uuid.uuid1())
-        self.bucket.upload_file(file_name, key)
+    def upload_recording(self, source_file_name):
+        key = "rec/" + date.today().strftime("%Y/%m/%d") + "/" + str(uuid.uuid1())
+        self.bucket.upload_file(source_file_name, key)
         return key
