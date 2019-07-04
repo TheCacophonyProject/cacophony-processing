@@ -68,7 +68,7 @@ def process(recording, api, s3):
         librosa.output.write_wav(str(wav_filename), data, sr)
         output_filename, new_mime_type = encode_file(wav_filename)
         logging.info("uploading from %s", output_filename)
-        new_key = s3.upload(str(output_filename))
+        new_key = s3.upload_recording(str(output_filename))
 
     api.report_done(recording, new_key, new_mime_type, newMetadata)
     logging.info("Finished processing")
