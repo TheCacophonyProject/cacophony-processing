@@ -120,6 +120,7 @@ def update_metadata(recording, api):
         reader = CPTVReader(f)
         metadata = {}
         metadata["recordingDateTime"] = reader.timestamp.isoformat()
+        metadata["location"] = (reader.latitude,reader.longitude)
 
         # TODO Add device name when it can be processed on api server
         # metadata["device_name"] = reader.device_name
