@@ -121,7 +121,8 @@ def update_metadata(conf, recording, api):
         reader = CPTVReader(f)
         metadata = {}
         metadata["recordingDateTime"] = reader.timestamp.isoformat()
-        metadata["location"] = (reader.latitude, reader.longitude)
+        if reader.latitude != 0 and reader.longitude != 0:
+            metadata["location"] = (reader.latitude, reader.longitude)
 
         if reader.preview_secs:
             metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
