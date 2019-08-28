@@ -42,14 +42,16 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 
 
-def classify(recording, api, s3):
+def classify(conf, recording, api, s3):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
 
     logging.info("processing %s", recording["filename"])
-    output = subprocess.check_output(command, cwd=conf.classify_dir, shell=True, encoding="ascii")
+    output = subprocess.check_output(
+        command, cwd=conf.classify_dir, shell=True, encoding="ascii"
+    )
     try:
         classify_info = json.loads(output)
     except json.decoder.JSONDecodeError as err:
@@ -79,11 +81,10 @@ def classify(recording, api, s3):
     logging.info("uploading %s", video_filename)
     new_key = s3.upload_recording(video_filename)
 
-    metadata = {"additionalMetadata": {
-        "algorithm" : algorithm_id,
-    }}
+    metadata = {"additionalMetadata": {"algorithm": algorithm_id}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logging.info("Finished processing (new key: %s)", new_key)
+
 
 def print_results(tracks):
     for track in tracks:
@@ -115,15 +116,12 @@ def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
 
-def update_metadata(recording, api):
+def update_metadata(conf, recording, api):
     with open(str(recording["filename"]), "rb") as f:
         reader = CPTVReader(f)
         metadata = {}
         metadata["recordingDateTime"] = reader.timestamp.isoformat()
-        metadata["location"] = (reader.latitude,reader.longitude)
-
-        # TODO Add device name when it can be processed on api server
-        # metadata["device_name"] = reader.device_name
+        metadata["location"] = (reader.latitude, reader.longitude)
 
         if reader.preview_secs:
             metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
@@ -136,8 +134,9 @@ def update_metadata(recording, api):
     api.update_metadata(recording, metadata, complete)
     logging.info("Metadata updated")
 
+
 def upload_tracks(api, recording, algorithm_id, tracks):
-    print ("uploading tracks...")
+    print("uploading tracks...")
 
     for track in tracks:
         track["id"] = api.add_track(recording, track, algorithm_id)
@@ -150,12 +149,10 @@ def upload_tracks(api, recording, algorithm_id, tracks):
 
 def main():
     processing.init_logging()
-    global conf
     conf = processing.Config.load()
 
     api = processing.API(conf.api_url)
     s3 = processing.S3(conf)
-
     while True:
         try:
             recording = api.next_job("thermalRaw", "getMetadata")
@@ -166,10 +163,10 @@ def main():
                     logging.info("downloading recording:\n%s", pformat(recording))
                     s3.download(recording["rawFileKey"], str(filename))
 
-                    update_metadata(recording, api)
+                    update_metadata(conf, recording, api)
 
                     if conf.do_classify:
-                        classify(recording, api, s3)
+                        classify(conf, recording, api, s3)
             else:
                 time.sleep(SLEEP_SECS)
         except KeyboardInterrupt:

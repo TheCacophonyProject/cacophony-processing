@@ -1,6 +1,6 @@
 boto3~=1.4.7
 PyYAML~=4.2b4
 requests~=2.20.0
-cptv~=0.3.0
+cptv~=0.4.0
 librosa~=0.6.2
 setuptools~=40.6.2

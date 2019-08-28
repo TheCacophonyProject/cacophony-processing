@@ -66,7 +66,7 @@ class Config(configTuple):
                 api_url=y["api_url"],
                 classify_dir=y["classify_command_dir"],
                 classify_cmd=y["classify_command"],
-                do_classify=y.get("do_classify", True),
+                do_classify=y.get("classify", True),
                 min_confidence=y["tagging"]["min_confidence"],
                 min_tag_confidence=y["tagging"]["min_tag_confidence"],
                 max_tag_novelty=y["tagging"]["max_tag_novelty"],
