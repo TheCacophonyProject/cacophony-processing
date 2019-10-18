@@ -37,11 +37,11 @@ MAX_AMPLIFICATION = 20
 processing.init_logging()
 conf = processing.Config.load()
 
-mimetypes.add_type("audio/mp4", '.mp3')
-mimetypes.add_type("video/3gpp", '.3gpp')
-mimetypes.add_type("audio/3gpp", '.3gpp')
-mimetypes.add_type("audio/wav", '.wav')
-mimetypes.add_type("audio/x-flac", '.flac')
+mimetypes.add_type("audio/mp4", ".mp3")
+mimetypes.add_type("video/3gpp", ".3gpp")
+mimetypes.add_type("audio/3gpp", ".3gpp")
+mimetypes.add_type("audio/wav", ".wav")
+mimetypes.add_type("audio/x-flac", ".flac")
 
 BIT_RATE = "128k"
 
@@ -64,7 +64,7 @@ def process(recording, api, s3):
         s3.download(recording["rawFileKey"], str(input_filename))
         data, sr = librosa.core.load(str(input_filename), sr=None)
         amplification = normalize(data, MAX_AMPLIFICATION)
-        newMetadata["additionalMetadata"] = { "amplification": amplification }
+        newMetadata["additionalMetadata"] = {"amplification": amplification}
         librosa.output.write_wav(str(wav_filename), data, sr)
         output_filename, new_mime_type = encode_file(wav_filename)
         logging.info("uploading from %s", output_filename)
@@ -73,11 +73,13 @@ def process(recording, api, s3):
     api.report_done(recording, new_key, new_mime_type, newMetadata)
     logging.info("Finished processing")
 
+
 def normalize(data, max_amp):
-    a = 1.0/data.max()
+    a = 1.0 / data.max()
     a = min(a, max_amp)
     data *= a
     return a
+
 
 def encode_file(input_filename):
     output_filename = replace_ext(input_filename, ".mp3")
