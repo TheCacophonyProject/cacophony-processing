@@ -39,3 +39,8 @@ tagging:
 
     # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
     animal_movement: 50
+
+
+audio:
+    # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection)
+    analysis_command: 'docker run -it -v "{folder}":/io cacophonyproject/audio-analysis /io/"{basename}"'

@@ -42,6 +42,24 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 
 
+def main():
+    conf = processing.Config.load()
+    processing.loop(conf, "thermalRaw", "getMetadata", process)
+
+
+def process(recording, conf, api, s3):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        filename = Path(temp_dir) / DOWNLOAD_FILENAME
+        recording["filename"] = filename
+        logging.info("downloading recording:\n%s", pformat(recording))
+        s3.download(recording["rawFileKey"], str(filename))
+
+        update_metadata(conf, recording, api)
+
+        if conf.do_classify:
+            classify(conf, recording, api, s3)
+
+
 def classify(conf, recording, api, s3):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
@@ -146,36 +164,6 @@ def upload_tracks(api, recording, algorithm_id, tracks):
                 "Adding label {} to track {}".format(track["tag"], track["id"])
             )
             api.add_track_tag(recording, track)
-
-
-def main():
-    processing.init_logging()
-    conf = processing.Config.load()
-
-    api = processing.API(conf.api_url)
-    s3 = processing.S3(conf)
-    while True:
-        try:
-            recording = api.next_job("thermalRaw", "getMetadata")
-            if recording:
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    filename = Path(temp_dir) / DOWNLOAD_FILENAME
-                    recording["filename"] = filename
-                    logging.info("downloading recording:\n%s", pformat(recording))
-                    s3.download(recording["rawFileKey"], str(filename))
-
-                    update_metadata(conf, recording, api)
-
-                    if conf.do_classify:
-                        classify(conf, recording, api, s3)
-            else:
-                time.sleep(SLEEP_SECS)
-        except KeyboardInterrupt:
-            break
-        except:
-            # TODO - failures should be reported back over the API
-            logging.error(traceback.format_exc())
-            time.sleep(SLEEP_SECS)
 
 
 if __name__ == "__main__":

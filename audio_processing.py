@@ -19,6 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import json
 import logging
 import subprocess
 import tempfile
@@ -31,11 +32,9 @@ from pathlib import Path
 
 import processing
 
-SLEEP_SECS = 10
 MAX_AMPLIFICATION = 20
 
 processing.init_logging()
-conf = processing.Config.load()
 
 mimetypes.add_type("audio/mp4", ".mp3")
 mimetypes.add_type("video/3gpp", ".3gpp")
@@ -46,9 +45,13 @@ mimetypes.add_type("audio/x-flac", ".flac")
 BIT_RATE = "128k"
 
 
-def process(recording, api, s3):
+def main():
+    conf = processing.Config.load()
+    processing.loop(conf, "audio", "toMp3", process)
+
+
+def process(recording, conf, api, s3):
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
-    newMetadata = {}
 
     if not input_extension:
         # Unsupported mimetype. If needed more mimetypes can be added above.
@@ -56,22 +59,49 @@ def process(recording, api, s3):
         api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
 
+    new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
-        wav_filename = temp_path / "output.wav"
         logging.info("downloading recording to %s", input_filename)
         s3.download(recording["rawFileKey"], str(input_filename))
-        data, sr = librosa.core.load(str(input_filename), sr=None)
-        amplification = normalize(data, MAX_AMPLIFICATION)
-        newMetadata["additionalMetadata"] = {"amplification": amplification}
-        librosa.output.write_wav(str(wav_filename), data, sr)
-        output_filename, new_mime_type = encode_file(wav_filename)
+
+        logging.info("passing recording through audio-processing")
+        new_metadata["additionalMetadata"]["analysis"] = analyse(input_filename, conf)
+
+        logging.info("normalizing")
+        output_filename, new_mime_type, amplification = normalize_file(input_filename)
+        new_metadata["additionalMetadata"]["amplification"] = amplification
+
         logging.info("uploading from %s", output_filename)
         new_key = s3.upload_recording(str(output_filename))
 
-    api.report_done(recording, new_key, new_mime_type, newMetadata)
-    logging.info("Finished processing")
+    api.report_done(recording, new_key, new_mime_type, new_metadata)
+    logging.info("Finished processing: %s", new_metadata)
+
+
+def analyse(filename, conf):
+    command = conf.audio_analysis_cmd.format(
+        folder=filename.parent, basename=filename.name
+    )
+    try:
+        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        logging.error("%s failed with output: %s", command, e.output.decode("utf-8"))
+        raise
+    print(output.decode("utf-8"))
+    return json.loads(output.decode("utf-8"))
+
+
+def normalize_file(filename):
+    data, sr = librosa.core.load(str(filename), sr=None)
+    amplification = normalize(data, MAX_AMPLIFICATION)
+
+    wav_filename = filename.parent / "output.wav"
+
+    librosa.output.write_wav(str(wav_filename), data, sr)
+    out_filename, out_mimetype = encode_file(wav_filename)
+    return out_filename, out_mimetype, amplification
 
 
 def normalize(data, max_amp):
@@ -106,26 +136,6 @@ def encode_file(input_filename):
 
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
-
-
-def main():
-    api = processing.API(conf.api_url)
-    s3 = processing.S3(conf)
-
-    while True:
-        try:
-            recording = api.next_job("audio", "toMp3")
-            if recording:
-                logging.info("recording to process:\n%s", pformat(recording))
-                process(recording, api, s3)
-            else:
-                time.sleep(SLEEP_SECS)
-        except KeyboardInterrupt:
-            break
-        except:
-            # TODO - failures should be reported back over the API
-            logging.error(traceback.format_exc())
-            time.sleep(SLEEP_SECS)
 
 
 if __name__ == "__main__":
