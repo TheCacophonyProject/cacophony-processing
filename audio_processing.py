@@ -19,123 +19,73 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import json
 import logging
-import subprocess
-import tempfile
 import time
 import traceback
-import librosa
-import mimetypes
 from pprint import pformat
-from pathlib import Path
+
+from pebble import ProcessPool
 
 import processing
+from processing import API, S3, audio_convert, audio_analysis
 
-MAX_AMPLIFICATION = 20
-
-processing.init_logging()
-
-mimetypes.add_type("audio/mp4", ".mp3")
-mimetypes.add_type("video/3gpp", ".3gpp")
-mimetypes.add_type("audio/3gpp", ".3gpp")
-mimetypes.add_type("audio/wav", ".wav")
-mimetypes.add_type("audio/x-flac", ".flac")
-
-BIT_RATE = "128k"
+SLEEP_SECS = 2
 
 
 def main():
+    processing.init_logging()
     conf = processing.Config.load()
-    processing.loop(conf, "audio", "toMp3", process)
+    api = API(conf.api_url)
+
+    processors = [
+        Processor("audio", "toMp3", audio_convert.process, conf.audio_convert_workers),
+        Processor(
+            "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
+        ),
+    ]
+
+    while True:
+        try:
+            for processor in processors:
+                processor.poll(conf, api)
+        except KeyboardInterrupt:
+            break
+        except:
+            logging.error(traceback.format_exc())
+
+        time.sleep(SLEEP_SECS)
 
 
-def process(recording, conf, api, s3):
-    input_extension = mimetypes.guess_extension(recording["rawMimeType"])
+class Processor:
+    def __init__(self, recording_type, processing_state, process_func, num_workers):
+        self.recording_type = recording_type
+        self.processing_state = processing_state
+        self.process_func = process_func
+        self.num_workers = num_workers
+        self.pool = ProcessPool(num_workers)
+        self.in_progress = {}
 
-    if not input_extension:
-        # Unsupported mimetype. If needed more mimetypes can be added above.
-        print("unsupported mimetype. Not processing")
-        api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
-        return
+    def poll(self, conf, api):
+        self.reap_completed()
+        if len(self.in_progress) >= self.num_workers:
+            return
 
-    new_metadata = {"additionalMetadata": {}}
-    with tempfile.TemporaryDirectory() as temp:
-        temp_path = Path(temp)
-        input_filename = temp_path / ("recording" + input_extension)
-        logging.info("downloading recording to %s", input_filename)
-        s3.download(recording["rawFileKey"], str(input_filename))
+        recording = api.next_job(self.recording_type, self.processing_state)
+        if recording:
+            # TODO - make this concise
+            logging.info("recording to process:\n%s", pformat(recording))
+            future = self.pool.schedule(self.process_func, (recording, conf))
+            self.in_progress[recording["id"]] = future
 
-        logging.info("passing recording through audio-processing")
-        new_metadata["additionalMetadata"]["analysis"] = analyse(input_filename, conf)
-
-        logging.info("normalizing")
-        output_filename, new_mime_type, amplification = normalize_file(input_filename)
-        new_metadata["additionalMetadata"]["amplification"] = amplification
-
-        logging.info("uploading from %s", output_filename)
-        new_key = s3.upload_recording(str(output_filename))
-
-    api.report_done(recording, new_key, new_mime_type, new_metadata)
-    logging.info("Finished processing: %s", new_metadata)
-
-
-def analyse(filename, conf):
-    command = conf.audio_analysis_cmd.format(
-        folder=filename.parent, basename=filename.name
-    )
-    try:
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        logging.error("%s failed with output: %s", command, e.output.decode("utf-8"))
-        raise
-    print(output.decode("utf-8"))
-    return json.loads(output.decode("utf-8"))
-
-
-def normalize_file(filename):
-    data, sr = librosa.core.load(str(filename), sr=None)
-    amplification = normalize(data, MAX_AMPLIFICATION)
-
-    wav_filename = filename.parent / "output.wav"
-
-    librosa.output.write_wav(str(wav_filename), data, sr)
-    out_filename, out_mimetype = encode_file(wav_filename)
-    return out_filename, out_mimetype, amplification
-
-
-def normalize(data, max_amp):
-    a = 1.0 / data.max()
-    a = min(a, max_amp)
-    data *= a
-    return a
-
-
-def encode_file(input_filename):
-    output_filename = replace_ext(input_filename, ".mp3")
-    try:
-        subprocess.check_output(
-            [
-                "ffmpeg",
-                "-loglevel",
-                "warning",
-                "-i",
-                str(input_filename),
-                "-b:a",
-                BIT_RATE,
-                str(output_filename),
-            ],
-            stderr=subprocess.STDOUT,
-        )
-    except subprocess.CalledProcessError as e:
-        logging.error("ffmpeg failed with output: %s", e.output.encode("utf-8"))
-        raise
-
-    return output_filename, "audio/mp3"
-
-
-def replace_ext(filename, ext):
-    return filename.parent / (filename.stem + ext)
+    def reap_completed(self):
+        for recording_id, future in list(self.in_progress.items()):
+            if future.done():
+                del self.in_progress[recording_id]
+                err = future.exception()
+                if err:
+                    logging.error(
+                        f"{self.recording_type}.{self.processing_state} processing of {recording_id} failed: {err}:\n{err.traceback}"
+                    )
 
 
 if __name__ == "__main__":

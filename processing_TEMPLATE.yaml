@@ -42,5 +42,8 @@ tagging:
 
 
 audio:
+    convert_workers: 2
+    analysis_workers: 2
+
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection)
     analysis_command: 'docker run -it -v "{folder}":/io cacophonyproject/audio-analysis /io/"{basename}"'

@@ -46,6 +46,8 @@ configTuple = namedtuple(
         "min_frames",
         "animal_movement",
         "audio_analysis_cmd",
+        "audio_convert_workers",
+        "audio_analysis_workers",
     ],
 )
 
@@ -76,6 +78,8 @@ class Config(configTuple):
                 min_frames=y["tagging"]["min_frames"],
                 animal_movement=y["tagging"]["animal_movement"],
                 audio_analysis_cmd=y["audio"]["analysis_command"],
+                audio_convert_workers=y["audio"]["convert_workers"],
+                audio_analysis_workers=y["audio"]["analysis_workers"],
             )
 
 def find_config():
