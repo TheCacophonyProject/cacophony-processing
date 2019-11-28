@@ -15,8 +15,7 @@ overrides:
 
 files:
   build/cacophony-processing.pex: "/usr/bin/cacophony-processing.pex"
-  _release/cacophony-processing.thermal@.service: "/etc/systemd/system/cacophony-processing.thermal@.service"
-  _release/cacophony-processing.audio@.service: "/etc/systemd/system/cacophony-processing.audio@.service"
+  _release/cacophony-processing.service: "/etc/systemd/system/cacophony-processing.service"
 
 config_files:
   processing_TEMPLATE.yaml: "/etc/cacophony/processing.yaml"
