@@ -20,4 +20,3 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from .config import Config
 from .api import API
 from .s3 import S3
-from .loop import loop
