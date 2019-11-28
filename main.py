@@ -19,6 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import contextlib
 import logging
 import multiprocessing
 import sys
@@ -51,18 +52,14 @@ def main():
     ]
 
     logger.info("checking for recordings")
-    try:
-        while True:
-            try:
-                for processor in processors:
-                    processor.poll()
-            except:
-                logger.error(traceback.format_exc())
+    while True:
+        try:
+            for processor in processors:
+                processor.poll()
+        except:
+            logger.error(traceback.format_exc())
 
-            time.sleep(SLEEP_SECS)
-    except KeyboardInterrupt:
-        logger.info("cancelled by Ctrl-C")
-        pass
+        time.sleep(SLEEP_SECS)
 
 
 class Processor:
@@ -109,4 +106,5 @@ class Processor:
 
 
 if __name__ == "__main__":
-    main()
+    with contextlib.suppress(KeyboardInterrupt):
+        main()
