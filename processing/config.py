@@ -48,6 +48,7 @@ configTuple = namedtuple(
         "audio_analysis_cmd",
         "audio_convert_workers",
         "audio_analysis_workers",
+        "thermal_workers",
     ],
 )
 
@@ -80,6 +81,7 @@ class Config(configTuple):
                 audio_analysis_cmd=y["audio"]["analysis_command"],
                 audio_convert_workers=y["audio"]["convert_workers"],
                 audio_analysis_workers=y["audio"]["analysis_workers"],
+                thermal_workers=y["thermal_workers"],
             )
 
 def find_config():

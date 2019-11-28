@@ -38,4 +38,5 @@ def master_logger():
 def worker_logger(name, recording_id):
     logger = logging.getLogger("worker").getChild(f"{name}[{recording_id}]")
     logger.setLevel(logging.DEBUG)
+    logger.info("Starting")
     return logger

@@ -42,7 +42,6 @@ BIT_RATE = "128k"
 
 def process(recording, conf):
     logger = processing.logs.worker_logger("audio.convert", recording["id"])
-    logger.info("starting")
 
     api = processing.API(conf.api_url)
     s3 = processing.S3(conf)

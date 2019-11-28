@@ -20,16 +20,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import json
-import logging
 import subprocess
 import tempfile
-import time
-import traceback
-from pprint import pformat
 from pathlib import Path
+
 from cptv import CPTVReader
-from processing.tagger import calculate_tags
+
 import processing
+from .tagger import calculate_tags
 
 
 DOWNLOAD_FILENAME = "recording.cptv"
@@ -42,39 +40,50 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 
 
-def main():
-    conf = processing.Config.load()
-    processing.loop(conf, "thermalRaw", "getMetadata", process)
+def process(recording, conf):
+    logger = processing.logs.worker_logger("thermal", recording["id"])
 
+    api = processing.API(conf.api_url)
+    s3 = processing.S3(conf)
 
-def process(recording, conf, api, s3):
     with tempfile.TemporaryDirectory() as temp_dir:
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
         recording["filename"] = filename
-        logging.info("downloading recording:\n%s", pformat(recording))
+        logger.debug("downloading recording")
         s3.download(recording["rawFileKey"], str(filename))
 
         update_metadata(conf, recording, api)
+        logger.debug("metadata updated")
 
         if conf.do_classify:
-            classify(conf, recording, api, s3)
+            classify(conf, recording, api, s3, logger)
 
 
-def classify(conf, recording, api, s3):
+def classify(conf, recording, api, s3, logger):
     working_dir = recording["filename"].parent
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
 
-    logging.info("processing %s", recording["filename"])
-    output = subprocess.check_output(
-        command, cwd=conf.classify_dir, shell=True, encoding="ascii"
+    logger.debug("processing %s", recording["filename"])
+
+    proc = subprocess.run(
+        command,
+        cwd=conf.classify_dir,
+        shell=True,
+        encoding="ascii",
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+
     try:
-        classify_info = json.loads(output)
+        classify_info = json.loads(proc.stdout)
     except json.decoder.JSONDecodeError as err:
         raise ValueError(
-            "failed to JSON decode classifier output:\n{}".format(output)
+            "failed to JSON decode classifier output:\n{}\n{}".format(
+                proc.stdout, proc.stderr
+            )
         ) from err
 
     track_info = classify_info["tracks"]
@@ -83,7 +92,7 @@ def classify(conf, recording, api, s3):
     # Auto tag the video
     tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
     for tag in tags:
-        logging.info("tag: %s (%.2f)", tag, tags[tag]["confidence"])
+        logger.debug("tag: %s (%.2f)", tag, tags[tag]["confidence"])
         if tag == MULTIPLE:
             api.tag_recording(recording, tag, tags[tag])
 
@@ -91,33 +100,14 @@ def classify(conf, recording, api, s3):
 
     upload_tracks(api, recording, algorithm_id, tagged_tracks)
 
-    # print output:
-    print_results(formatted_tracks)
-
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
-    logging.info("uploading %s", video_filename)
+    logger.debug("uploading %s", video_filename)
     new_key = s3.upload_recording(video_filename)
 
     metadata = {"additionalMetadata": {"algorithm": algorithm_id}}
     api.report_done(recording, new_key, "video/mp4", metadata)
-    logging.info("Finished processing (new key: %s)", new_key)
-
-
-def print_results(tracks):
-    for track in tracks:
-        message = track["message"] if "message" in track else ""
-        logging.info(
-            "Track found: {}-{}s, {}, confidence: {} ({}), novelty: {}, status: {}".format(
-                track["start_s"],
-                track["end_s"],
-                track["label"],
-                track["confidence"],
-                track["clarity"],
-                track["average_novelty"],
-                message,
-            )
-        )
+    logger.info("Finished (new key: %s)", new_key)
 
 
 def format_track_data(tracks):
@@ -151,20 +141,10 @@ def update_metadata(conf, recording, api):
         metadata["duration"] = round(count / FRAME_RATE)
     complete = not conf.do_classify
     api.update_metadata(recording, metadata, complete)
-    logging.info("Metadata updated")
 
 
 def upload_tracks(api, recording, algorithm_id, tracks):
-    print("uploading tracks...")
-
     for track in tracks:
         track["id"] = api.add_track(recording, track, algorithm_id)
         if "tag" in track:
-            logging.info(
-                "Adding label {} to track {}".format(track["tag"], track["id"])
-            )
             api.add_track_tag(recording, track)
-
-
-if __name__ == "__main__":
-    main()

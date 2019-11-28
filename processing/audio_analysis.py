@@ -10,7 +10,6 @@ import processing
 
 def process(recording, conf):
     logger = processing.logs.worker_logger("audio.analysis", recording["id"])
-    logger.info("starting")
 
     api = processing.API(conf.api_url)
     s3 = processing.S3(conf)

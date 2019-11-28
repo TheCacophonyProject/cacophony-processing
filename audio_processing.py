@@ -28,7 +28,7 @@ import traceback
 from pebble import ProcessPool
 
 import processing
-from processing import API, S3, audio_convert, audio_analysis, logs
+from processing import API, S3, logs, audio_convert, audio_analysis, thermal
 
 SLEEP_SECS = 2
 
@@ -47,6 +47,7 @@ def main():
         Processor(
             "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
         ),
+        Processor("thermalRaw", "getMetadata", thermal.process, conf.thermal_workers),
     ]
 
     logger.info("checking for recordings")
