@@ -20,22 +20,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
+import multiprocessing
+import sys
 import time
 import traceback
-from pprint import pformat
 
 from pebble import ProcessPool
 
 import processing
-from processing import API, S3, audio_convert, audio_analysis
+from processing import API, S3, audio_convert, audio_analysis, logs
 
 SLEEP_SECS = 2
 
+logger = logs.master_logger()
+
 
 def main():
-    processing.init_logging()
     conf = processing.Config.load()
-    api = API(conf.api_url)
+
+    Processor.conf = conf
+    Processor.api = API(conf.api_url)
+    Processor.log_q = logs.init_master()
 
     processors = [
         Processor("audio", "toMp3", audio_convert.process, conf.audio_convert_workers),
@@ -44,37 +49,51 @@ def main():
         ),
     ]
 
-    while True:
-        try:
-            for processor in processors:
-                processor.poll(conf, api)
-        except KeyboardInterrupt:
-            break
-        except:
-            logging.error(traceback.format_exc())
+    logger.info("checking for recordings")
+    try:
+        while True:
+            try:
+                for processor in processors:
+                    processor.poll()
+            except:
+                logger.error(traceback.format_exc())
 
-        time.sleep(SLEEP_SECS)
+            time.sleep(SLEEP_SECS)
+    except KeyboardInterrupt:
+        logger.info("cancelled by Ctrl-C")
+        pass
 
 
 class Processor:
+
+    conf = None
+    api = None
+    log_q = None
+
     def __init__(self, recording_type, processing_state, process_func, num_workers):
         self.recording_type = recording_type
         self.processing_state = processing_state
         self.process_func = process_func
         self.num_workers = num_workers
-        self.pool = ProcessPool(num_workers)
+        self.pool = ProcessPool(
+            num_workers, initializer=logs.init_worker, initargs=(self.log_q,)
+        )
         self.in_progress = {}
 
-    def poll(self, conf, api):
+    def poll(self):
         self.reap_completed()
         if len(self.in_progress) >= self.num_workers:
             return
 
-        recording = api.next_job(self.recording_type, self.processing_state)
+        recording = self.api.next_job(self.recording_type, self.processing_state)
         if recording:
-            # TODO - make this concise
-            logging.info("recording to process:\n%s", pformat(recording))
-            future = self.pool.schedule(self.process_func, (recording, conf))
+            logger.debug(
+                "scheduling %s (%s: %s)",
+                recording["id"],
+                recording["type"],
+                self.processing_state,
+            )
+            future = self.pool.schedule(self.process_func, (recording, self.conf))
             self.in_progress[recording["id"]] = future
 
     def reap_completed(self):
@@ -83,7 +102,7 @@ class Processor:
                 del self.in_progress[recording_id]
                 err = future.exception()
                 if err:
-                    logging.error(
+                    logger.error(
                         f"{self.recording_type}.{self.processing_state} processing of {recording_id} failed: {err}:\n{err.traceback}"
                     )
 

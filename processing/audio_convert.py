@@ -19,14 +19,13 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging
 import subprocess
 import tempfile
-import librosa
 import mimetypes
+import logging
 from pathlib import Path
 
-from pebble import concurrent
+import librosa
 
 import processing
 
@@ -40,7 +39,11 @@ mimetypes.add_type("audio/x-flac", ".flac")
 
 BIT_RATE = "128k"
 
+
 def process(recording, conf):
+    logger = processing.logs.worker_logger("audio.convert", recording["id"])
+    logger.info("starting")
+
     api = processing.API(conf.api_url)
     s3 = processing.S3(conf)
 
@@ -48,7 +51,7 @@ def process(recording, conf):
 
     if not input_extension:
         # Unsupported mimetype. If needed more mimetypes can be added above.
-        print("unsupported mimetype. Not processing")
+        logger.error("Unsupported mimetype. Not processing")
         api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
 
@@ -56,18 +59,18 @@ def process(recording, conf):
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
-        logging.info("downloading recording to %s", input_filename)
+        logger.debug("downloading recording to %s", input_filename)
         s3.download(recording["rawFileKey"], str(input_filename))
 
-        logging.info("normalizing")
+        logger.debug("normalizing")
         output_filename, new_mime_type, amplification = normalize_file(input_filename)
         new_metadata["additionalMetadata"]["amplification"] = amplification
 
-        logging.info("uploading from %s", output_filename)
+        logger.debug("uploading from %s", output_filename)
         new_key = s3.upload_recording(str(output_filename))
 
     api.report_done(recording, new_key, new_mime_type, new_metadata)
-    logging.info("Finished processing: %s", new_metadata)
+    logger.info("Finished")
 
 
 def normalize_file(filename):
@@ -105,8 +108,7 @@ def encode_file(input_filename):
             stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
-        logging.error("ffmpeg failed with output: %s", e.output.encode("utf-8"))
-        raise
+        raise OSError("ffmpeg failed with output: " + e.output.encode("utf-8"))
 
     return output_filename, "audio/mp3"
 

@@ -102,13 +102,11 @@ class API:
 
     def add_track_tag(self, recording, track):
         url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track["id"])
-        print(url)
         post_data = {
             "what": track["tag"],
             "confidence": track["confidence"],
             "data" : json.dumps(''),
         }
-        print(post_data)
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackTagId"]
