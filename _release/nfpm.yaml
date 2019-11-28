@@ -19,3 +19,6 @@ files:
 
 config_files:
   processing_TEMPLATE.yaml: "/etc/cacophony/processing.yaml"
+
+scripts:
+  postinstall: "_release/postinstall.sh"
