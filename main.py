@@ -43,13 +43,12 @@ def main():
     Processor.api = API(conf.api_url)
     Processor.log_q = logs.init_master()
 
-    processors = [
-        Processor("audio", "toMp3", audio_convert.process, conf.audio_convert_workers),
-        Processor(
-            "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
-        ),
-        Processor("thermalRaw", "getMetadata", thermal.process, conf.thermal_workers),
-    ]
+    processors = Processors()
+    processors.add("audio", "toMp3", audio_convert.process, conf.audio_convert_workers)
+    processors.add(
+        "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
+    )
+    processors.add("thermalRaw", "getMetadata", thermal.process, conf.thermal_workers)
 
     logger.info("checking for recordings")
     while True:
@@ -60,6 +59,14 @@ def main():
             logger.error(traceback.format_exc())
 
         time.sleep(SLEEP_SECS)
+
+
+class Processors(list):
+    def add(self, recording_type, processing_state, process_func, num_workers):
+        if num_workers < 1:
+            return
+        p = Processor(recording_type, processing_state, process_func, num_workers)
+        self.append(p)
 
 
 class Processor:
