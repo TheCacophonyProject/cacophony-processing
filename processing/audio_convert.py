@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 """
 cacophony-processing - this is a server side component that runs alongside
 the Cacophony Project API, performing post-upload processing tasks.

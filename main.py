@@ -3,7 +3,7 @@
 """
 cacophony-processing - this is a server side component that runs alongside
 the Cacophony Project API, performing post-upload processing tasks.
-Copyright (C) 2018, The Cacophony Project
+Copyright (C) 2019, The Cacophony Project
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
