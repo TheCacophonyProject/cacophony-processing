@@ -20,16 +20,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import logging
-import multiprocessing
-import sys
 import time
 import traceback
 
 from pebble import ProcessPool
 
 import processing
-from processing import API, S3, logs, audio_convert, audio_analysis, thermal
+from processing import API, logs, audio_convert, audio_analysis, thermal
 
 SLEEP_SECS = 2
 

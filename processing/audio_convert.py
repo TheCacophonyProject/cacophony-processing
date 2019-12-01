@@ -20,7 +20,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import subprocess
 import tempfile
 import mimetypes
-import logging
 from pathlib import Path
 
 import librosa
