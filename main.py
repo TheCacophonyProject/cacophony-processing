@@ -104,9 +104,11 @@ class Processor:
                 del self.in_progress[recording_id]
                 err = future.exception()
                 if err:
-                    logger.error(
-                        f"{self.recording_type}.{self.processing_state} processing of {recording_id} failed: {err}:\n{err.traceback}"
-                    )
+                    msg = f"{self.recording_type}.{self.processing_state} processing of {recording_id} failed: {err}"
+                    tb = getattr(err, "traceback", None)
+                    if tb:
+                        msg += f":\n{tb}"
+                    logger.error(msg)
 
 
 if __name__ == "__main__":
