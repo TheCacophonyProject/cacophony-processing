@@ -6,7 +6,8 @@ username=cacophony-processing
 id $username &> /dev/null || useradd --system \
                                      --user-group \
                                      --groups docker \
-                                     --home /usr/bin \
+                                     --home-dir /var/cache/$username \
+                                     --create-home \
                                      --shell /usr/sbin/nologin \
                                      $username
 
