@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 """
 cacophony-processing - this is a server side component that runs alongside
 the Cacophony Project API, performing post-upload processing tasks.
@@ -19,23 +17,16 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging
 import subprocess
 import tempfile
-import time
-import traceback
-import librosa
 import mimetypes
-from pprint import pformat
 from pathlib import Path
+
+import librosa
 
 import processing
 
-SLEEP_SECS = 10
 MAX_AMPLIFICATION = 20
-
-processing.init_logging()
-conf = processing.Config.load()
 
 mimetypes.add_type("audio/mp4", ".mp3")
 mimetypes.add_type("video/3gpp", ".3gpp")
@@ -46,32 +37,47 @@ mimetypes.add_type("audio/x-flac", ".flac")
 BIT_RATE = "128k"
 
 
-def process(recording, api, s3):
+def process(recording, conf):
+    logger = processing.logs.worker_logger("audio.convert", recording["id"])
+
+    api = processing.API(conf.api_url)
+    s3 = processing.S3(conf)
+
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
-    newMetadata = {}
 
     if not input_extension:
         # Unsupported mimetype. If needed more mimetypes can be added above.
-        print("unsupported mimetype. Not processing")
+        logger.error("Unsupported mimetype. Not processing")
         api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
 
+    new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
-        wav_filename = temp_path / "output.wav"
-        logging.info("downloading recording to %s", input_filename)
+        logger.debug("downloading recording to %s", input_filename)
         s3.download(recording["rawFileKey"], str(input_filename))
-        data, sr = librosa.core.load(str(input_filename), sr=None)
-        amplification = normalize(data, MAX_AMPLIFICATION)
-        newMetadata["additionalMetadata"] = {"amplification": amplification}
-        librosa.output.write_wav(str(wav_filename), data, sr)
-        output_filename, new_mime_type = encode_file(wav_filename)
-        logging.info("uploading from %s", output_filename)
+
+        logger.debug("normalizing")
+        output_filename, new_mime_type, amplification = normalize_file(input_filename)
+        new_metadata["additionalMetadata"]["amplification"] = amplification
+
+        logger.debug("uploading from %s", output_filename)
         new_key = s3.upload_recording(str(output_filename))
 
-    api.report_done(recording, new_key, new_mime_type, newMetadata)
-    logging.info("Finished processing")
+    api.report_done(recording, new_key, new_mime_type, new_metadata)
+    logger.info("Finished")
+
+
+def normalize_file(filename):
+    data, sr = librosa.core.load(str(filename), sr=None)
+    amplification = normalize(data, MAX_AMPLIFICATION)
+
+    wav_filename = filename.parent / "output.wav"
+
+    librosa.output.write_wav(str(wav_filename), data, sr)
+    out_filename, out_mimetype = encode_file(wav_filename)
+    return out_filename, out_mimetype, amplification
 
 
 def normalize(data, max_amp):
@@ -98,35 +104,10 @@ def encode_file(input_filename):
             stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
-        logging.error("ffmpeg failed with output: %s", e.output.encode("utf-8"))
-        raise
+        raise OSError("ffmpeg failed with output: " + e.output.encode("utf-8"))
 
     return output_filename, "audio/mp3"
 
 
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
-
-
-def main():
-    api = processing.API(conf.api_url)
-    s3 = processing.S3(conf)
-
-    while True:
-        try:
-            recording = api.next_job("audio", "toMp3")
-            if recording:
-                logging.info("recording to process:\n%s", pformat(recording))
-                process(recording, api, s3)
-            else:
-                time.sleep(SLEEP_SECS)
-        except KeyboardInterrupt:
-            break
-        except:
-            # TODO - failures should be reported back over the API
-            logging.error(traceback.format_exc())
-            time.sleep(SLEEP_SECS)
-
-
-if __name__ == "__main__":
-    main()

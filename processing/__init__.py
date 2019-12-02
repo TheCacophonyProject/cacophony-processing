@@ -17,14 +17,6 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging
-
 from .config import Config
 from .api import API
 from .s3 import S3
-
-def init_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)-15s %(levelname)s %(message)s",
-    )

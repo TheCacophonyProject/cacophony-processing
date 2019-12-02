@@ -10,6 +10,8 @@ s3:
 
 api_url: "http://127.0.0.1:2008/api/fileProcessing"
 
+thermal_workers: 2
+
 # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
 classify: True
 
@@ -39,3 +41,11 @@ tagging:
 
     # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
     animal_movement: 50
+
+
+audio:
+    convert_workers: 2
+    analysis_workers: 2
+
+    # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection)
+    analysis_command: 'docker run -v "{folder}":/io cacophonyproject/audio-analysis /io/"{basename}"'

@@ -45,16 +45,22 @@ class API:
         r = requests.put(self.url, data=params)
         r.raise_for_status()
 
+    def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
+        if not metadata:
+            metadata = {}
+        if newMimeType:
+            metadata["fileMimeType"] = newMimeType
 
-    def report_done(self, recording, newKey, newMimeType, metadata = {}):
-        metadata["fileMimeType"] = newMimeType
         params = {
-            "id": recording["id"],
             "jobKey": recording["jobKey"],
+            "id": recording["id"],
             "success": True,
-            "newProcessedFileKey": newKey,
+            "complete": True,
             "result": json.dumps({"fieldUpdates": metadata}),
         }
+        if newKey:
+            params["newProcessedFileKey"] = newKey
+
         r = requests.put(self.url, data=params)
         r.raise_for_status()
 
@@ -96,13 +102,11 @@ class API:
 
     def add_track_tag(self, recording, track):
         url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track["id"])
-        print(url)
         post_data = {
             "what": track["tag"],
             "confidence": track["confidence"],
             "data" : json.dumps(''),
         }
-        print(post_data)
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackTagId"]

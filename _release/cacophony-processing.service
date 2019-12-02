@@ -3,7 +3,7 @@ Description=Cacophony Project audio upload processing
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/cacophony-processing.pex -m audio_processing
+ExecStart=/usr/bin/cacophony-processing.pex -m main
 Restart=on-failure
 User=fullnoise
 Group=fullnoise
