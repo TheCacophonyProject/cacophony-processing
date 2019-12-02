@@ -1,12 +1,12 @@
 [Unit]
-Description=Cacophony Project audio upload processing
+Description=Cacophony Project upload processing
 After=network.target
 
 [Service]
 ExecStart=/usr/bin/cacophony-processing.pex -m main
 Restart=on-failure
-User=fullnoise
-Group=fullnoise
+User=cacophony-processing
+Group=cacophony-processing
 
 [Install]
 WantedBy=multi-user.target
