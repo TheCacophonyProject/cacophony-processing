@@ -24,7 +24,10 @@ from pathlib import Path
 
 from cptv import CPTVReader
 
-import processing
+from . import API
+from . import S3
+from . import logs
+from .processutils import HandleCalledProcessError
 from .tagger import calculate_tags
 
 
@@ -39,10 +42,10 @@ MULTIPLE = "multiple animals"
 
 
 def process(recording, conf):
-    logger = processing.logs.worker_logger("thermal", recording["id"])
+    logger = logs.worker_logger("thermal", recording["id"])
 
-    api = processing.API(conf.api_url)
-    s3 = processing.S3(conf)
+    api = API(conf.api_url)
+    s3 = S3(conf)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
@@ -65,23 +68,22 @@ def classify(conf, recording, api, s3, logger):
 
     logger.debug("processing %s", recording["filename"])
 
-    proc = subprocess.run(
-        command,
-        cwd=conf.classify_dir,
-        shell=True,
-        encoding="ascii",
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    with HandleCalledProcessError():
+        proc = subprocess.run(
+            command,
+            cwd=conf.classify_dir,
+            shell=True,
+            encoding="ascii",
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     try:
         classify_info = json.loads(proc.stdout)
     except json.decoder.JSONDecodeError as err:
         raise ValueError(
-            "failed to JSON decode classifier output:\n{}\n{}".format(
-                proc.stdout, proc.stderr
-            )
+            "failed to JSON decode classifier output:\n{}".format(proc.stdout)
         ) from err
 
     track_info = classify_info["tracks"]
