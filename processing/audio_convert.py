@@ -24,7 +24,11 @@ from pathlib import Path
 
 import librosa
 
-import processing
+from . import API
+from . import S3
+from . import logs
+from .processutils import HandleCalledProcessError
+
 
 MAX_AMPLIFICATION = 20
 
@@ -38,10 +42,10 @@ BIT_RATE = "128k"
 
 
 def process(recording, conf):
-    logger = processing.logs.worker_logger("audio.convert", recording["id"])
+    logger = logs.worker_logger("audio.convert", recording["id"])
 
-    api = processing.API(conf.api_url)
-    s3 = processing.S3(conf)
+    api = API(conf.api_url)
+    s3 = S3(conf)
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -89,7 +93,8 @@ def normalize(data, max_amp):
 
 def encode_file(input_filename):
     output_filename = replace_ext(input_filename, ".mp3")
-    try:
+
+    with HandleCalledProcessError():
         subprocess.check_output(
             [
                 "ffmpeg",
@@ -103,9 +108,6 @@ def encode_file(input_filename):
             ],
             stderr=subprocess.STDOUT,
         )
-    except subprocess.CalledProcessError as e:
-        raise OSError("ffmpeg failed with output: " + e.output.encode("utf-8"))
-
     return output_filename, "audio/mp3"
 
 
