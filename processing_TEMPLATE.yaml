@@ -48,4 +48,6 @@ audio:
     analysis_workers: 2
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection)
-    analysis_command: 'docker run --rm -v "{folder}":/io cacophonyproject/audio-analysis /io/"{basename}"'
+    analysis_command: 'docker run --rm -v "{folder}":/io cacophonyproject/audio-analysis:{tag} /io/"{basename}"'
+
+    analysis_tag: v1.1.0
