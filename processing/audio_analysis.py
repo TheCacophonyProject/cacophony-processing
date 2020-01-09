@@ -59,9 +59,8 @@ def process(recording, conf):
 
 def analyse(filename, conf):
     command = conf.audio_analysis_cmd.format(
-        folder=filename.parent, basename=filename.name
+        folder=filename.parent, basename=filename.name, tag=conf.audio_analysis_tag
     )
-
     with HandleCalledProcessError():
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+        output = subprocess.check_output(command, shell=True, stderr=subprocess.PIPE)
     return json.loads(output.decode("utf-8"))
