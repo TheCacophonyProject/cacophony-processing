@@ -206,6 +206,9 @@ def add_track_tag_per_model(api, recording, track, model_results):
         else:
             track_to_save = find_matching_track(model["tracks"], track)
             track_to_save["id"] = track["id"]
+            track_data["all_class_confidences"] = track_to_save.get(
+                "all_class_confidences"
+            )
 
         if track_to_save and "tag" in track_to_save:
             api.add_track_tag(recording, track_to_save, data=track_data)
