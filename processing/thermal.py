@@ -60,18 +60,56 @@ def process(recording, conf):
             classify(conf, recording, api, s3, logger)
 
 
-def classify(conf, recording, api, s3, logger):
-    working_dir = recording["filename"].parent
-    command = conf.classify_cmd.format(
-        folder=str(working_dir), source=recording["filename"].name
-    )
+# classifies using this file using all models described in the config
+# if no models are described, the default classifier model will be used
+# from classifier.yml
+def classify_models(api, command, conf):
+    model_results = []
+    main_model = None
+    if conf.models:
+        for model in conf.models:
+            model_result = classify_model(api, command, conf, model=model)
+            if model.live:
+                main_model = model_result
 
-    logger.debug("processing %s", recording["filename"])
+            model_results.append(model_result)
+    else:
+        model_result = classify_model(api, command, conf)
+        model_results.append(model_result)
+        main_model = model_result
+    return model_results, main_model
 
+
+def classify_model(api, command, conf, model=None):
+
+    if model and model.model_file:
+        command = "{} -m {}".format(command, model.model_file)
+
+    classify_info = run_classify_command(command, conf.classify_dir)
+
+    track_info = classify_info["tracks"]
+    formatted_tracks = format_track_data(track_info)
+
+    # Auto tag the video
+    tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
+
+    model_result = {
+        "tracks": tagged_tracks,
+        "tags": tags,
+        "algiorithm_id": api.get_algorithm_id(classify_info["algorithm"]),
+    }
+    if model:
+        model_result["live"] = model.live
+        model_result["name"] = model.name
+
+    return model_result
+
+
+def run_classify_command(command, dir):
     with HandleCalledProcessError():
         proc = subprocess.run(
             command,
-            cwd=conf.classify_dir,
+            cwd=dir,
             shell=True,
             encoding="ascii",
             check=True,
@@ -85,27 +123,34 @@ def classify(conf, recording, api, s3, logger):
         raise ValueError(
             "failed to JSON decode classifier output:\n{}".format(proc.stdout)
         ) from err
+    return classify_info
 
-    track_info = classify_info["tracks"]
-    formatted_tracks = format_track_data(track_info)
 
-    # Auto tag the video
-    tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
-    for tag in tags:
-        logger.debug("tag: %s (%.2f)", tag, tags[tag]["confidence"])
+def classify(conf, recording, api, s3, logger):
+    working_dir = recording["filename"].parent
+
+    command = conf.classify_cmd.format(
+        folder=str(working_dir), source=recording["filename"].name
+    )
+    logger.debug("processing %s", recording["filename"])
+    model_results, main_model = classify_models(api, command, conf)
+
+    for label, tag in main_model["tags"].items():
+        logger.debug("tag: %s (%.2f)", label, tag["confidence"])
         if tag == MULTIPLE:
-            api.tag_recording(recording, tag, tags[tag])
+            api.tag_recording(recording, label, tag)
 
-    algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
-
-    upload_tracks(api, recording, algorithm_id, tagged_tracks)
+    if conf.models:
+        upload_tracks(api, recording, main_model, model_results)
+    else:
+        upload_tracks(api, recording, main_model)
 
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
     logger.debug("uploading %s", video_filename)
     new_key = s3.upload_recording(video_filename)
 
-    metadata = {"additionalMetadata": {"algorithm": algorithm_id}}
+    metadata = {"additionalMetadata": {"algorithm": main_model["algiorithm_id"]}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logger.info("Finished (new key: %s)", new_key)
 
@@ -143,8 +188,36 @@ def update_metadata(conf, recording, api):
     api.update_metadata(recording, metadata, complete)
 
 
-def upload_tracks(api, recording, algorithm_id, tracks):
-    for track in tracks:
-        track["id"] = api.add_track(recording, track, algorithm_id)
-        if "tag" in track:
+def upload_tracks(api, recording, main_model, model_results=None):
+    for track in main_model["tracks"]:
+        track["id"] = api.add_track(recording, track, main_model["algiorithm_id"])
+        if model_results is None:
             api.add_track_tag(recording, track)
+        else:
+            add_track_tag_per_model(api, recording, track, model_results)
+
+
+def add_track_tag_per_model(api, recording, track, model_results):
+    for model in model_results:
+        track_to_save = track
+        track_data = {"name": model["name"], "algorithmId": model["algiorithm_id"]}
+        if model["live"]:
+            track_data["live"] = True
+        else:
+            track_to_save = find_matching_track(model["tracks"], track)
+            track_to_save["id"] = track["id"]
+
+        if track_to_save and "tag" in track_to_save:
+            api.add_track_tag(recording, track_to_save, data=track_data)
+
+
+# find the same track in a different models track
+# This is a track which starts and ends at the same time, and has the same starting position
+def find_matching_track(tracks, track):
+    for other_track in tracks:
+        if (
+            other_track["start_s"] == track["start_s"]
+            and other_track["end_s"] == track["end_s"]
+            and other_track["positions"][0] == track["positions"][0]
+        ):
+            return other_track
