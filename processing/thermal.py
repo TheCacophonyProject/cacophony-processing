@@ -77,7 +77,6 @@ def classify_models(api, command, conf):
 
 
 def classify_file(api, command, conf, model=None):
-
     if model and model.model_file:
         command = "{} -m {}".format(command, model.model_file)
 
