@@ -60,27 +60,23 @@ def process(recording, conf):
             classify(conf, recording, api, s3, logger)
 
 
-# classifies using this file using all models described in the config
-# if no models are described, the default classifier model will be used
-# from classifier.yml
 def classify_models(api, command, conf):
+    """ classifies all models described in the config """
+
     model_results = []
     main_model = None
-    if conf.models:
-        for model in conf.models:
-            model_result = classify_model(api, command, conf, model=model)
-            if model.live:
-                main_model = model_result
 
-            model_results.append(model_result)
-    else:
-        model_result = classify_model(api, command, conf)
+    for model in conf.models:
+        model_result = classify_file(api, command, conf, model=model)
+        if model.live:
+            main_model = model_result
+
         model_results.append(model_result)
-        main_model = model_result
+
     return model_results, main_model
 
 
-def classify_model(api, command, conf, model=None):
+def classify_file(api, command, conf, model=None):
 
     if model and model.model_file:
         command = "{} -m {}".format(command, model.model_file)
@@ -133,17 +129,20 @@ def classify(conf, recording, api, s3, logger):
         folder=str(working_dir), source=recording["filename"].name
     )
     logger.debug("processing %s", recording["filename"])
-    model_results, main_model = classify_models(api, command, conf)
+
+    model_results = None
+    main_model = None
+    if conf.models:
+        model_results, main_model = classify_models(api, command, conf)
+    else:
+        main_model = classify_file(api, command, conf)
 
     for label, tag in main_model["tags"].items():
         logger.debug("tag: %s (%.2f)", label, tag["confidence"])
         if tag == MULTIPLE:
             api.tag_recording(recording, label, tag)
 
-    if conf.models:
-        upload_tracks(api, recording, main_model, model_results)
-    else:
-        upload_tracks(api, recording, main_model)
+    upload_tracks(api, recording, main_model, model_results)
 
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
@@ -214,9 +213,10 @@ def add_track_tag_per_model(api, recording, track, model_results):
             api.add_track_tag(recording, track_to_save, data=track_data)
 
 
-# find the same track in a different models track
-# This is a track which starts and ends at the same time, and has the same starting position
 def find_matching_track(tracks, track):
+    """ Find the same track in a different models tracks data
+    This is a track which starts and ends at the same time, and has the same starting position """
+
     for other_track in tracks:
         if (
             other_track["start_s"] == track["start_s"]
