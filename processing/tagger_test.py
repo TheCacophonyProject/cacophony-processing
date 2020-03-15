@@ -94,7 +94,7 @@ class TestTagCalculations:
         }
 
     def test_multi_track_different_animal_poor_middle_confidence_tags_unidentified(
-        self
+        self,
     ):
         ratty = self.create_good_track("rat")
         ratty[CONFIDENCE] = 0.6

@@ -108,10 +108,14 @@ def find_config():
     raise FileNotFoundError("no configuration file found")
 
 
-modelConfigTuple = namedtuple("Model", ["name", "model_file", "live"])
+modelConfigTuple = namedtuple("Model", ["name", "model_file", "preview"])
 
 
 class Model(modelConfigTuple):
     @classmethod
     def load(cls, raw):
-        return cls(name=raw["name"], model_file=raw["model_file"], live=raw.get("live"))
+        return cls(
+            name=raw["name"],
+            model_file=raw["model_file"],
+            preview=raw.get("preview", "none"),
+        )

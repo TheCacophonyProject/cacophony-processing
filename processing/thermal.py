@@ -64,21 +64,16 @@ def classify_models(api, command, conf):
     """ classifies all models described in the config """
 
     model_results = []
-    main_model = None
-
     for model in conf.models:
-        model_result = classify_file(api, command, conf, model=model)
-        if model.live:
-            main_model = model_result
-
+        model_result = classify_file(api, command, conf, model)
         model_results.append(model_result)
 
-    return model_results, main_model
+    return model_results
 
 
-def classify_file(api, command, conf, model=None):
-    if model and model.model_file:
-        command = "{} -m {}".format(command, model.model_file)
+def classify_file(api, command, conf, model):
+
+    command = "{} -m {} -p {}".format(command, model.model_file, model.preview)
 
     classify_info = run_classify_command(command, conf.classify_dir)
 
@@ -93,9 +88,8 @@ def classify_file(api, command, conf, model=None):
         "tags": tags,
         "algiorithm_id": api.get_algorithm_id(classify_info["algorithm"]),
     }
-    if model:
-        model_result["live"] = model.live
-        model_result["name"] = model.name
+
+    model_result["name"] = model.name
 
     return model_result
 
@@ -129,12 +123,8 @@ def classify(conf, recording, api, s3, logger):
     )
     logger.debug("processing %s", recording["filename"])
 
-    model_results = None
-    main_model = None
-    if conf.models:
-        model_results, main_model = classify_models(api, command, conf)
-    else:
-        main_model = classify_file(api, command, conf)
+    model_results = classify_models(api, command, conf)
+    main_model = model_results[0]
 
     for label, tag in main_model["tags"].items():
         logger.debug("tag: %s (%.2f)", label, tag["confidence"])
@@ -186,30 +176,24 @@ def update_metadata(conf, recording, api):
     api.update_metadata(recording, metadata, complete)
 
 
-def upload_tracks(api, recording, main_model, model_results=None):
+def upload_tracks(api, recording, main_model, model_results):
+    other_models = [model for model in model_results if model != main_model]
     for track in main_model["tracks"]:
         track["id"] = api.add_track(recording, track, main_model["algiorithm_id"])
-        if model_results is None:
-            api.add_track_tag(recording, track)
-        else:
-            add_track_tag_per_model(api, recording, track, model_results)
+        add_track_tags(api, recording, track, main_model)
 
-
-def add_track_tag_per_model(api, recording, track, model_results):
-    for model in model_results:
-        track_to_save = track
-        track_data = {"name": model["name"], "algorithmId": model["algiorithm_id"]}
-        if model["live"]:
-            track_data["live"] = True
-        else:
+        # add track tags for all other models
+        for model in other_models:
             track_to_save = find_matching_track(model["tracks"], track)
             track_to_save["id"] = track["id"]
-            track_data["all_class_confidences"] = track_to_save.get(
-                "all_class_confidences"
-            )
+            add_track_tags(api, recording, track_to_save, model)
 
-        if track_to_save and "tag" in track_to_save:
-            api.add_track_tag(recording, track_to_save, data=track_data)
+
+def add_track_tags(api, recording, track, model):
+    track_data = {"name": model["name"], "algorithmId": model["algiorithm_id"]}
+    track_data["all_class_confidences"] = track.get("all_class_confidences")
+    if track and "tag" in track:
+        api.add_track_tag(recording, track, data=track_data)
 
 
 def find_matching_track(tracks, track):
