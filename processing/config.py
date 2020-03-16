@@ -37,6 +37,7 @@ configTuple = namedtuple(
         "api_url",
         "classify_dir",
         "classify_cmd",
+        "models",
         "do_classify",
         "min_confidence",
         "min_tag_confidence",
@@ -52,6 +53,7 @@ configTuple = namedtuple(
         "thermal_workers",
     ],
 )
+
 
 class Config(configTuple):
     @classmethod
@@ -72,6 +74,7 @@ class Config(configTuple):
                 classify_dir=y["classify_command_dir"],
                 classify_cmd=y["classify_command"],
                 do_classify=y.get("classify", True),
+                models=Config.load_models(y.get("models")),
                 min_confidence=y["tagging"]["min_confidence"],
                 min_tag_confidence=y["tagging"]["min_tag_confidence"],
                 max_tag_novelty=y["tagging"]["max_tag_novelty"],
@@ -86,9 +89,33 @@ class Config(configTuple):
                 thermal_workers=y["thermal_workers"],
             )
 
+    def load_models(raw):
+        if raw is None:
+            return None
+
+        models = []
+        for model in raw:
+            models.append(Model.load(model))
+
+        return models
+
+
 def find_config():
     for directory in CONFIG_DIRS:
         p = directory / CONFIG_FILENAME
         if p.is_file():
             return str(p)
     raise FileNotFoundError("no configuration file found")
+
+
+modelConfigTuple = namedtuple("Model", ["name", "model_file", "preview"])
+
+
+class Model(modelConfigTuple):
+    @classmethod
+    def load(cls, raw):
+        return cls(
+            name=raw["name"],
+            model_file=raw["model_file"],
+            preview=raw.get("preview", "none"),
+        )

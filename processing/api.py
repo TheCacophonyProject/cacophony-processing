@@ -40,7 +40,7 @@ class API:
             "jobKey": recording["jobKey"],
             "success": True,
             "result": json.dumps({"fieldUpdates": fieldUpdates}),
-            "complete": completed
+            "complete": completed,
         }
         r = requests.put(self.url, data=params)
         r.raise_for_status()
@@ -100,15 +100,14 @@ class API:
             return r.json()["trackId"]
         raise IOError(r.text)
 
-    def add_track_tag(self, recording, track):
+    def add_track_tag(self, recording, track, data=""):
         url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track["id"])
         post_data = {
             "what": track["tag"],
             "confidence": track["confidence"],
-            "data" : json.dumps(''),
+            "data": json.dumps(data),
         }
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackTagId"]
         raise IOError(r.text)
-

@@ -45,7 +45,14 @@ def main():
     processors.add(
         "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
     )
-    processors.add("thermalRaw", "getMetadata", thermal.process, conf.thermal_workers)
+    if conf.models is None or len(conf.models) == 0:
+        logger.warn(
+            "No models are specified on config, thermal processing will not run"
+        )
+    else:
+        processors.add(
+            "thermalRaw", "getMetadata", thermal.process, conf.thermal_workers
+        )
 
     logger.info("checking for recordings")
     while True:

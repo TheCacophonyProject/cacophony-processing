@@ -20,6 +20,17 @@ classify_command_dir: "../classifier_pipeline"
 # Relative paths in this command are relative from the classify_command_dir.
 # Should be run using the classifier_pipeline python3.6 virtual environment.
 classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"
+
+# Can be used to run multiple models, this will save a track tag per model
+# the tags of the first model will be used
+models:
+    - name: "best-val"
+      preview: "boxes"
+      model_file: "/models/training-best.sav"
+    - name: "best-epoch"
+      model_file: "models/training-best-val.sav"
+
+
 tagging:
     # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
     min_confidence: .4
