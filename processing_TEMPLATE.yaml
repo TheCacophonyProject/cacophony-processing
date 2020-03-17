@@ -10,6 +10,9 @@ s3:
 
 api_url: "http://127.0.0.1:2008/api/fileProcessing"
 
+# extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
+no_recordings_wait_secs : 10
+
 thermal_workers: 2
 
 # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
