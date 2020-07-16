@@ -1,7 +1,6 @@
 from operator import itemgetter
 from itertools import groupby
 
-EXCLUDED_LABELS = ["not"]
 DEFAULT_CONFIDENCE = 0.85
 FALSE_POSITIVE = "false-positive"
 UNIDENTIFIED = "unidentified"
@@ -76,7 +75,7 @@ def get_significant_tracks(tracks, conf):
     unclear_animals = []
     tags = {}
     for track in tracks:
-        if track[LABEL] in EXCLUDED_LABELS:
+        if conf.ignore_tags is not None and track[LABEL] in conf.ignore_tags:
             continue
         if is_significant_track(track, conf):
             if (
@@ -97,6 +96,7 @@ def get_significant_tracks(tracks, conf):
                     tags[tag] = {CONFIDENCE: track[CONFIDENCE]}
 
             else:
+
                 unclear_animals.append(track)
                 tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
                 track[TAG] = UNIDENTIFIED
