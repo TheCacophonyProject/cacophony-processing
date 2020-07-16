@@ -96,7 +96,6 @@ def get_significant_tracks(tracks, conf):
                     tags[tag] = {CONFIDENCE: track[CONFIDENCE]}
 
             else:
-
                 unclear_animals.append(track)
                 tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
                 track[TAG] = UNIDENTIFIED
