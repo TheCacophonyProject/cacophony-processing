@@ -74,7 +74,6 @@ def classify_models(api, command, conf):
 def classify_file(api, command, conf, model):
 
     command = "{} -m {} -p {}".format(command, model.model_file, model.preview)
-
     classify_info = run_classify_command(command, conf.classify_dir)
 
     track_info = classify_info["tracks"]
