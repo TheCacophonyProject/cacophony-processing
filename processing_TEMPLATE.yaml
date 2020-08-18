@@ -35,6 +35,7 @@ models:
 
 
 tagging:
+  ignore_tags: ["not"]
     # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
     min_confidence: .4
 

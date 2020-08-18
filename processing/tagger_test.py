@@ -20,6 +20,7 @@ class TestTagCalculations:
     conf.min_tag_clarity = 0.1
     conf.min_tag_clarity_secondary = 0.05
     conf.min_frames = 4
+    conf.ignore_tags = None
     time = -2
 
     def test_no_tracks(self):

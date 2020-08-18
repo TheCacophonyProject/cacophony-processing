@@ -52,6 +52,7 @@ configTuple = namedtuple(
         "audio_convert_workers",
         "audio_analysis_workers",
         "thermal_workers",
+        "ignore_tags",
     ],
 )
 
@@ -89,6 +90,7 @@ class Config(configTuple):
                 audio_convert_workers=y["audio"]["convert_workers"],
                 audio_analysis_workers=y["audio"]["analysis_workers"],
                 thermal_workers=y["thermal_workers"],
+                ignore_tags=y["tagging"].get("ignore_tags", None),
             )
 
     def load_models(raw):

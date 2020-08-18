@@ -75,6 +75,8 @@ def get_significant_tracks(tracks, conf):
     unclear_animals = []
     tags = {}
     for track in tracks:
+        if conf.ignore_tags is not None and track[LABEL] in conf.ignore_tags:
+            continue
         if is_significant_track(track, conf):
             if (
                 track[LABEL] == FALSE_POSITIVE

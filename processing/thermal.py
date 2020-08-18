@@ -74,7 +74,6 @@ def classify_models(api, command, conf):
 def classify_file(api, command, conf, model):
 
     command = "{} -m {} -p {}".format(command, model.model_file, model.preview)
-
     classify_info = run_classify_command(command, conf.classify_dir)
 
     track_info = classify_info["tracks"]
@@ -131,7 +130,7 @@ def classify(conf, recording, api, s3, logger):
         if tag == MULTIPLE:
             api.tag_recording(recording, label, tag)
 
-    upload_tracks(api, recording, main_model, model_results)
+    upload_tracks(api, recording, main_model, model_results, logger)
 
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
@@ -176,34 +175,42 @@ def update_metadata(conf, recording, api):
     api.update_metadata(recording, metadata, complete)
 
 
-def upload_tracks(api, recording, main_model, model_results):
+def upload_tracks(api, recording, main_model, model_results, logger):
     other_models = [model for model in model_results if model != main_model]
     for track in main_model["tracks"]:
         track["id"] = api.add_track(recording, track, main_model["algiorithm_id"])
-        add_track_tags(api, recording, track, main_model)
+        add_track_tags(api, recording, track, main_model, logger)
 
         # add track tags for all other models
         for model in other_models:
             track_to_save = find_matching_track(model["tracks"], track)
+            if track_to_save is None:
+                logger.warn(
+                    "Could not find a matching track in model %s for recording %s track %s",
+                    model["name"],
+                    recording["id"],
+                    track["id"],
+                )
+                continue
             track_to_save["id"] = track["id"]
-            add_track_tags(api, recording, track_to_save, model)
+            add_track_tags(api, recording, track_to_save, model, logger)
 
 
-def add_track_tags(api, recording, track, model):
+def add_track_tags(api, recording, track, model, logger):
     track_data = {"name": model["name"], "algorithmId": model["algiorithm_id"]}
     track_data["all_class_confidences"] = track.get("all_class_confidences")
     if track and "tag" in track:
+        logger.debug("adding %s track tag for track %s", model["name"], track["id"])
         api.add_track_tag(recording, track, data=track_data)
 
 
 def find_matching_track(tracks, track):
     """ Find the same track in a different models tracks data
-    This is a track which starts and ends at the same time, and has the same starting position """
+    This is a track which starts at the same time, and has the same starting position """
 
     for other_track in tracks:
         if (
             other_track["start_s"] == track["start_s"]
-            and other_track["end_s"] == track["end_s"]
             and other_track["positions"][0] == track["positions"][0]
         ):
             return other_track
