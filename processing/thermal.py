@@ -199,7 +199,9 @@ def upload_tracks(api, recording, main_model, model_results, logger):
 def add_track_tags(api, recording, track, model, logger):
     track_data = {"name": model["name"], "algorithmId": model["algiorithm_id"]}
     track_data["all_class_confidences"] = track.get("all_class_confidences")
-    track_data["predictions"] = track.get("predictions")
+    predictions = track.get("predictions")
+    if predictions:
+        track_data["predictions"] = predictions
 
     if track and "tag" in track:
         logger.debug("adding %s track tag for track %s", model["name"], track["id"])
