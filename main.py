@@ -56,13 +56,20 @@ def main():
 
     logger.info("checking for recordings")
     while True:
+        working = False
         try:
             for processor in processors:
-                processor.poll()
+                working = working or processor.poll()
         except:
             logger.error(traceback.format_exc())
 
-        time.sleep(SLEEP_SECS)
+        # To avoid hitting the server repetitively wait longer if nothing to process
+        if working:
+            logger.warn("processing short sleep")
+            time.sleep(SLEEP_SECS)
+        else:
+            logger.warn("Nothing to process - extending wait time")
+            time.sleep(conf.no_recordings_wait_secs)
 
 
 class Processors(list):
@@ -92,7 +99,7 @@ class Processor:
     def poll(self):
         self.reap_completed()
         if len(self.in_progress) >= self.num_workers:
-            return
+            return True
 
         recording = self.api.next_job(self.recording_type, self.processing_state)
         if recording:
@@ -104,6 +111,8 @@ class Processor:
             )
             future = self.pool.schedule(self.process_func, (recording, self.conf))
             self.in_progress[recording["id"]] = future
+            return True
+        return False
 
     def reap_completed(self):
         for recording_id, future in list(self.in_progress.items()):

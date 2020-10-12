@@ -10,6 +10,9 @@ s3:
 
 api_url: "http://127.0.0.1:2008/api/fileProcessing"
 
+# extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
+no_recordings_wait_secs : 30
+
 thermal_workers: 2
 
 # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
@@ -33,26 +36,27 @@ models:
 
 tagging:
   ignore_tags: ["not"]
-    # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
-    min_confidence: .4
 
-    # This is the minimum confidence a track should have in order to tag as animal
-    min_tag_confidence: .8
+  # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
+  min_confidence: .4
 
-    # Classifications with a novelty above this value will be ignored for tagging.
-    max_tag_novelty: .7
+  # This is the minimum confidence a track should have in order to tag as animal
+  min_tag_confidence: .8
 
-    # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
-    min_tag_clarity: .2
+  # Classifications with a novelty above this value will be ignored for tagging.
+  max_tag_novelty: .7
 
-    # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
-    min_tag_clarity_secondary: .05
+  # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
+  min_tag_clarity: .2
 
-    # This is the minimum length of a track.
-    min_frames: 3
+  # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
+  min_tag_clarity_secondary: .05
 
-    # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
-    animal_movement: 50
+  # This is the minimum length of a track.
+  min_frames: 3
+
+  # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
+  animal_movement: 50
 
 
 audio:
