@@ -56,18 +56,20 @@ def main():
 
     logger.info("checking for recordings")
     while True:
+        working = False
         try:
-            working = False
             for processor in processors:
                 working = working or processor.poll()
-            # To avoid hitting the server repetitively wait longer if nothing to process
-            if not working:
-                logger.debug("Nothing to process - extending wait time")
-                time.sleep(conf.no_recordings_wait_secs)
         except:
             logger.error(traceback.format_exc())
 
-        time.sleep(SLEEP_SECS)
+        # To avoid hitting the server repetitively wait longer if nothing to process
+        if working:
+            logger.warn("processing short sleep")
+            time.sleep(SLEEP_SECS)
+        else:
+            logger.warn("Nothing to process - extending wait time")
+            time.sleep(conf.no_recordings_wait_secs)
 
 
 class Processors(list):
