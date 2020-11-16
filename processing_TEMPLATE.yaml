@@ -12,51 +12,51 @@ api_url: "http://127.0.0.1:2008/api/fileProcessing"
 
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
+thermal: 
+    thermal_workers: 2
 
-thermal_workers: 2
+    # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
+    classify: True
 
-# classify option allows you to turn off the classifier for test purposes if the classifier is not set up
-classify: True
+    # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
+    classify_command_dir: "../classifier_pipeline"
+    # Relative paths in this command are relative from the classify_command_dir.
+    # Should be run using the classifier_pipeline python3.6 virtual environment.
+    classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"
 
-# Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
-classify_command_dir: "../classifier_pipeline"
-# Relative paths in this command are relative from the classify_command_dir.
-# Should be run using the classifier_pipeline python3.6 virtual environment.
-classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"
-
-# Can be used to run multiple models, this will save a track tag per model
-# the tags of the first model will be used
-models:
-    - name: "best-val"
-      preview: "boxes"
-      model_file: "/models/training-best.sav"
-    - name: "best-epoch"
-      model_file: "models/training-best-val.sav"
+    # Can be used to run multiple models, this will save a track tag per model
+    # the tags of the first model will be used
+    models:
+        - name: "best-val"
+          preview: "boxes"
+          model_file: "/models/training-best.sav"
+        - name: "best-epoch"
+          model_file: "models/training-best-val.sav"
 
 
-tagging:
-  ignore_tags: ["not"]
+    tagging:
+      ignore_tags: ["not"]
 
-  # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
-  min_confidence: .4
+      # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
+      min_confidence: .4
 
-  # This is the minimum confidence a track should have in order to tag as animal
-  min_tag_confidence: .8
+      # This is the minimum confidence a track should have in order to tag as animal
+      min_tag_confidence: .8
 
-  # Classifications with a novelty above this value will be ignored for tagging.
-  max_tag_novelty: .7
+      # Classifications with a novelty above this value will be ignored for tagging.
+      max_tag_novelty: .7
 
-  # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
-  min_tag_clarity: .2
+      # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
+      min_tag_clarity: .2
 
-  # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
-  min_tag_clarity_secondary: .05
+      # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
+      min_tag_clarity_secondary: .05
 
-  # This is the minimum length of a track.
-  min_frames: 3
+      # This is the minimum length of a track.
+      min_frames: 3
 
-  # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
-  animal_movement: 50
+      # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
+      animal_movement: 50
 
 
 audio:
