@@ -67,30 +67,33 @@ class Config(configTuple):
     def load_from(cls, filename):
         with open(filename) as stream:
             y = yaml.load(stream)
+            s3 = y["s3"]
+            thermal = y["thermal"]
+            audio = y["audio"]
             return cls(
-                bucket_name=y["s3"]["default_bucket"],
+                bucket_name=s3["default_bucket"],
                 endpoint_url=y["s3"]["endpoint"],
-                access_key=y["s3"]["access_key_id"],
-                secret_key=y["s3"]["secret_access_key"],
+                access_key=s3["access_key_id"],
+                secret_key=s3["secret_access_key"],
                 api_url=y["api_url"],
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
-                classify_dir=y["classify_command_dir"],
-                classify_cmd=y["classify_command"],
-                do_classify=y.get("classify", True),
-                models=Config.load_models(y.get("models")),
-                min_confidence=y["tagging"]["min_confidence"],
-                min_tag_confidence=y["tagging"]["min_tag_confidence"],
-                max_tag_novelty=y["tagging"]["max_tag_novelty"],
-                min_tag_clarity=y["tagging"]["min_tag_clarity"],
-                min_tag_clarity_secondary=y["tagging"]["min_tag_clarity_secondary"],
-                min_frames=y["tagging"]["min_frames"],
-                animal_movement=y["tagging"]["animal_movement"],
-                audio_analysis_cmd=y["audio"]["analysis_command"],
-                audio_analysis_tag=y["audio"]["analysis_tag"],
-                audio_convert_workers=y["audio"]["convert_workers"],
-                audio_analysis_workers=y["audio"]["analysis_workers"],
-                thermal_workers=y["thermal_workers"],
-                ignore_tags=y["tagging"].get("ignore_tags", None),
+                classify_dir=thermal["classify_command_dir"],
+                classify_cmd=thermal["classify_command"],
+                do_classify=thermal.get("classify", True),
+                models=Config.load_models(thermal.get("models")),
+                min_confidence=thermal["tagging"]["min_confidence"],
+                min_tag_confidence=thermal["tagging"]["min_tag_confidence"],
+                max_tag_novelty=thermal["tagging"]["max_tag_novelty"],
+                min_tag_clarity=thermal["tagging"]["min_tag_clarity"],
+                min_tag_clarity_secondary=thermal["tagging"]["min_tag_clarity_secondary"],
+                min_frames=thermal["tagging"]["min_frames"],
+                animal_movement=thermal["tagging"]["animal_movement"],
+                audio_analysis_cmd=audio["analysis_command"],
+                audio_analysis_tag=audio["analysis_tag"],
+                audio_convert_workers=audio["convert_workers"],
+                audio_analysis_workers=audio["analysis_workers"],
+                thermal_workers=thermal["thermal_workers"],
+                ignore_tags=thermal["tagging"].get("ignore_tags", None),
             )
 
     def load_models(raw):
