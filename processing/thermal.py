@@ -16,7 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import attr
 import json
 import subprocess
 import tempfile
@@ -82,15 +82,9 @@ def classify_file(api, command, conf, model):
     # Auto tag the video
     tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
 
-    model_result = {
-        "tracks": tagged_tracks,
-        "tags": tags,
-        "algiorithm_id": api.get_algorithm_id(classify_info["algorithm"]),
-    }
-
-    model_result["name"] = model.name
-
-    return model_result
+    return ModelResult(
+        model, tagged_tracks, tags, api.get_algorithm_id(classify_info["algorithm"])
+    )
 
 
 def run_classify_command(command, dir):
@@ -114,8 +108,16 @@ def run_classify_command(command, dir):
     return classify_info
 
 
+def is_wallaby_device(wallaby_devices, recording_meta):
+    device_id = recording_meta.get("DeviceId")
+    if device_id is not None:
+        return device_id in wallaby_devices
+    return False
+
+
 def classify(conf, recording, api, s3, logger):
     working_dir = recording["filename"].parent
+    wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
 
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
@@ -125,19 +127,27 @@ def classify(conf, recording, api, s3, logger):
     model_results = classify_models(api, command, conf)
     main_model = model_results[0]
 
-    for label, tag in main_model["tags"].items():
+    for label, tag in main_model.tags.items():
         logger.debug("tag: %s (%.2f)", label, tag["confidence"])
         if tag == MULTIPLE:
             api.tag_recording(recording, label, tag)
 
-    upload_tracks(api, recording, main_model, model_results, logger)
+    upload_tracks(
+        api,
+        recording,
+        main_model,
+        model_results,
+        logger,
+        wallaby_device,
+        conf.master_tag,
+    )
 
     # Upload mp4
     video_filename = str(replace_ext(recording["filename"], ".mp4"))
     logger.debug("uploading %s", video_filename)
     new_key = s3.upload_recording(video_filename)
 
-    metadata = {"additionalMetadata": {"algorithm": main_model["algiorithm_id"]}}
+    metadata = {"additionalMetadata": {"algorithm": main_model.algorithm_id}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logger.info("Finished (new key: %s)", new_key)
 
@@ -175,15 +185,18 @@ def update_metadata(conf, recording, api):
     api.update_metadata(recording, metadata, complete)
 
 
-def upload_tracks(api, recording, main_model, model_results, logger):
+def upload_tracks(
+    api, recording, main_model, model_results, logger, wallaby_device, master_name
+):
     other_models = [model for model in model_results if model != main_model]
-    for track in main_model["tracks"]:
-        track["id"] = api.add_track(recording, track, main_model["algiorithm_id"])
-        add_track_tags(api, recording, track, main_model, logger)
-
+    for track in main_model.tracks:
+        track["id"] = api.add_track(recording, track, main_model.algorithm_id)
+        added = add_track_tags(api, recording, track, main_model, logger)
+        if added:
+            model_tags = [(main_model, track)]
         # add track tags for all other models
         for model in other_models:
-            track_to_save = find_matching_track(model["tracks"], track)
+            track_to_save = find_matching_track(model.tracks, track)
             if track_to_save is None:
                 logger.warn(
                     "Could not find a matching track in model %s for recording %s track %s",
@@ -193,24 +206,90 @@ def upload_tracks(api, recording, main_model, model_results, logger):
                 )
                 continue
             track_to_save["id"] = track["id"]
-            add_track_tags(api, recording, track_to_save, model, logger)
+            added = add_track_tags(api, recording, track_to_save, model, logger)
+            if added:
+                model_tags.append((model, track_to_save))
+
+        master_tag = get_master_tag(model_tags, wallaby_device)
+        if master_tag:
+            add_track_tags(
+                api,
+                recording,
+                master_tag[1],
+                master_tag[0],
+                logger,
+                model_name=master_name,
+            )
 
 
-def add_track_tags(api, recording, track, model, logger):
-    track_data = {"name": model["name"], "algorithmId": model["algiorithm_id"]}
+def use_tag(model_result, track, wallaby_device):
+    tag = track.get("tag")
+    if tag is None:
+        return False
+    if wallaby_device and tag.lower() != "wallaby":
+        return False
+    elif not wallaby_device and tag.lower() == "wallaby":
+        return False
+    if tag in model_result.model_config.ignored_tags:
+        return False
+    return wallaby_device == model_result.model_config.wallaby
+
+
+def get_master_tag(model_tags, wallaby_device=False):
+    """ Choose a tag to be the overriding tag for this track """
+
+    model_tags = [
+        model_tag
+        for model_tag in model_tags
+        if use_tag(model_tag[0], model_tag[1], wallaby_device)
+    ]
+
+    if len(model_tags) == 0:
+        return None
+    clear_tags = [
+        model_tag for model_tag in model_tags if model_tag[1]["tag"] != "unidentified"
+    ]
+    if len(clear_tags) == 0:
+        return model_tags[0]
+
+    ordered = sorted(
+        clear_tags,
+        key=lambda model: model_rank(model[0].model_config, model[1]),
+        reverse=True,
+    )
+
+    return ordered[0]
+
+
+def model_rank(model_config, track):
+    tag = track["tag"]
+    if tag in model_config.tag_scores:
+        return model_config.tag_scores[tag]
+    return model_config.tag_scores["default"]
+
+
+def add_track_tags(api, recording, track, model, logger, model_name=None):
+    if track and "tag" in track:
+        return False
+
+    if model_name is None:
+        model_name = model.model_config.name
+    track_data = {"name": model_name, "algorithmId": model.algorithm_id}
     track_data["all_class_confidences"] = track.get("all_class_confidences")
     predictions = track.get("predictions")
     if predictions:
         track_data["predictions"] = predictions
 
-    if track and "tag" in track:
-        logger.debug("adding %s track tag for track %s", model["name"], track["id"])
-        api.add_track_tag(recording, track, data=track_data)
+    logger.debug(
+        "adding %s track tag for track %s", model.model_config.name, track["id"]
+    )
+    api.add_track_tag(recording, track, data=track_data)
+    return True
 
 
 def find_matching_track(tracks, track):
-    """ Find the same track in a different models tracks data
-    This is a track which starts at the same time, and has the same starting position """
+    """Find the same track in a different models tracks data
+    This is a track which starts at the same time, and has the same starting position"""
 
     for other_track in tracks:
         if (
@@ -218,3 +297,11 @@ def find_matching_track(tracks, track):
             and other_track["positions"][0] == track["positions"][0]
         ):
             return other_track
+
+
+@attr.s
+class ModelResult:
+    model_config = attr.ib()
+    tracks = attr.ib()
+    tags = attr.ib()
+    algorithm_id = attr.ib()
