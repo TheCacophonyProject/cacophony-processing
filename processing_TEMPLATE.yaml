@@ -12,7 +12,7 @@ api_url: "http://127.0.0.1:2008/api/fileProcessing"
 
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
-thermal: 
+thermal:
     thermal_workers: 2
 
     # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
@@ -26,13 +26,38 @@ thermal:
 
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
-    models:
-        - name: "best-val"
-          preview: "boxes"
-          model_file: "/models/training-best.sav"
-        - name: "best-epoch"
-          model_file: "models/training-best-val.sav"
+    master_tag: "Master"
+    wallaby_devices: []
 
+    # A master tag will be chosen based of the highest score, based of the model and tag
+    # i.e. if the original model classifies as a bird, it will get a score of 4
+    # if resnet classifies as anything it will get a score of 3
+    models:
+    - name: "original"
+      model_file: "/path/to/original-model"
+      preview: "classified"
+      tag_scores:
+          bird: 4
+          default: 1
+    - name: "Retrained"
+      model_file: "/path/to/retrained"
+      preview: "classified"
+      tag_scores:
+        default: 2
+    - name: "Resnet"
+      model_file: "/path/to/resnet"
+      preview: "classified"
+      tag_scores:
+        default: 3
+    - name: "wallaby"
+      model_file: "/path/to/wallaby"
+      tag_scores:
+        default: 2
+    - name: "wallaby-old"
+      model_file: "/path/to/wallaby-old"
+      tag_scores:
+        default: 1
+      wallaby: true
 
     tagging:
       ignore_tags: ["not"]

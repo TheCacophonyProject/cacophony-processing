@@ -53,6 +53,8 @@ configTuple = namedtuple(
         "audio_analysis_workers",
         "thermal_workers",
         "ignore_tags",
+        "wallaby_devices",
+        "master_tag",
     ],
 )
 
@@ -80,12 +82,16 @@ class Config(configTuple):
                 classify_dir=thermal["classify_command_dir"],
                 classify_cmd=thermal["classify_command"],
                 do_classify=thermal.get("classify", True),
+                master_tag=thermal.get("master_tag", "Master"),
+                wallaby_devices=thermal["wallaby_devices"],
                 models=Config.load_models(thermal.get("models")),
                 min_confidence=thermal["tagging"]["min_confidence"],
                 min_tag_confidence=thermal["tagging"]["min_tag_confidence"],
                 max_tag_novelty=thermal["tagging"]["max_tag_novelty"],
                 min_tag_clarity=thermal["tagging"]["min_tag_clarity"],
-                min_tag_clarity_secondary=thermal["tagging"]["min_tag_clarity_secondary"],
+                min_tag_clarity_secondary=thermal["tagging"][
+                    "min_tag_clarity_secondary"
+                ],
                 min_frames=thermal["tagging"]["min_frames"],
                 animal_movement=thermal["tagging"]["animal_movement"],
                 audio_analysis_cmd=audio["analysis_command"],
@@ -115,14 +121,26 @@ def find_config():
     raise FileNotFoundError("no configuration file found")
 
 
-modelConfigTuple = namedtuple("Model", ["name", "model_file", "preview"])
+modelConfigTuple = namedtuple(
+    "Model",
+    ["name", "model_file", "preview", "tag_scores", "wallaby"],
+)
 
 
 class Model(modelConfigTuple):
+    DEFAULT_SCORE = 0
+
     @classmethod
     def load(cls, raw):
         return cls(
             name=raw["name"],
             model_file=raw["model_file"],
             preview=raw.get("preview", "none"),
+            wallaby=raw.get("wallaby", False),
+            tag_scores=load_scores(raw.get("tag_scores", {})),
         )
+
+
+def load_scores(scores):
+    scores.setdefault("default", Model.DEFAULT_SCORE)
+    return scores
