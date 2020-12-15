@@ -230,6 +230,8 @@ def use_tag(model_result, track, wallaby_device):
         return False
     elif not wallaby_device and tag.lower() == "wallaby":
         return False
+    if tag in model_result.model_config.ignored_tags:
+        return False
     return wallaby_device == model_result.model_config.wallaby
 
 
@@ -267,6 +269,9 @@ def model_rank(model_config, track):
 
 
 def add_track_tags(api, recording, track, model, logger, model_name=None):
+    if track and "tag" in track:
+        return False
+
     if model_name is None:
         model_name = model.model_config.name
     track_data = {"name": model_name, "algorithmId": model.algorithm_id}
@@ -275,13 +280,11 @@ def add_track_tags(api, recording, track, model, logger, model_name=None):
     if predictions:
         track_data["predictions"] = predictions
 
-    if track and "tag" in track:
-        logger.debug(
-            "adding %s track tag for track %s", model.model_config.name, track["id"]
-        )
-        api.add_track_tag(recording, track, data=track_data)
-        return True
-    return False
+    logger.debug(
+        "adding %s track tag for track %s", model.model_config.name, track["id"]
+    )
+    api.add_track_tag(recording, track, data=track_data)
+    return True
 
 
 def find_matching_track(tracks, track):

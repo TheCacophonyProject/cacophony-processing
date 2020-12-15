@@ -123,7 +123,7 @@ def find_config():
 
 modelConfigTuple = namedtuple(
     "Model",
-    ["name", "model_file", "preview", "tag_scores", "wallaby"],
+    ["name", "model_file", "preview", "tag_scores", "wallaby", "ignored_tags"],
 )
 
 
@@ -138,6 +138,7 @@ class Model(modelConfigTuple):
             preview=raw.get("preview", "none"),
             wallaby=raw.get("wallaby", False),
             tag_scores=load_scores(raw.get("tag_scores", {})),
+            ignored_tags=raw.get("ignored_tags", []),
         )
 
 

@@ -39,6 +39,7 @@ thermal:
       tag_scores:
           bird: 4
           default: 1
+      ignored_tags: ["mustelid"]
     - name: "Retrained"
       model_file: "/path/to/retrained"
       preview: "classified"
@@ -53,6 +54,7 @@ thermal:
       model_file: "/path/to/wallaby"
       tag_scores:
         default: 2
+      wallaby: true
     - name: "wallaby-old"
       model_file: "/path/to/wallaby-old"
       tag_scores:

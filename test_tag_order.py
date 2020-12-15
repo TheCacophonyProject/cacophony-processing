@@ -8,6 +8,7 @@ def test_models():
         tag_scores={"bird": 4, "default": 1},
         preview="none",
         wallaby=False,
+        ignored_tags=["mustelid"],
     )
     retrained = config.Model(
         name="retrained",
@@ -15,6 +16,7 @@ def test_models():
         tag_scores={"default": 2},
         preview="none",
         wallaby=False,
+        ignored_tags=[],
     )
     resnet = config.Model(
         name="resnet",
@@ -22,6 +24,7 @@ def test_models():
         tag_scores={"default": 3},
         preview="none",
         wallaby=False,
+        ignored_tags=[],
     )
     wallaby = config.Model(
         name="wallaby",
@@ -29,6 +32,7 @@ def test_models():
         tag_scores={"default": 2},
         preview="none",
         wallaby=True,
+        ignored_tags=[],
     )
     wallaby_old = config.Model(
         name="wallaby-old",
@@ -36,6 +40,7 @@ def test_models():
         tag_scores={"default": 1},
         preview="none",
         wallaby=True,
+        ignored_tags=[],
     )
     return [original, retrained, resnet, wallaby, wallaby_old]
 
@@ -161,3 +166,16 @@ def test_model_heirechy():
     resnet_result[1]["tag"] = None
     master_tag = thermal.get_master_tag(results, wallaby_device=False)
     assert master_tag is None
+
+    original_result[1]["tag"] = "unidentified"
+    master_tag = thermal.get_master_tag(results, wallaby_device=False)
+    assert master_tag[1]["tag"] == "unidentified"
+
+    # original model should ignore mustelid
+    original_result[1]["tag"] = "mustelid"
+    master_tag = thermal.get_master_tag(results, wallaby_device=False)
+    assert master_tag is None
+
+    original_result[1]["tag"] = "cat"
+    master_tag = thermal.get_master_tag(results, wallaby_device=False)
+    assert master_tag[1]["tag"] == "cat"
