@@ -173,6 +173,7 @@ class MasterTagger:
                 tag = unmatched[0]
                 # needs to point to track id rather than tracktagid
                 tag["id"] = track["id"]
+                continue
                 thermal.add_track_tags(
                     self.file_api,
                     r,
@@ -184,14 +185,15 @@ class MasterTagger:
             else:
                 master_tag = thermal.get_master_tag(results, wallaby_device)
                 # needs to point to track id rather than tracktagid
-                master_tag[1]["id"] = track["id"]
                 logging.debug(
                     "Got master tag %s for rec %d with tags %s",
                     master_tag[1]["tag"] if master_tag else "None",
                     r["id"],
                     [(tag["data"]["name"], tag["tag"]) for tag in tags],
                 )
+                continue
                 if master_tag:
+                    master_tag[1]["id"] = track["id"]
                     thermal.add_track_tags(
                         self.file_api,
                         r,
@@ -218,13 +220,12 @@ def main():
 
     if args.end_date:
         downloader.end_date = parse(args.end_date)
-
-    if args.recording_id:
-        print("Adding Master Tag to Recording - {}".format(downloader.recording_id))
-
     if args.limit > 0:
         downloader.limit = args.limit
     downloader.tag_mode = args.tag_mode
+
+    if args.recording_id:
+        print("Adding Master Tag to Recording - {}".format(downloader.recording_id))
 
     server_list = []
     if args.server:
