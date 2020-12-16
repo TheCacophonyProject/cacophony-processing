@@ -269,7 +269,7 @@ def model_rank(model_config, track):
 
 
 def add_track_tags(api, recording, track, model, logger, model_name=None):
-    if track and "tag" in track:
+    if not track or "tag" not in track:
         return False
 
     if model_name is None:
