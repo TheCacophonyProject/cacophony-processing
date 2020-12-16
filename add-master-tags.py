@@ -134,6 +134,7 @@ class MasterTagger:
             results = []
             unmatched = []
             for tag in tags:
+                # thermal looks for tag not what
                 tag["tag"] = tag["what"]
                 tag_data = tag.get("data", {})
                 if not isinstance(tag.get("data", {}), dict):
@@ -163,16 +164,26 @@ class MasterTagger:
                     r["id"],
                     tag,
                 )
+                # this is the old palce with single ai tracks
+                alg_id = track.get("AlgorithmId")
+                model_result = thermal.ModelResult(
+                    self.models_by_name["Original"], None, None, alg_id
+                )
+                tag = unmatched[0]
+                # needs to point to track id rather than tracktagid
+                tag["id"] = track["id"]
                 thermal.add_track_tags(
                     self.file_api,
                     r,
-                    unmatched,
-                    self.models_by_name["Original"],
+                    tag,
+                    model_result,
                     logging,
                     model_name=self.config.master_tag,
                 )
             else:
                 master_tag = thermal.get_master_tag(results, wallaby_device)
+                # needs to point to track id rather than tracktagid
+                master_tag[1]["id"] = track["id"]
                 logging.debug(
                     "Got master tag %s for rec %d with tags %s",
                     master_tag[1]["tag"] if master_tag else "None",
