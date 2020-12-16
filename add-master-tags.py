@@ -131,6 +131,7 @@ class MasterTagger:
 
             if len(master_tag) > 0:
                 logging.info("Already have a master tag for %d", r["id"])
+                continue
             results = []
             unmatched = []
             for tag in tags:
