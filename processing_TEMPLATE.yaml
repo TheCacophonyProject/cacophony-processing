@@ -33,7 +33,7 @@ thermal:
     # i.e. if the original model classifies as a bird, it will get a score of 4
     # if resnet classifies as anything it will get a score of 3
     models:
-    - name: "original"
+    - name: "Original"
       model_file: "/path/to/original-model"
       preview: "classified"
       tag_scores:
