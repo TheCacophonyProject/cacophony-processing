@@ -45,11 +45,13 @@ thermal:
       preview: "classified"
       tag_scores:
         default: 2
+      ignored_tags: ["mustelid"]
     - name: "Resnet"
       model_file: "/path/to/resnet"
       preview: "classified"
       tag_scores:
         default: 3
+      ignored_tags: ["mustelid"]
     - name: "wallaby"
       model_file: "/path/to/wallaby"
       tag_scores:
