@@ -65,10 +65,10 @@ def main():
 
         # To avoid hitting the server repetitively wait longer if nothing to process
         if working:
-            logger.warn("processing short sleep")
+            logger.info("processing short sleep")
             time.sleep(SLEEP_SECS)
         else:
-            logger.warn("Nothing to process - extending wait time")
+            logger.info("Nothing to process - extending wait time")
             time.sleep(conf.no_recordings_wait_secs)
 
 

@@ -190,6 +190,7 @@ def upload_tracks(
 ):
     other_models = [model for model in model_results if model != main_model]
     for track in main_model.tracks:
+        model_tags = []
         track["id"] = api.add_track(recording, track, main_model.algorithm_id)
         added = add_track_tags(api, recording, track, main_model, logger)
         if added:
@@ -200,7 +201,7 @@ def upload_tracks(
             if track_to_save is None:
                 logger.warn(
                     "Could not find a matching track in model %s for recording %s track %s",
-                    model["name"],
+                    model.model_config.name,
                     recording["id"],
                     track["id"],
                 )
