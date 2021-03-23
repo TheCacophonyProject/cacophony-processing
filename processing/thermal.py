@@ -129,7 +129,7 @@ def classify(conf, recording, api, s3, logger):
 
     for label, tag in main_model.tags.items():
         logger.debug("tag: %s (%.2f)", label, tag["confidence"])
-        if tag == MULTIPLE:
+        if label == MULTIPLE:
             api.tag_recording(recording, label, tag)
 
     upload_tracks(
