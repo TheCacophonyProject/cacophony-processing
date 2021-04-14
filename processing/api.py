@@ -92,9 +92,9 @@ class API:
             return r.json()["algorithmId"]
         raise IOError(r.text)
 
-    def add_track(self, recording, track, algorithm_id):
+    def add_track(self, recording, track):
         url = self.url + "/{}/tracks".format(recording["id"])
-        post_data = {"data": json.dumps(track), "algorithmId": algorithm_id}
+        post_data = {"data": json.dumps(track)}
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackId"]

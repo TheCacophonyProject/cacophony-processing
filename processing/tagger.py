@@ -57,17 +57,14 @@ def is_significant_track(track, conf):
     return False
 
 
-def track_is_clear(track, conf):
+def prediction_is_clear(prediction, conf):
     if track[CONFIDENCE] < conf.min_tag_confidence:
-        track[MESSAGE] = "Low confidence - no tag"
-        return False
-    if track[CLARITY] < conf.min_tag_clarity:
-        track[MESSAGE] = "Confusion between two classes (similar confidence)"
-        return False
-    if track["average_novelty"] > conf.max_tag_novelty:
-        track[MESSAGE] = "High novelty"
-        return False
-    return True
+        return False, "Low confidence - no tag"
+    elif track[CLARITY] < conf.min_tag_clarity:
+        return False, "Confusion between two classes (similar confidence)"
+    elif track["average_novelty"] > conf.max_tag_novelty:
+        return False, "High novelty"
+    return True, None
 
 
 def get_significant_tracks(tracks, conf):
@@ -75,30 +72,34 @@ def get_significant_tracks(tracks, conf):
     unclear_animals = []
     tags = {}
     for track in tracks:
-        if conf.ignore_tags is not None and track[LABEL] in conf.ignore_tags:
-            continue
-        if is_significant_track(track, conf):
+        for model_prediction in track["model_predictions"]:
             if (
-                track[LABEL] == FALSE_POSITIVE
-                and track[CLARITY] > conf.min_tag_clarity_secondary
+                conf.ignore_tags is not None
+                and model_prediction[LABEL] in conf.ignore_tags
             ):
                 continue
+            if is_significant_track(model, conf):
+                if (
+                    model[LABEL] == FALSE_POSITIVE
+                    and model[CLARITY] > conf.min_tag_clarity_secondary
+                ):
+                    continue
 
-            if track_is_clear(track, conf):
-                clear_animals.append(track)
-                track[TAG] = track[LABEL]
-                tag = track[LABEL]
-                if TAG in tags:
-                    tags[tag][CONFIDENCE] = max(
-                        tags[tag][CONFIDENCE], track[CONFIDENCE]
-                    )
+                if track_is_clear(model, conf):
+                    clear_animals.append(track)
+                    model[TAG] = model[LABEL]
+                    tag = model[LABEL]
+                    if TAG in tags:
+                        tags[tag][CONFIDENCE] = max(
+                            tags[tag][CONFIDENCE], track[CONFIDENCE]
+                        )
+                    else:
+                        tags[tag] = {CONFIDENCE: track[CONFIDENCE]}
+
                 else:
-                    tags[tag] = {CONFIDENCE: track[CONFIDENCE]}
-
-            else:
-                unclear_animals.append(track)
-                tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                track[TAG] = UNIDENTIFIED
+                    unclear_animals.append(track)
+                    tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
+                    track[TAG] = UNIDENTIFIED
     return (clear_animals, unclear_animals, tags)
 
 
