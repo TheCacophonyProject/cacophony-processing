@@ -28,7 +28,7 @@ from . import API
 from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
-from .tagger import calculate_tags
+from .tagger import calculate_tags, MESSAGE, TAG
 
 
 DOWNLOAD_FILENAME = "recording.cptv"
@@ -60,18 +60,18 @@ def process(recording, conf):
             classify(conf, recording, api, s3, logger)
 
 
-def classify_file(api, command, conf, model):
+def classify_file(api, command, conf):
     command = "{}".format(command)
     classify_info = run_classify_command(command, conf.classify_dir)
 
-    track_info = classify_info["tracks"]
-    formatted_tracks = format_track_data(track_info)
+    format_track_data(classify_info["tracks"])
 
     # Auto tag the video
-    tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
     algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
-    return ModelResult(
-        model, tagged_tracks, tags, api.get_algorithm_id(classify_info["algorithm"])
+    filtered_tracks, multiple_animals = calculate_tags(classify_info["tracks"], conf)
+
+    return ClassifyResult.load(
+        classify_info, algorithm_id, filtered_tracks, multiple_animals
     )
 
 
@@ -112,23 +112,22 @@ def classify(conf, recording, api, s3, logger):
     )
     logger.debug("processing %s", recording["filename"])
 
-    model_result = classify_file(api, command, conf, model)
+    classify_result = classify_file(api, command, conf)
 
-    main_model = model_results[0]
-
-    for label, tag in main_model.tags.items():
-        logger.debug("tag: %s (%.2f)", label, tag["confidence"])
-        if label == MULTIPLE:
-            api.tag_recording(recording, label, tag)
+    if classify_result.multiple_animals is not None:
+        logger.debug(
+            "multiple animals detected, (%.2f)",
+            classify_result.multiple_animals["confidence"],
+        )
+        api.tag_recording(recording, MULTIPLE, classify_result.multiple_animals)
 
     upload_tracks(
         api,
         recording,
-        main_model,
-        model_results,
-        logger,
-        wallaby_device,
+        classify_result,
         conf.master_tag,
+        wallaby_device,
+        logger,
     )
 
     # Upload mp4
@@ -136,7 +135,7 @@ def classify(conf, recording, api, s3, logger):
     logger.debug("uploading %s", video_filename)
     new_key = s3.upload_recording(video_filename)
 
-    metadata = {"additionalMetadata": {"algorithm": main_model.algorithm_id}}
+    metadata = {"additionalMetadata": {"algorithm": main_model.tracking_algorithm}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logger.info("Finished (new key: %s)", new_key)
 
@@ -174,64 +173,65 @@ def update_metadata(conf, recording, api):
     api.update_metadata(recording, metadata, complete)
 
 
-def upload_tracks(api, recording, tracks, logger, wallaby_device, models, master_name):
-    for track in tracks:
-        track["id"] = api.add_track(recording, track, main_model.algorithm_id)
+def upload_tracks(api, recording, classify_result, wallaby_device, master_name, logger):
+    for track in classify_result.tracks:
+        track["id"] = api.add_track(
+            recording, track, classify_result.tracking_algorithm
+        )
         model_results = []
-        for model_result in track["model_predictions"]:
+        for model_result in track["predictions"]:
             added, tag = add_track_tag(api, recording, track, model_result, logger)
             if added:
-                model_config = models.get(model_result["model_name"])
-                model_results.append(ModelResult(model, model_result))
-        master_tag = get_master_tag(model_results, wallaby_device)
+                model_results.append(
+                    classify_result.models_by_id[model_result["id"]], model_result
+                )
+        model, prediction = get_master_tag(model_results, wallaby_device)
         if master_tag:
             add_track_tag(
                 api,
                 recording,
                 track,
-                master_tag.classification,
+                prediction,
                 logger,
                 model_name=master_name,
             )
 
 
-def use_tag(model_result, wallaby_device):
-    tag = model_result.tag
+def use_tag(model, prediction, wallaby_device):
+    tag = prediction["tag"]
     if tag is None:
         return False
     if wallaby_device and tag.lower() != "wallaby":
         return False
     elif not wallaby_device and tag.lower() == "wallaby":
         return False
-    if tag in model_result.model_config.ignored_tags:
+    if tag in model.ignored_tags:
         return False
-    return wallaby_device == model_result.model_config.wallaby
+    return wallaby_device == model.wallaby
 
 
 def get_master_tag(model_results, wallaby_device=False):
     """ Choose a tag to be the overriding tag for this track """
 
     valid_results = [
-        model_result
-        for model_result in model_results
-        if use_tag(model_result, wallaby_device)
+        (model, prediction)
+        for model, prediction in model_results
+        if use_tag(model, prediction, wallaby_device)
     ]
 
     if len(model_result) == 0:
         return None
     clear_tags = [
-        model_result
-        for model_result in valid_results
-        if model_result.tag != "unidentified"
+        (model, prediction)
+        for model, prediction in valid_results
+        if prediction["tag"] != "unidentified"
     ]
     if len(clear_tags) == 0:
         return valid_results[0]
 
     ordered = sorted(
         clear_tags,
-        key=lambda model: model_rank(
-            model_result.tag, model_result.model_config.tag_scores
-        ),
+        key=lambda model: model_rank(model[0]["tag"], model[1].tag_scores),
         reverse=True,
     )
 
@@ -245,31 +245,72 @@ def model_rank(tag, model_config):
 
 
 def add_track_tag(api, recording, track, prediction, logger, model_name=None):
-    tag = None
-    clear, message = prediction_is_clear(prediction)
-    if clear:
-        tag = model[tagger.LABEL]
-    else:
-        tag = tagger.UNIDENTIFIED
-    track_data = {"name": prediction["model_name"], "algorithmId": model.algorithm_id}
+    if not track or TAG not in prediction:
+        return False, None
+    track_data = {
+        "name": prediction["model_name"],
+    }
     track_data["all_class_confidences"] = prediction.get("all_class_confidences")
     predictions = prediction.get("predictions")
     if predictions:
         track_data["predictions"] = predictions
+    if prediction.get(MESSAGE) is not None:
+        track_data[MESSAGE] = prediction[MESSAGE]
 
     logger.debug(
-        "adding %s track tag for track %s", model.model_config.name, track["id"]
+        "adding %s track tag for track %s", prediction["model_name"], track["id"]
     )
-    api.add_track_tag(recording, track, data=track_data)
+    api.add_track_tag(recording, track["id"], prediction, data=track_data)
     return True, tag
 
 
 @attr.s
-class ModelResult:
-    model_config = attr.ib()
-    classification = attr.ib()
-    message = attr.ib()
-    algorithm_id = attr.ib()
+class ModelConfig:
+    id = attr.ib()
+    name = attr.ib()
+    model_file = attr.ib()
+    wallaby = attr.ib()
+    tag_scores = attr.ib()
+    ignored_tags = attr.ib()
+
+    @classmethod
+    def load(cls, raw, algorithm_id):
+        model = cls(
+            id=raw["id"],
+            name=raw["name"],
+            model_file=raw["model_file"],
+            wallaby=raw["wallaby"],
+            tag_scores=raw["tag_scores"],
+            ignored_tags=raw.get("ignored_tags", []),
+        )
+        return model
+
+
+@attr.s
+class ClassifyResult:
+    tracking_algorithm = attr.ib()
+    models_by_id = attr.ib()
+    tracks = attr.ib()
+    multiple_animals = attr.ib()
+
+    @classmethod
+    def load(cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals):
+
+        model = cls(
+            tracking_algorithm=tracking_algorithm,
+            models_by_id=load_models(classify_json.get("models", [])),
+            tracks=filtered_tracks,
+            multiple_animals=multiple_animals,
+        )
+        return model
+
+
+def load_models(models_json):
+    models = {}
+    for model_json in models_json:
+        model = ModelConfig.load(model_json)
+        models[model.id] = model
+    return models
 
 
 @property
