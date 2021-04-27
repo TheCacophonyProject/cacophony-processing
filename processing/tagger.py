@@ -22,7 +22,6 @@ def calculate_tags(tracks, conf):
     if not tracks:
         return tracks, tags
     clear_animals, unclear_animals, tags = get_significant_tracks(tracks, conf)
-    print("tags are", tags, len(clear_animals), len(unclear_animals))
     multiple_confidence = calculate_multiple_animal_confidence(
         clear_animals + unclear_animals
     )
