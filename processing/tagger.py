@@ -8,6 +8,7 @@ MULTIPLE = "multiple animals"
 TAG = "tag"
 CLARITY = "clarity"
 LABEL = "label"
+PREDICTIONS = "predictions"
 
 MESSAGE = "message"
 CONFIDENCE = "confidence"
@@ -17,16 +18,17 @@ FALSE_POSITIVE_TAG = {"event": "false positive", CONFIDENCE: DEFAULT_CONFIDENCE}
 def calculate_tags(tracks, conf):
     # No tracks found so tag as FALSE_POSITIVE
     multiple = None
+    tags = {}
     if not tracks:
-        return tracks, multiple
-    clear_animals, unclear_animals = get_significant_tracks(tracks, conf)
-
+        return tracks, tags
+    clear_animals, unclear_animals, tags = get_significant_tracks(tracks, conf)
+    print("tags are", tags, len(clear_animals), len(unclear_animals))
     multiple_confidence = calculate_multiple_animal_confidence(
         clear_animals + unclear_animals
     )
     if multiple_confidence > conf.min_confidence:
-        multiple = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
-    return tracks, multiple
+        tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
+    return tracks, tags
 
 
 def calc_track_movement(track):
@@ -81,26 +83,37 @@ def prediction_is_clear(prediction, conf):
 def get_significant_tracks(tracks, conf):
     clear_animals = []
     unclear_animals = []
+    tags = {}
+
     for track in tracks:
-        for prediction in track["predictions"]:
+        for prediction in track[PREDICTIONS]:
             if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
-            if is_significant_track(track, prediction.get("confidence", 0), conf):
+            if is_significant_track(track, prediction.get(CONFIDENCE, 0), conf):
                 if (
                     prediction[LABEL] == FALSE_POSITIVE
                     and prediction[CLARITY] > conf.min_tag_clarity_secondary
                 ):
                     continue
-                track["confidence"] = max(
-                    track.get("confidence", 0), prediction.get("confidence")
+                track[CONFIDENCE] = max(
+                    track.get(CONFIDENCE, 0), prediction.get(CONFIDENCE)
                 )
                 if prediction_is_clear(prediction, conf):
                     clear_animals.append(track)
-                    prediction[TAG] = prediction[LABEL]
+                    tag = prediction[LABEL]
+                    prediction[TAG] = tag
+                    if tag in tags:
+                        tags[tag][CONFIDENCE] = max(
+                            tags[tag][CONFIDENCE], prediction[CONFIDENCE]
+                        )
+                    else:
+                        tags[tag] = {CONFIDENCE: prediction[CONFIDENCE]}
+
                 else:
+                    tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
                     unclear_animals.append(track)
                     prediction[TAG] = UNIDENTIFIED
-    return (clear_animals, unclear_animals)
+    return (clear_animals, unclear_animals, tags)
 
 
 def by_start_time(elem):

@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from collections import namedtuple
 from pathlib import Path
-
+import attr
 import yaml
 
 
@@ -107,3 +107,25 @@ def find_config():
         if p.is_file():
             return str(p)
     raise FileNotFoundError("no configuration file found")
+
+
+@attr.s
+class ModelConfig:
+    id = attr.ib()
+    name = attr.ib()
+    model_file = attr.ib()
+    wallaby = attr.ib()
+    tag_scores = attr.ib()
+    ignored_tags = attr.ib()
+
+    @classmethod
+    def load(cls, raw):
+        model = cls(
+            id=raw["id"],
+            name=raw["name"],
+            model_file=raw["model_file"],
+            wallaby=raw["wallaby"],
+            tag_scores=raw["tag_scores"],
+            ignored_tags=raw.get("ignored_tags", []),
+        )
+        return model

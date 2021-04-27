@@ -28,8 +28,8 @@ from . import API
 from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
-from .tagger import calculate_tags, MESSAGE, TAG
-
+from .tagger import calculate_tags, MESSAGE, TAG, MULTIPLE, CONFIDENCE
+from .config import ModelConfig
 
 DOWNLOAD_FILENAME = "recording.cptv"
 SLEEP_SECS = 10
@@ -68,10 +68,10 @@ def classify_file(api, command, conf):
 
     # Auto tag the video
     algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
-    filtered_tracks, multiple_animals = calculate_tags(classify_info["tracks"], conf)
+    filtered_tracks, tags = calculate_tags(classify_info["tracks"], conf)
 
     return ClassifyResult.load(
-        classify_info, algorithm_id, filtered_tracks, multiple_animals
+        classify_info, algorithm_id, filtered_tracks, tags.get(MULTIPLE, None)
     )
 
 
@@ -106,7 +106,6 @@ def is_wallaby_device(wallaby_devices, recording_meta):
 def classify(conf, recording, api, s3, logger):
     working_dir = recording["filename"].parent
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
-
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
@@ -117,7 +116,7 @@ def classify(conf, recording, api, s3, logger):
     if classify_result.multiple_animals is not None:
         logger.debug(
             "multiple animals detected, (%.2f)",
-            classify_result.multiple_animals["confidence"],
+            classify_result.multiple_animals[CONFIDENCE],
         )
         api.tag_recording(recording, MULTIPLE, classify_result.multiple_animals)
 
@@ -125,8 +124,8 @@ def classify(conf, recording, api, s3, logger):
         api,
         recording,
         classify_result,
-        conf.master_tag,
         wallaby_device,
+        conf.master_tag,
         logger,
     )
 
@@ -135,7 +134,7 @@ def classify(conf, recording, api, s3, logger):
     logger.debug("uploading %s", video_filename)
     new_key = s3.upload_recording(video_filename)
 
-    metadata = {"additionalMetadata": {"algorithm": main_model.tracking_algorithm}}
+    metadata = {"additionalMetadata": {"algorithm": classify_result.tracking_algorithm}}
     api.report_done(recording, new_key, "video/mp4", metadata)
     logger.info("Finished (new key: %s)", new_key)
 
@@ -183,22 +182,23 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
             added, tag = add_track_tag(api, recording, track, model_result, logger)
             if added:
                 model_results.append(
-                    classify_result.models_by_id[model_result["id"]], model_result
+                    (classify_result.models_by_id[model_result["id"]], model_result)
                 )
-        model, prediction = get_master_tag(model_results, wallaby_device)
-        if master_tag:
+        model_result = get_master_tag(model_results, wallaby_device)
+
+        if model_result is not None:
             add_track_tag(
                 api,
                 recording,
                 track,
-                prediction,
+                model_result[1],
                 logger,
                 model_name=master_name,
             )
 
 
 def use_tag(model, prediction, wallaby_device):
-    tag = prediction["tag"]
+    tag = prediction.get("tag")
     if tag is None:
         return False
     if wallaby_device and tag.lower() != "wallaby":
@@ -212,14 +212,13 @@ def use_tag(model, prediction, wallaby_device):
 
 def get_master_tag(model_results, wallaby_device=False):
     """ Choose a tag to be the overriding tag for this track """
-
     valid_results = [
         (model, prediction)
         for model, prediction in model_results
-        if use_tag(model, prediction, wallaby_device)
+        if prediction and use_tag(model, prediction, wallaby_device)
     ]
 
-    if len(model_result) == 0:
+    if len(valid_results) == 0:
         return None
     clear_tags = [
         (model, prediction)
@@ -231,14 +230,14 @@ def get_master_tag(model_results, wallaby_device=False):
 
     ordered = sorted(
         clear_tags,
-        key=lambda model: model_rank(model[0]["tag"], model[1].tag_scores),
+        key=lambda model: model_rank(model[1]["tag"], model[0].tag_scores),
         reverse=True,
     )
 
     return ordered[0]
 
 
-def model_rank(tag, model_config):
+def model_rank(tag, tag_scores):
     if tag in tag_scores:
         return tag_scores[tag]
     return tag_scores["default"]
@@ -248,7 +247,7 @@ def add_track_tag(api, recording, track, prediction, logger, model_name=None):
     if not track or TAG not in prediction:
         return False, None
     track_data = {
-        "name": prediction["model_name"],
+        "name": model_name,
     }
     track_data["all_class_confidences"] = prediction.get("all_class_confidences")
     predictions = prediction.get("predictions")
@@ -257,33 +256,10 @@ def add_track_tag(api, recording, track, prediction, logger, model_name=None):
     if prediction.get(MESSAGE) is not None:
         track_data[MESSAGE] = prediction[MESSAGE]
 
-    logger.debug(
-        "adding %s track tag for track %s", prediction["model_name"], track["id"]
-    )
+    logger.debug("adding %s track tag for track %s", track_data["name"], track["id"])
+
     api.add_track_tag(recording, track["id"], prediction, data=track_data)
     return True, tag
-
-
-@attr.s
-class ModelConfig:
-    id = attr.ib()
-    name = attr.ib()
-    model_file = attr.ib()
-    wallaby = attr.ib()
-    tag_scores = attr.ib()
-    ignored_tags = attr.ib()
-
-    @classmethod
-    def load(cls, raw, algorithm_id):
-        model = cls(
-            id=raw["id"],
-            name=raw["name"],
-            model_file=raw["model_file"],
-            wallaby=raw["wallaby"],
-            tag_scores=raw["tag_scores"],
-            ignored_tags=raw.get("ignored_tags", []),
-        )
-        return model
 
 
 @attr.s
@@ -295,7 +271,6 @@ class ClassifyResult:
 
     @classmethod
     def load(cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals):
-
         model = cls(
             tracking_algorithm=tracking_algorithm,
             models_by_id=load_models(classify_json.get("models", [])),
