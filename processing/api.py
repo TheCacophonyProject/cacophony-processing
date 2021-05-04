@@ -100,11 +100,11 @@ class API:
             return r.json()["trackId"]
         raise IOError(r.text)
 
-    def add_track_tag(self, recording, track, data=""):
-        url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track["id"])
+    def add_track_tag(self, recording, track_id, prediction, data=""):
+        url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
         post_data = {
-            "what": track["tag"],
-            "confidence": track["confidence"],
+            "what": prediction["tag"],
+            "confidence": prediction["confidence"],
             "data": json.dumps(data),
         }
         r = requests.post(url, data=post_data)

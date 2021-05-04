@@ -1,44 +1,45 @@
 from processing import config, thermal
+from processing.tagger_test import create_prediction
 
 
 def test_models():
-    original = config.Model(
+    original = config.ModelConfig(
+        id="1",
         name="original",
         model_file="original.sav",
         tag_scores={"bird": 4, "default": 1},
-        preview="none",
         wallaby=False,
         ignored_tags=["mustelid"],
     )
-    retrained = config.Model(
+    retrained = config.ModelConfig(
+        id="2",
         name="retrained",
         model_file="retrained.sav",
         tag_scores={"default": 2},
-        preview="none",
         wallaby=False,
         ignored_tags=[],
     )
-    resnet = config.Model(
+    resnet = config.ModelConfig(
+        id="3",
         name="resnet",
         model_file="resnet.sav",
         tag_scores={"default": 3},
-        preview="none",
         wallaby=False,
         ignored_tags=[],
     )
-    wallaby = config.Model(
+    wallaby = config.ModelConfig(
+        id="4",
         name="wallaby",
         model_file="wallaby.sav",
         tag_scores={"default": 2},
-        preview="none",
         wallaby=True,
         ignored_tags=[],
     )
-    wallaby_old = config.Model(
+    wallaby_old = config.ModelConfig(
+        id="5",
         name="wallaby-old",
         model_file="wallaby-old.sav",
         tag_scores={"default": 1},
-        preview="none",
         wallaby=True,
         ignored_tags=[],
     )
@@ -58,7 +59,6 @@ def test_config():
         do_classify=True,
         wallaby_devices=[1, 2],
         master_tag="Master",
-        models=test_models(),
         min_confidence=0.4,
         min_tag_confidence=0.8,
         max_tag_novelty=0.7,
@@ -85,11 +85,27 @@ def model_result(model, tag):
 
 def test_model_heirechy_wallabies():
     config = test_config()
-    original_result = model_result(config.models[0], "wallaby")
-    retrained_result = model_result(config.models[1], "wallaby")
-    resnet_result = model_result(config.models[2], "wallaby")
-    wallaby_result = model_result(config.models[3], None)
-    wallaby_old_result = model_result(config.models[4], "wallaby")
+    models = test_models()
+    original_result = (
+        models[0],
+        create_prediction("wallaby", tag="wallaby"),
+    )
+    retrained_result = (
+        models[1],
+        create_prediction("wallaby", tag="wallaby"),
+    )
+    resnet_result = (
+        models[2],
+        create_prediction("wallaby", tag="wallaby"),
+    )
+    wallaby_result = (
+        models[3],
+        create_prediction("wallaby"),
+    )
+    wallaby_old_result = (
+        models[4],
+        create_prediction("wallaby", tag="wallaby"),
+    )
     results = [
         original_result,
         retrained_result,
@@ -99,13 +115,13 @@ def test_model_heirechy_wallabies():
     ]
     # old wallaby is chosen over no tag
     master_tag = thermal.get_master_tag(results, wallaby_device=True)
-    assert master_tag[0].model_config.name == "wallaby-old"
+    assert master_tag[0].name == "wallaby-old"
     assert master_tag[1]["tag"] == "wallaby"
 
     # new wallaby tag is chosen over old
     wallaby_result[1]["tag"] = "wallaby"
     master_tag = thermal.get_master_tag(results, wallaby_device=True)
-    assert master_tag[0].model_config.name == "wallaby"
+    assert master_tag[0].name == "wallaby"
     assert master_tag[1]["tag"] == "wallaby"
 
     wallaby_result[1]["tag"] = "bird"
@@ -118,11 +134,28 @@ def test_model_heirechy_wallabies():
 
 def test_model_heirechy():
     config = test_config()
-    original_result = model_result(config.models[0], "bird")
-    retrained_result = model_result(config.models[1], "cat")
-    resnet_result = model_result(config.models[2], "possum")
-    wallaby_result = model_result(config.models[3], "not")
-    wallaby_old_result = model_result(config.models[4], "not")
+    models = test_models()
+
+    original_result = (
+        models[0],
+        create_prediction("bird", tag="bird"),
+    )
+    retrained_result = (
+        models[1],
+        create_prediction("cat", tag="cat"),
+    )
+    resnet_result = (
+        models[2],
+        create_prediction("possum", tag="possum"),
+    )
+    wallaby_result = (
+        models[3],
+        create_prediction("not", tag="not"),
+    )
+    wallaby_old_result = (
+        models[4],
+        create_prediction("not", tag="not"),
+    )
     results = [
         original_result,
         retrained_result,
@@ -133,25 +166,26 @@ def test_model_heirechy():
 
     # original bird classification overrules all others
     master_tag = thermal.get_master_tag(results, wallaby_device=False)
-    assert master_tag[0].model_config.name == "original"
+    print(master_tag)
+    assert master_tag[0].name == "original"
     assert master_tag[1]["tag"] == "bird"
 
     # if the original model isn't a bird, resnet is the next best
     original_result[1]["tag"] = "cat"
     master_tag = thermal.get_master_tag(results, wallaby_device=False)
-    assert master_tag[0].model_config.name == "resnet"
+    assert master_tag[0].name == "resnet"
     assert master_tag[1]["tag"] == "possum"
 
     # if resent doens't know, use retrained
     resnet_result[1]["tag"] = None
     master_tag = thermal.get_master_tag(results, wallaby_device=False)
-    assert master_tag[0].model_config.name == "retrained"
+    assert master_tag[0].name == "retrained"
     assert master_tag[1]["tag"] == "cat"
 
     # if resent is unidentified use retrained
     resnet_result[1]["tag"] = "unidentified"
     master_tag = thermal.get_master_tag(results, wallaby_device=False)
-    assert master_tag[0].model_config.name == "retrained"
+    assert master_tag[0].name == "retrained"
     assert master_tag[1]["tag"] == "cat"
 
     # if all models are unidentified use unidentified

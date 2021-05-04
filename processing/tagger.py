@@ -8,26 +8,24 @@ MULTIPLE = "multiple animals"
 TAG = "tag"
 CLARITY = "clarity"
 LABEL = "label"
+PREDICTIONS = "predictions"
 
 MESSAGE = "message"
 CONFIDENCE = "confidence"
-FALSE_POSITIVE_TAG = {"event": "false positive", CONFIDENCE: DEFAULT_CONFIDENCE}
 
 
 def calculate_tags(tracks, conf):
     # No tracks found so tag as FALSE_POSITIVE
+    multiple = None
+    tags = {}
     if not tracks:
-        return tracks, {}
-    clear_animals, unclear_animals, tags = get_significant_tracks(tracks, conf)
-
-    if len(tags) == 0:
-        tags[FALSE_POSITIVE] = FALSE_POSITIVE_TAG
-    else:
-        multiple_confidence = calculate_multiple_animal_confidence(
-            clear_animals + unclear_animals
-        )
-        if multiple_confidence > conf.min_confidence:
-            tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
+        return tracks, tags
+    clear_tracks, unclear_tracks, tags = get_significant_tracks(tracks, conf)
+    multiple_confidence = calculate_multiple_animal_confidence(
+        clear_tracks + unclear_tracks
+    )
+    if multiple_confidence > conf.min_confidence:
+        tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
     return tracks, tags
 
 
@@ -45,11 +43,11 @@ def calc_track_movement(track):
     return max(delta_x, delta_y)
 
 
-def is_significant_track(track, conf):
+def is_significant_track(track, confidence, conf):
     if track["num_frames"] < conf.min_frames:
         track[MESSAGE] = "Short track"
         return False
-    if track["confidence"] > conf.min_confidence:
+    if confidence > conf.min_confidence:
         return True
     if calc_track_movement(track) > 50:
         return True
@@ -57,62 +55,63 @@ def is_significant_track(track, conf):
     return False
 
 
-def track_is_clear(track, conf):
-    if track[CONFIDENCE] < conf.min_tag_confidence:
-        track[MESSAGE] = "Low confidence - no tag"
+def prediction_is_clear(prediction, conf):
+    if prediction[CONFIDENCE] < conf.min_tag_confidence:
+        prediction[MESSAGE] = "Low confidence - no tag"
         return False
-    if track[CLARITY] < conf.min_tag_clarity:
-        track[MESSAGE] = "Confusion between two classes (similar confidence)"
+    if prediction[CLARITY] < conf.min_tag_clarity:
+        prediction[MESSAGE] = "Confusion between two classes (similar confidence)"
         return False
-    if track["average_novelty"] > conf.max_tag_novelty:
-        track[MESSAGE] = "High novelty"
+    if prediction["average_novelty"] > conf.max_tag_novelty:
+        prediction[MESSAGE] = "High novelty"
         return False
     return True
 
 
 def get_significant_tracks(tracks, conf):
-    clear_animals = []
-    unclear_animals = []
+    clear_tracks = []
+    unclear_tracks = []
     tags = {}
+
     for track in tracks:
-        if conf.ignore_tags is not None and track[LABEL] in conf.ignore_tags:
-            continue
-        if is_significant_track(track, conf):
-            if (
-                track[LABEL] == FALSE_POSITIVE
-                and track[CLARITY] > conf.min_tag_clarity_secondary
-            ):
+        for prediction in track[PREDICTIONS]:
+            if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
+            if is_significant_track(track, prediction.get(CONFIDENCE, 0), conf):
+                if (
+                    prediction[LABEL] == FALSE_POSITIVE
+                    and prediction[CLARITY] > conf.min_tag_clarity_secondary
+                ):
+                    continue
+                confidence = prediction.get(CONFIDENCE, 0)
+                track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
+                if prediction_is_clear(prediction, conf):
+                    clear_tracks.append(track)
+                    tag = prediction[LABEL]
+                    prediction[TAG] = tag
+                    if tag in tags:
+                        tags[tag][CONFIDENCE] = max(tags[tag][CONFIDENCE], confidence)
+                    else:
+                        tags[tag] = {CONFIDENCE: confidence}
 
-            if track_is_clear(track, conf):
-                clear_animals.append(track)
-                track[TAG] = track[LABEL]
-                tag = track[LABEL]
-                if TAG in tags:
-                    tags[tag][CONFIDENCE] = max(
-                        tags[tag][CONFIDENCE], track[CONFIDENCE]
-                    )
                 else:
-                    tags[tag] = {CONFIDENCE: track[CONFIDENCE]}
-
-            else:
-                unclear_animals.append(track)
-                tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                track[TAG] = UNIDENTIFIED
-    return (clear_animals, unclear_animals, tags)
+                    tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
+                    unclear_tracks.append(track)
+                    prediction[TAG] = UNIDENTIFIED
+    return (clear_tracks, unclear_tracks, tags)
 
 
 def by_start_time(elem):
     return elem["start_s"]
 
 
-def calculate_multiple_animal_confidence(all_animals):
+def calculate_multiple_animal_confidence(all_tracks):
     """ check that lower overlapping confidence is above threshold """
     confidence = 0
-    all_animals.sort(key=by_start_time)
-    for i in range(0, len(all_animals) - 1):
-        for j in range(i + 1, len(all_animals)):
-            if all_animals[j]["start_s"] + 1 < all_animals[i]["end_s"]:
-                this_conf = min(all_animals[i][CONFIDENCE], all_animals[j][CONFIDENCE])
+    all_tracks.sort(key=by_start_time)
+    for i in range(0, len(all_tracks) - 1):
+        for j in range(i + 1, len(all_tracks)):
+            if all_tracks[j]["start_s"] + 1 < all_tracks[i]["end_s"]:
+                this_conf = min(all_tracks[i][CONFIDENCE], all_tracks[j][CONFIDENCE])
                 confidence = max(confidence, this_conf)
     return confidence

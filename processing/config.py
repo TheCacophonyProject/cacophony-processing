@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from collections import namedtuple
 from pathlib import Path
-
+import attr
 import yaml
 
 
@@ -38,7 +38,6 @@ configTuple = namedtuple(
         "no_recordings_wait_secs",
         "classify_dir",
         "classify_cmd",
-        "models",
         "do_classify",
         "min_confidence",
         "min_tag_confidence",
@@ -84,7 +83,6 @@ class Config(configTuple):
                 do_classify=thermal.get("classify", True),
                 master_tag=thermal.get("master_tag", "Master"),
                 wallaby_devices=thermal["wallaby_devices"],
-                models=Config.load_models(thermal.get("models")),
                 min_confidence=thermal["tagging"]["min_confidence"],
                 min_tag_confidence=thermal["tagging"]["min_tag_confidence"],
                 max_tag_novelty=thermal["tagging"]["max_tag_novelty"],
@@ -102,16 +100,6 @@ class Config(configTuple):
                 ignore_tags=thermal["tagging"].get("ignore_tags", None),
             )
 
-    def load_models(raw):
-        if raw is None:
-            return None
-
-        models = []
-        for model in raw:
-            models.append(Model.load(model))
-
-        return models
-
 
 def find_config():
     for directory in CONFIG_DIRS:
@@ -121,27 +109,23 @@ def find_config():
     raise FileNotFoundError("no configuration file found")
 
 
-modelConfigTuple = namedtuple(
-    "Model",
-    ["name", "model_file", "preview", "tag_scores", "wallaby", "ignored_tags"],
-)
-
-
-class Model(modelConfigTuple):
-    DEFAULT_SCORE = 0
+@attr.s
+class ModelConfig:
+    id = attr.ib()
+    name = attr.ib()
+    model_file = attr.ib()
+    wallaby = attr.ib()
+    tag_scores = attr.ib()
+    ignored_tags = attr.ib()
 
     @classmethod
     def load(cls, raw):
-        return cls(
+        model = cls(
+            id=raw["id"],
             name=raw["name"],
             model_file=raw["model_file"],
-            preview=raw.get("preview", "none"),
-            wallaby=raw.get("wallaby", False),
-            tag_scores=load_scores(raw.get("tag_scores", {})),
+            wallaby=raw["wallaby"],
+            tag_scores=raw["tag_scores"],
             ignored_tags=raw.get("ignored_tags", []),
         )
-
-
-def load_scores(scores):
-    scores.setdefault("default", Model.DEFAULT_SCORE)
-    return scores
+        return model
