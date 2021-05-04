@@ -12,7 +12,6 @@ PREDICTIONS = "predictions"
 
 MESSAGE = "message"
 CONFIDENCE = "confidence"
-FALSE_POSITIVE_TAG = {"event": "false positive", CONFIDENCE: DEFAULT_CONFIDENCE}
 
 
 def calculate_tags(tracks, conf):
@@ -21,9 +20,9 @@ def calculate_tags(tracks, conf):
     tags = {}
     if not tracks:
         return tracks, tags
-    clear_animals, unclear_animals, tags = get_significant_tracks(tracks, conf)
+    clear_tracks, unclear_tracks, tags = get_significant_tracks(tracks, conf)
     multiple_confidence = calculate_multiple_animal_confidence(
-        clear_animals + unclear_animals
+        clear_tracks + unclear_tracks
     )
     if multiple_confidence > conf.min_confidence:
         tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
@@ -58,16 +57,6 @@ def is_significant_track(track, confidence, conf):
 
 def prediction_is_clear(prediction, conf):
     if prediction[CONFIDENCE] < conf.min_tag_confidence:
-        return False, "Low confidence - no tag"
-    elif prediction[CLARITY] < conf.min_tag_clarity:
-        return False, "Confusion between two classes (similar confidence)"
-    elif prediction["average_novelty"] > conf.max_tag_novelty:
-        return False, "High novelty"
-    return True, None
-
-
-def prediction_is_clear(prediction, conf):
-    if prediction[CONFIDENCE] < conf.min_tag_confidence:
         prediction[MESSAGE] = "Low confidence - no tag"
         return False
     if prediction[CLARITY] < conf.min_tag_clarity:
@@ -80,8 +69,8 @@ def prediction_is_clear(prediction, conf):
 
 
 def get_significant_tracks(tracks, conf):
-    clear_animals = []
-    unclear_animals = []
+    clear_tracks = []
+    unclear_tracks = []
     tags = {}
 
     for track in tracks:
@@ -94,38 +83,35 @@ def get_significant_tracks(tracks, conf):
                     and prediction[CLARITY] > conf.min_tag_clarity_secondary
                 ):
                     continue
-                track[CONFIDENCE] = max(
-                    track.get(CONFIDENCE, 0), prediction.get(CONFIDENCE)
-                )
+                confidence = prediction.get(CONFIDENCE, 0)
+                track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
                 if prediction_is_clear(prediction, conf):
-                    clear_animals.append(track)
+                    clear_tracks.append(track)
                     tag = prediction[LABEL]
                     prediction[TAG] = tag
                     if tag in tags:
-                        tags[tag][CONFIDENCE] = max(
-                            tags[tag][CONFIDENCE], prediction[CONFIDENCE]
-                        )
+                        tags[tag][CONFIDENCE] = max(tags[tag][CONFIDENCE], confidence)
                     else:
-                        tags[tag] = {CONFIDENCE: prediction[CONFIDENCE]}
+                        tags[tag] = {CONFIDENCE: confidence}
 
                 else:
                     tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                    unclear_animals.append(track)
+                    unclear_tracks.append(track)
                     prediction[TAG] = UNIDENTIFIED
-    return (clear_animals, unclear_animals, tags)
+    return (clear_tracks, unclear_tracks, tags)
 
 
 def by_start_time(elem):
     return elem["start_s"]
 
 
-def calculate_multiple_animal_confidence(all_animals):
+def calculate_multiple_animal_confidence(all_tracks):
     """ check that lower overlapping confidence is above threshold """
     confidence = 0
-    all_animals.sort(key=by_start_time)
-    for i in range(0, len(all_animals) - 1):
-        for j in range(i + 1, len(all_animals)):
-            if all_animals[j]["start_s"] + 1 < all_animals[i]["end_s"]:
-                this_conf = min(all_animals[i][CONFIDENCE], all_animals[j][CONFIDENCE])
+    all_tracks.sort(key=by_start_time)
+    for i in range(0, len(all_tracks) - 1):
+        for j in range(i + 1, len(all_tracks)):
+            if all_tracks[j]["start_s"] + 1 < all_tracks[i]["end_s"]:
+                this_conf = min(all_tracks[i][CONFIDENCE], all_tracks[j][CONFIDENCE])
                 confidence = max(confidence, this_conf)
     return confidence

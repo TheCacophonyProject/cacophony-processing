@@ -61,7 +61,6 @@ def process(recording, conf):
 
 
 def classify_file(api, command, conf):
-    command = "{}".format(command)
     classify_info = run_classify_command(command, conf.classify_dir)
 
     format_track_data(classify_info["tracks"])
@@ -184,14 +183,14 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
                 model_results.append(
                     (classify_result.models_by_id[model_result["id"]], model_result)
                 )
-        model_result = get_master_tag(model_results, wallaby_device)
+        master_result = get_master_tag(model_results, wallaby_device)
 
-        if model_result is not None:
+        if master_result is not None:
             add_track_tag(
                 api,
                 recording,
                 track,
-                model_result[1],
+                master_result[1],
                 logger,
                 model_name=master_name,
             )
