@@ -20,7 +20,7 @@ thermal:
     classify: True
 
     # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
-    classify_command_dir: "../classifier_pipeline"
+    classify_command_dir: "../classifier-pipeline"
     # Relative paths in this command are relative from the classify_command_dir.
     # Should be run using the classifier_pipeline python3.6 virtual environment.
     classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"

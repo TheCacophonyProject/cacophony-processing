@@ -74,6 +74,7 @@ def get_significant_tracks(tracks, conf):
     tags = {}
 
     for track in tracks:
+        has_clear_prediction = False
         for prediction in track[PREDICTIONS]:
             if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
@@ -86,7 +87,7 @@ def get_significant_tracks(tracks, conf):
                 confidence = prediction.get(CONFIDENCE, 0)
                 track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
                 if prediction_is_clear(prediction, conf):
-                    clear_tracks.append(track)
+                    has_clear_prediction = True
                     tag = prediction[LABEL]
                     prediction[TAG] = tag
                     if tag in tags:
@@ -96,8 +97,11 @@ def get_significant_tracks(tracks, conf):
 
                 else:
                     tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                    unclear_tracks.append(track)
                     prediction[TAG] = UNIDENTIFIED
+        if has_clear_prediction:
+            clear_tracks.append(track)
+        else:
+            unclear_tracks.append(track)
     return (clear_tracks, unclear_tracks, tags)
 
 

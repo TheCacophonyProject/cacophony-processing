@@ -183,11 +183,17 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
         )
         model_results = []
         for model_result in track["predictions"]:
-            added, tag = add_track_tag(api, recording, track, model_result, logger)
+            model = classify_result.models_by_id[model_result["id"]]
+            added, tag = add_track_tag(
+                api,
+                recording,
+                track,
+                model_result,
+                logger,
+                model_name=model.name,
+            )
             if added:
-                model_results.append(
-                    (classify_result.models_by_id[model_result["id"]], model_result)
-                )
+                model_results.append((model, model_result))
         master_result = get_master_tag(model_results, wallaby_device)
 
         if master_result is not None:
