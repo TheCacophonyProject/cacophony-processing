@@ -14,7 +14,8 @@ api_url: "http://127.0.0.1:2008/api/fileProcessing"
 no_recordings_wait_secs : 30
 thermal:
     thermal_workers: 2
-
+    #cache clips that have more than this amount of frames, null is never cache
+    cache_clips_bigger_than: 2160
     # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
     classify: True
 

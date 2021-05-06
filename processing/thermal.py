@@ -60,7 +60,11 @@ def process(recording, conf):
             classify(conf, recording, api, s3, logger)
 
 
-def classify_file(api, command, conf):
+def classify_file(api, command, conf, duration):
+    if conf.cache_clips_bigger_than and duration > conf.cache_clips_bigger_than:
+        command = "{} --cache y".format(command)
+    else:
+        command = "{} --cache n".format(command)
     classify_info = run_classify_command(command, conf.classify_dir)
 
     format_track_data(classify_info["tracks"])
@@ -110,7 +114,7 @@ def classify(conf, recording, api, s3, logger):
     )
     logger.debug("processing %s", recording["filename"])
 
-    classify_result = classify_file(api, command, conf)
+    classify_result = classify_file(api, command, conf, recording.get("duration", 0))
 
     if classify_result.multiple_animals is not None:
         logger.debug(
@@ -167,6 +171,7 @@ def update_metadata(conf, recording, api):
         for _ in reader:
             count += 1
         metadata["duration"] = round(count / FRAME_RATE)
+        recording["duration"] = metadata["duration"]
     complete = not conf.do_classify
     api.update_metadata(recording, metadata, complete)
 
