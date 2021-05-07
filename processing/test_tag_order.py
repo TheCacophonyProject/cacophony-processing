@@ -72,6 +72,7 @@ def test_config():
         audio_analysis_workers=1,
         thermal_workers=1,
         ignore_tags=["not"],
+        cache_clips_bigger_than=0,
     )
 
 
