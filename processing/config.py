@@ -54,6 +54,7 @@ configTuple = namedtuple(
         "ignore_tags",
         "wallaby_devices",
         "master_tag",
+        "cache_clips_bigger_than",
     ],
 )
 
@@ -98,6 +99,7 @@ class Config(configTuple):
                 audio_analysis_workers=audio["analysis_workers"],
                 thermal_workers=thermal["thermal_workers"],
                 ignore_tags=thermal["tagging"].get("ignore_tags", None),
+                cache_clips_bigger_than=thermal.get("cache_clips_bigger_than"),
             )
 
 
