@@ -168,7 +168,9 @@ def update_metadata(conf, recording, api):
             metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
 
         count = 0
-        for _ in reader:
+        for frame in reader:
+            if frame.background_frame:
+                continue
             count += 1
         metadata["duration"] = round(count / FRAME_RATE)
         recording["duration"] = metadata["duration"]
