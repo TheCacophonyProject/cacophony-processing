@@ -168,9 +168,7 @@ def update_metadata(conf, recording, api):
             metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
 
         count = 0
-        for frame in reader:
-            if frame.background_frame:
-                continue
+        for _ in reader:
             count += 1
         metadata["duration"] = round(count / FRAME_RATE)
         recording["duration"] = metadata["duration"]
@@ -223,7 +221,7 @@ def use_tag(model, prediction, wallaby_device):
 
 
 def get_master_tag(model_results, wallaby_device=False):
-    """Choose a tag to be the overriding tag for this track"""
+    """ Choose a tag to be the overriding tag for this track """
     valid_results = [
         (model, prediction)
         for model, prediction in model_results
