@@ -53,7 +53,8 @@ def main():
         working = False
         try:
             for processor in processors:
-                working = working or processor.poll()
+                processor_busy = processor.poll()
+                working = working or processor_busy
         except:
             logger.error(traceback.format_exc())
 
