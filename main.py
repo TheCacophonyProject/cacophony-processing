@@ -50,15 +50,16 @@ def main():
 
     logger.info("checking for recordings")
     while True:
-        working = False
+        some_busy = False
         try:
             for processor in processors:
-                working = working or processor.poll()
+                processor_busy = processor.poll()
+                some_busy = some_busy or processor_busy
         except:
             logger.error(traceback.format_exc())
 
         # To avoid hitting the server repetitively wait longer if nothing to process
-        if working:
+        if some_busy:
             logger.info("processing short sleep")
             time.sleep(SLEEP_SECS)
         else:
