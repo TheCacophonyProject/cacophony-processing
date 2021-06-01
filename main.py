@@ -100,7 +100,9 @@ class Processor:
         self.wait_until = time.time() + timedelta(seconds=SLEEP_SECS)
 
     def can_poll(self):
-        return self.full() or self.wait_until is None or time.time() > self.wait_untl
+        return not self.full() or (
+            self.wait_until is None or time.time() > self.wait_untl
+        )
 
     def full(self):
         return len(self.in_progress) >= self.num_workers
@@ -110,7 +112,7 @@ class Processor:
 
     def poll(self):
         self.reap_completed()
-        if self.can_poll():
+        if not self.can_poll():
             return True
 
         recording = self.api.next_job(self.recording_type, self.processing_state)
