@@ -50,16 +50,19 @@ def main():
 
     logger.info("checking for recordings")
     while True:
-        working = False
+        should_sleep = 0
         try:
             for processor in processors:
-                working = working or processor.poll()
+                processor.poll()
+                if processor.has_no_work() or processor.full():
+                    should_sleep += 1
+
         except:
             logger.error(traceback.format_exc())
 
         # To avoid hitting the server repetitively wait longer if nothing to process
-        if working:
-            logger.info("processing short sleep")
+        if should_sleep == len(processors):
+            logger.info("All processors are working, short sleep")
             time.sleep(SLEEP_SECS)
         else:
             logger.info("Nothing to process - extending wait time")
@@ -75,12 +78,17 @@ class Processors(list):
 
 
 class Processor:
-
     conf = None
     api = None
     log_q = None
 
-    def __init__(self, recording_type, processing_state, process_func, num_workers):
+    def __init__(
+        self,
+        recording_type,
+        processing_state,
+        can_process_moreprocess_func,
+        num_workers,
+    ):
         self.recording_type = recording_type
         self.processing_state = processing_state
         self.process_func = process_func
@@ -90,9 +98,15 @@ class Processor:
         )
         self.in_progress = {}
 
+    def full(self):
+        return len(self.in_progress) >= self.num_workers
+
+    def has_no_work(self):
+        return len(self.in_progress) == 0
+
     def poll(self):
         self.reap_completed()
-        if len(self.in_progress) >= self.num_workers:
+        if self.full():
             return True
 
         recording = self.api.next_job(self.recording_type, self.processing_state)
