@@ -22,7 +22,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import contextlib
 import time
 import traceback
-
 from pebble import ProcessPool
 
 import processing
@@ -53,11 +52,13 @@ def main():
         try:
             for processor in processors:
                 processor.poll()
+                if processor.full():
+                    processor.wait(SLEEP_SECS)
         except:
             logger.error(traceback.format_exc())
 
         # To avoid hitting the server repetitively wait longer if nothing to process
-        if all(processor.full() for processor in processors):
+        if all(not processor.can_poll() for processor in processors):
             logger.info("All processors are working, short sleep")
             time.sleep(SLEEP_SECS)
         elif all(processor.has_no_work() for processor in processors):
@@ -77,6 +78,7 @@ class Processor:
     conf = None
     api = None
     log_q = None
+    wait_until = None
 
     def __init__(
         self,
@@ -94,6 +96,12 @@ class Processor:
         )
         self.in_progress = {}
 
+    def wait(self, seconds):
+        self.wait_until = time.time() + timedelta(seconds=SLEEP_SECS)
+
+    def can_poll(self):
+        return self.full() or self.wait_until is None or time.time() > self.wait_untl
+
     def full(self):
         return len(self.in_progress) >= self.num_workers
 
@@ -102,7 +110,7 @@ class Processor:
 
     def poll(self):
         self.reap_completed()
-        if self.full():
+        if self.can_poll():
             return True
 
         recording = self.api.next_job(self.recording_type, self.processing_state)
