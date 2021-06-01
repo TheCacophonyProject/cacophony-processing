@@ -82,7 +82,7 @@ class Processor:
         self,
         recording_type,
         processing_state,
-        can_process_moreprocess_func,
+        process_func,
         num_workers,
     ):
         self.recording_type = recording_type
