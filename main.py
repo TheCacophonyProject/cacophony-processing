@@ -46,7 +46,7 @@ def main():
         "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
     )
 
-    processors.add("thermalRaw", "getMetadata", thermal.process, conf.thermal_workers)
+    processors.add("thermalRaw", "analyse", thermal.process, conf.thermal_workers)
 
     logger.info("checking for recordings")
     while True:
