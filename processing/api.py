@@ -45,6 +45,17 @@ class API:
         r = requests.put(self.url, data=params)
         r.raise_for_status()
 
+    def report_failed(self, rec_id, job_key):
+        params = {
+            "id": rec_id,
+            "success": False,
+            "complete": False,
+            "jobKey": job_key,
+        }
+
+        r = requests.put(self.url, data=params)
+        r.raise_for_status()
+
     def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
         if not metadata:
             metadata = {}

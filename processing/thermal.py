@@ -41,8 +41,8 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 
 
-def process(recording, conf):
-    logger = logs.worker_logger("thermal", recording["id"])
+def classify_job(recording, conf):
+    logger = logs.worker_logger("thermal-classify", recording["id"])
 
     api = API(conf.api_url)
     s3 = S3(conf)
@@ -52,12 +52,7 @@ def process(recording, conf):
         recording["filename"] = filename
         logger.debug("downloading recording")
         s3.download(recording["rawFileKey"], str(filename))
-
-        update_metadata(conf, recording, api)
-        logger.debug("metadata updated")
-
-        if conf.do_classify:
-            classify(conf, recording, api, s3, logger)
+        classify(conf, recording, api, s3, logger)
 
 
 def classify_file(api, command, conf, duration):
@@ -112,7 +107,11 @@ def classify(conf, recording, api, s3, logger):
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
-    logger.debug("processing %s", recording["filename"])
+    logger.info(
+        "processing %s with duration %s",
+        recording["filename"],
+        recording.get("duration"),
+    )
 
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
 
