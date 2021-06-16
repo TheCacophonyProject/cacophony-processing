@@ -107,11 +107,7 @@ def classify(conf, recording, api, s3, logger):
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
-    logger.info(
-        "processing %s with duration %s",
-        recording["filename"],
-        recording.get("duration"),
-    )
+    logger.info("processing %s ", recording["filename"])
 
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
 
