@@ -50,7 +50,7 @@ def classify_job(recording, conf):
         recording["filename"] = filename
         logger.debug("downloading recording")
         s3.download(recording["rawFileKey"], str(filename))
-        classify(conf, recording, api, s3, logger)
+        classify(conf, recording, api, logger)
 
 
 def classify_file(api, command, conf, duration):
@@ -105,8 +105,7 @@ def classify(conf, recording, api, logger):
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
-    logger.info("processing %s ", recording["filename"])
-
+    logger.debug("processing %s ", recording["filename"])
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
 
     if classify_result.multiple_animals is not None:
