@@ -22,8 +22,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from cptv import CPTVReader
-
 from . import API
 from . import S3
 from . import logs
@@ -101,7 +99,7 @@ def is_wallaby_device(wallaby_devices, recording_meta):
     return False
 
 
-def classify(conf, recording, api, s3, logger):
+def classify(conf, recording, api, logger):
     working_dir = recording["filename"].parent
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
     command = conf.classify_cmd.format(
@@ -127,14 +125,9 @@ def classify(conf, recording, api, s3, logger):
         logger,
     )
 
-    # Upload mp4
-    video_filename = str(replace_ext(recording["filename"], ".mp4"))
-    logger.debug("uploading %s", video_filename)
-    new_key = s3.upload_recording(video_filename)
-
     metadata = {"additionalMetadata": {"algorithm": classify_result.tracking_algorithm}}
-    api.report_done(recording, new_key, "video/mp4", metadata)
-    logger.info("Finished (new key: %s)", new_key)
+    api.report_done(recording, None, None, metadata)
+    logger.info("Finished")
 
 
 def format_track_data(tracks):
@@ -149,26 +142,6 @@ def format_track_data(tracks):
 
 def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
-
-
-def update_metadata(conf, recording, api):
-    with open(str(recording["filename"]), "rb") as f:
-        reader = CPTVReader(f)
-        metadata = {}
-        metadata["recordingDateTime"] = reader.timestamp.isoformat()
-        if reader.latitude != 0 and reader.longitude != 0:
-            metadata["location"] = (reader.latitude, reader.longitude)
-
-        if reader.preview_secs:
-            metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
-
-        count = 0
-        for _ in reader:
-            count += 1
-        metadata["duration"] = round(count / FRAME_RATE)
-        recording["duration"] = metadata["duration"]
-    complete = not conf.do_classify
-    api.update_metadata(recording, metadata, complete)
 
 
 def upload_tracks(api, recording, classify_result, wallaby_device, master_name, logger):
