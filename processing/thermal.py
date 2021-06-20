@@ -54,7 +54,12 @@ def classify_job(recording, conf):
 
 
 def classify_file(api, command, conf, duration):
-    if conf.cache_clips_bigger_than and duration > conf.cache_clips_bigger_than:
+
+    if (
+        duration is not None
+        and conf.cache_clips_bigger_than
+        and duration > conf.cache_clips_bigger_than
+    ):
         command = "{} --cache y".format(command)
     else:
         command = "{} --cache n".format(command)
