@@ -51,7 +51,7 @@ def classify_job(recording, conf):
         logger.debug("downloading recording")
         s3.download(recording["rawFileKey"], str(filename))
         classify(conf, recording, api, logger)
-
+        
 
 def classify_file(api, command, conf, duration):
 
