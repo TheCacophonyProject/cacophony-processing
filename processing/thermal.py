@@ -26,7 +26,16 @@ from . import API
 from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
-from .tagger import calculate_tags, MESSAGE, TAG, MULTIPLE, CONFIDENCE
+from .tagger import (
+    calculate_tags,
+    MESSAGE,
+    TAG,
+    MULTIPLE,
+    CONFIDENCE,
+    FALSE_POSITIVE,
+    UNIDENTIFIED,
+    MULTIPLE,
+)
 from .config import ModelConfig
 
 DOWNLOAD_FILENAME = "recording.cptv"
@@ -34,9 +43,6 @@ SLEEP_SECS = 10
 FRAME_RATE = 9
 
 MIN_TRACK_CONFIDENCE = 0.85
-FALSE_POSITIVE = "false-positive"
-UNIDENTIFIED = "unidentified"
-MULTIPLE = "multiple animals"
 
 
 def classify_job(recording, conf):
@@ -167,16 +173,26 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
             if added:
                 model_results.append((model, model_result))
         master_result = get_master_tag(model_results, wallaby_device)
-
+        if master_result is None:
+            master_result = default_tag(track["id"])
+        else:
+            master_result = master_result[1]
         if master_result is not None:
             add_track_tag(
                 api,
                 recording,
                 track,
-                master_result[1],
+                master_result,
                 logger,
                 model_name=master_name,
             )
+
+
+def default_tag(track_id):
+    prediction = {}
+    prediction[TAG] = UNIDENTIFIED
+    prediction[CONFIDENCE] = 0
+    return prediction
 
 
 def use_tag(model, prediction, wallaby_device):
@@ -189,7 +205,9 @@ def use_tag(model, prediction, wallaby_device):
         return False
     if tag in model.ignored_tags:
         return False
-    return wallaby_device == model.wallaby
+    if model.wallaby and not wallaby_device:
+        return False
+    return True
 
 
 def get_master_tag(model_results, wallaby_device=False):
@@ -199,13 +217,12 @@ def get_master_tag(model_results, wallaby_device=False):
         for model, prediction in model_results
         if prediction and use_tag(model, prediction, wallaby_device)
     ]
-
     if len(valid_results) == 0:
         return None
     clear_tags = [
         (model, prediction)
         for model, prediction in valid_results
-        if prediction["tag"] != "unidentified"
+        if prediction["tag"] != UNIDENTIFIED
     ]
     if len(clear_tags) == 0:
         return valid_results[0]
@@ -215,7 +232,6 @@ def get_master_tag(model_results, wallaby_device=False):
         key=lambda model: model_rank(model[1]["tag"], model[0].tag_scores),
         reverse=True,
     )
-
     return ordered[0]
 
 
