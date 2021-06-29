@@ -44,6 +44,7 @@ def main():
     processors.add(
         "audio", ["toMp3"], audio_convert.process, conf.audio_convert_workers
     )
+
     processors.add(
         "audio",
         ["analyse", "reprocess"],
