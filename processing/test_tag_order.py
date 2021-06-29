@@ -31,7 +31,7 @@ def test_models():
         id="4",
         name="wallaby",
         model_file="wallaby.sav",
-        tag_scores={"default": 2},
+        tag_scores={"default": 2, "wallaby": 6},
         wallaby=True,
         ignored_tags=[],
     )
@@ -39,7 +39,7 @@ def test_models():
         id="5",
         name="wallaby-old",
         model_file="wallaby-old.sav",
-        tag_scores={"default": 1},
+        tag_scores={"default": 1, "wallaby": 5},
         wallaby=True,
         ignored_tags=[],
     )
@@ -128,9 +128,9 @@ def test_model_heirechy_wallabies():
     wallaby_result[1]["tag"] = "bird"
     wallaby_old_result[1]["tag"] = "possum"
 
-    # no wallaby tags, means no tag
     master_tag = thermal.get_master_tag(results, wallaby_device=True)
-    assert master_tag is None
+    assert master_tag[0].name == "resnet"
+    assert master_tag[1]["tag"] == "wallaby"
 
 
 def test_model_heirechy():
