@@ -26,7 +26,16 @@ from . import API
 from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
-from .tagger import calculate_tags, MESSAGE, TAG, MULTIPLE, CONFIDENCE
+from .tagger import (
+    calculate_tags,
+    MESSAGE,
+    TAG,
+    MULTIPLE,
+    CONFIDENCE,
+    FALSE_POSITIVE,
+    UNIDENTIFIED,
+    MULTIPLE,
+)
 from .config import ModelConfig
 
 DOWNLOAD_FILENAME = "recording.cptv"
@@ -34,13 +43,10 @@ SLEEP_SECS = 10
 FRAME_RATE = 9
 
 MIN_TRACK_CONFIDENCE = 0.85
-FALSE_POSITIVE = "false-positive"
-UNIDENTIFIED = "unidentified"
-MULTIPLE = "multiple animals"
 
 
-def process(recording, conf):
-    logger = logs.worker_logger("thermal", recording["id"])
+def classify_job(recording, conf):
+    logger = logs.worker_logger("thermal-classify", recording["id"])
 
     api = API(conf.api_url)
     s3 = S3(conf)
@@ -50,13 +56,16 @@ def process(recording, conf):
         recording["filename"] = filename
         logger.debug("downloading recording")
         s3.download(recording["rawFileKey"], str(filename))
-
-        if conf.do_classify:
-            classify(conf, recording, api, logger)
+        classify(conf, recording, api, logger)
 
 
 def classify_file(api, command, conf, duration):
-    if conf.cache_clips_bigger_than and duration > conf.cache_clips_bigger_than:
+
+    if (
+        duration is not None
+        and conf.cache_clips_bigger_than
+        and duration > conf.cache_clips_bigger_than
+    ):
         command = "{} --cache y".format(command)
     else:
         command = "{} --cache n".format(command)
@@ -107,8 +116,7 @@ def classify(conf, recording, api, logger):
     command = conf.classify_cmd.format(
         folder=str(working_dir), source=recording["filename"].name
     )
-    logger.debug("processing %s", recording["filename"])
-
+    logger.debug("processing %s ", recording["filename"])
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
 
     if classify_result.multiple_animals is not None:
@@ -165,29 +173,41 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
             if added:
                 model_results.append((model, model_result))
         master_result = get_master_tag(model_results, wallaby_device)
-
+        if master_result is None:
+            master_result = default_tag(track["id"])
+        else:
+            master_result = master_result[1]
         if master_result is not None:
             add_track_tag(
                 api,
                 recording,
                 track,
-                master_result[1],
+                master_result,
                 logger,
                 model_name=master_name,
             )
+
+
+def default_tag(track_id):
+    prediction = {}
+    prediction[TAG] = UNIDENTIFIED
+    prediction[CONFIDENCE] = 0
+    return prediction
 
 
 def use_tag(model, prediction, wallaby_device):
     tag = prediction.get("tag")
     if tag is None:
         return False
-    if wallaby_device and tag.lower() != "wallaby":
-        return False
+    # if wallaby_device and tag.lower() != "wallaby":
+    #     return False
     elif not wallaby_device and tag.lower() == "wallaby":
         return False
     if tag in model.ignored_tags:
         return False
-    return wallaby_device == model.wallaby
+    if model.wallaby and not wallaby_device:
+        return False
+    return True
 
 
 def get_master_tag(model_results, wallaby_device=False):
@@ -197,13 +217,12 @@ def get_master_tag(model_results, wallaby_device=False):
         for model, prediction in model_results
         if prediction and use_tag(model, prediction, wallaby_device)
     ]
-
     if len(valid_results) == 0:
         return None
     clear_tags = [
         (model, prediction)
         for model, prediction in valid_results
-        if prediction["tag"] != "unidentified"
+        if prediction["tag"] != UNIDENTIFIED
     ]
     if len(clear_tags) == 0:
         return valid_results[0]
@@ -213,7 +232,6 @@ def get_master_tag(model_results, wallaby_device=False):
         key=lambda model: model_rank(model[1]["tag"], model[0].tag_scores),
         reverse=True,
     )
-
     return ordered[0]
 
 
