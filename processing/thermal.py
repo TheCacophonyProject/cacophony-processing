@@ -199,13 +199,9 @@ def use_tag(model, prediction, wallaby_device):
     tag = prediction.get("tag")
     if tag is None:
         return False
-    # if wallaby_device and tag.lower() != "wallaby":
-    #     return False
-    elif not wallaby_device and tag.lower() == "wallaby":
+    elif tag in model.ignored_tags:
         return False
-    if tag in model.ignored_tags:
-        return False
-    if model.wallaby and not wallaby_device:
+    elif model.wallaby and not wallaby_device:
         return False
     return True
 
