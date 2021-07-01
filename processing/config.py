@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from collections import namedtuple
 from pathlib import Path
-
+import attr
 import yaml
 
 
@@ -35,6 +35,7 @@ configTuple = namedtuple(
         "access_key",
         "secret_key",
         "api_url",
+        "no_recordings_wait_secs",
         "classify_dir",
         "classify_cmd",
         "do_classify",
@@ -50,8 +51,13 @@ configTuple = namedtuple(
         "audio_convert_workers",
         "audio_analysis_workers",
         "thermal_workers",
+        "ignore_tags",
+        "wallaby_devices",
+        "master_tag",
+        "cache_clips_bigger_than",
     ],
 )
+
 
 class Config(configTuple):
     @classmethod
@@ -63,28 +69,39 @@ class Config(configTuple):
     def load_from(cls, filename):
         with open(filename) as stream:
             y = yaml.load(stream)
+            s3 = y["s3"]
+            thermal = y["thermal"]
+            audio = y["audio"]
             return cls(
-                bucket_name=y["s3"]["default_bucket"],
+                bucket_name=s3["default_bucket"],
                 endpoint_url=y["s3"]["endpoint"],
-                access_key=y["s3"]["access_key_id"],
-                secret_key=y["s3"]["secret_access_key"],
+                access_key=s3["access_key_id"],
+                secret_key=s3["secret_access_key"],
                 api_url=y["api_url"],
-                classify_dir=y["classify_command_dir"],
-                classify_cmd=y["classify_command"],
-                do_classify=y.get("classify", True),
-                min_confidence=y["tagging"]["min_confidence"],
-                min_tag_confidence=y["tagging"]["min_tag_confidence"],
-                max_tag_novelty=y["tagging"]["max_tag_novelty"],
-                min_tag_clarity=y["tagging"]["min_tag_clarity"],
-                min_tag_clarity_secondary=y["tagging"]["min_tag_clarity_secondary"],
-                min_frames=y["tagging"]["min_frames"],
-                animal_movement=y["tagging"]["animal_movement"],
-                audio_analysis_cmd=y["audio"]["analysis_command"],
-                audio_analysis_tag=y["audio"]["analysis_tag"],
-                audio_convert_workers=y["audio"]["convert_workers"],
-                audio_analysis_workers=y["audio"]["analysis_workers"],
-                thermal_workers=y["thermal_workers"],
+                no_recordings_wait_secs=y["no_recordings_wait_secs"],
+                classify_dir=thermal["classify_command_dir"],
+                classify_cmd=thermal["classify_command"],
+                do_classify=thermal.get("classify", True),
+                master_tag=thermal.get("master_tag", "Master"),
+                wallaby_devices=thermal["wallaby_devices"],
+                min_confidence=thermal["tagging"]["min_confidence"],
+                min_tag_confidence=thermal["tagging"]["min_tag_confidence"],
+                max_tag_novelty=thermal["tagging"]["max_tag_novelty"],
+                min_tag_clarity=thermal["tagging"]["min_tag_clarity"],
+                min_tag_clarity_secondary=thermal["tagging"][
+                    "min_tag_clarity_secondary"
+                ],
+                min_frames=thermal["tagging"]["min_frames"],
+                animal_movement=thermal["tagging"]["animal_movement"],
+                audio_analysis_cmd=audio["analysis_command"],
+                audio_analysis_tag=audio["analysis_tag"],
+                audio_convert_workers=audio["convert_workers"],
+                audio_analysis_workers=audio["analysis_workers"],
+                thermal_workers=thermal["thermal_workers"],
+                ignore_tags=thermal["tagging"].get("ignore_tags", None),
+                cache_clips_bigger_than=thermal.get("cache_clips_bigger_than"),
             )
+
 
 def find_config():
     for directory in CONFIG_DIRS:
@@ -92,3 +109,25 @@ def find_config():
         if p.is_file():
             return str(p)
     raise FileNotFoundError("no configuration file found")
+
+
+@attr.s
+class ModelConfig:
+    id = attr.ib()
+    name = attr.ib()
+    model_file = attr.ib()
+    wallaby = attr.ib()
+    tag_scores = attr.ib()
+    ignored_tags = attr.ib()
+
+    @classmethod
+    def load(cls, raw):
+        model = cls(
+            id=raw["id"],
+            name=raw["name"],
+            model_file=raw["model_file"],
+            wallaby=raw["wallaby"],
+            tag_scores=raw["tag_scores"],
+            ignored_tags=raw.get("ignored_tags", []),
+        )
+        return model

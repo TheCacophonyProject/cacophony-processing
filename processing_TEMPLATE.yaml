@@ -10,37 +10,83 @@ s3:
 
 api_url: "http://127.0.0.1:2008/api/fileProcessing"
 
-thermal_workers: 2
+# extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
+no_recordings_wait_secs : 30
+thermal:
+    thermal_workers: 2
+    #cache clips that have more than this amount of frames, null is never cache
+    cache_clips_bigger_than: 2160
+    # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
+    classify: True
 
-# classify option allows you to turn off the classifier for test purposes if the classifier is not set up
-classify: True
+    # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
+    classify_command_dir: "../classifier-pipeline"
+    # Relative paths in this command are relative from the classify_command_dir.
+    # Should be run using the classifier_pipeline python3.6 virtual environment.
+    classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"
 
-# Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
-classify_command_dir: "../classifier_pipeline"
-# Relative paths in this command are relative from the classify_command_dir.
-# Should be run using the classifier_pipeline python3.6 virtual environment.
-classify_command: "venv/bin/python classify.py --processor-folder {folder} {source}"
-tagging:
-    # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
-    min_confidence: .4
+    # Can be used to run multiple models, this will save a track tag per model
+    # the tags of the first model will be used
+    master_tag: "Master"
+    wallaby_devices: []
 
-    # This is the minimum confidence a track should have in order to tag as animal
-    min_tag_confidence: .8
+    # A master tag will be chosen based of the highest score, based of the model and tag
+    # i.e. if the original model classifies as a bird, it will get a score of 4
+    # if resnet classifies as anything it will get a score of 3
+    models:
+    - name: "original"
+      model_file: "/path/to/original-model"
+      preview: "classified"
+      tag_scores:
+          bird: 4
+          default: 1
+      ignored_tags: ["mustelid"]
+    - name: "Retrained"
+      model_file: "/path/to/retrained"
+      preview: "classified"
+      tag_scores:
+        default: 2
+      ignored_tags: ["mustelid"]
+    - name: "Resnet"
+      model_file: "/path/to/resnet"
+      preview: "classified"
+      tag_scores:
+        default: 3
+      ignored_tags: ["mustelid"]
+    - name: "wallaby"
+      model_file: "/path/to/wallaby"
+      tag_scores:
+        default: 2
+      wallaby: true
+    - name: "wallaby-old"
+      model_file: "/path/to/wallaby-old"
+      tag_scores:
+        default: 1
+      wallaby: true
 
-    # Classifications with a novelty above this value will be ignored for tagging.
-    max_tag_novelty: .7
+    tagging:
+      ignore_tags: ["not"]
 
-    # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
-    min_tag_clarity: .2
+      # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
+      min_confidence: .4
 
-    # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
-    min_tag_clarity_secondary: .05
+      # This is the minimum confidence a track should have in order to tag as animal
+      min_tag_confidence: .8
 
-    # This is the minimum length of a track.
-    min_frames: 3
+      # Classifications with a novelty above this value will be ignored for tagging.
+      max_tag_novelty: .7
 
-    # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
-    animal_movement: 50
+      # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
+      min_tag_clarity: .2
+
+      # If the same animal has clearly been identified in the video then a reduced clarity is acceptable.
+      min_tag_clarity_secondary: .05
+
+      # This is the minimum length of a track.
+      min_frames: 3
+
+      # If tracks moves this many pixels in any direction then we shall assume it isn't a false positive
+      animal_movement: 50
 
 
 audio:

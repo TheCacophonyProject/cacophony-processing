@@ -16,20 +16,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import attr
 import json
 import subprocess
 import tempfile
 from pathlib import Path
 
-from cptv import CPTVReader
-
 from . import API
 from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
-from .tagger import calculate_tags
-
+from .tagger import calculate_tags, MESSAGE, TAG, MULTIPLE, CONFIDENCE
+from .config import ModelConfig
 
 DOWNLOAD_FILENAME = "recording.cptv"
 SLEEP_SECS = 10
@@ -41,8 +39,8 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 
 
-def process(recording, conf):
-    logger = logs.worker_logger("thermal", recording["id"])
+def classify_job(recording, conf):
+    logger = logs.worker_logger("thermal-classify", recording["id"])
 
     api = API(conf.api_url)
     s3 = S3(conf)
@@ -52,26 +50,37 @@ def process(recording, conf):
         recording["filename"] = filename
         logger.debug("downloading recording")
         s3.download(recording["rawFileKey"], str(filename))
-
-        update_metadata(conf, recording, api)
-        logger.debug("metadata updated")
-
-        if conf.do_classify:
-            classify(conf, recording, api, s3, logger)
+        classify(conf, recording, api, logger)
 
 
-def classify(conf, recording, api, s3, logger):
-    working_dir = recording["filename"].parent
-    command = conf.classify_cmd.format(
-        folder=str(working_dir), source=recording["filename"].name
+def classify_file(api, command, conf, duration):
+
+    if (
+        duration is not None
+        and conf.cache_clips_bigger_than
+        and duration > conf.cache_clips_bigger_than
+    ):
+        command = "{} --cache y".format(command)
+    else:
+        command = "{} --cache n".format(command)
+    classify_info = run_classify_command(command, conf.classify_dir)
+
+    format_track_data(classify_info["tracks"])
+
+    # Auto tag the video
+    algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
+    filtered_tracks, tags = calculate_tags(classify_info["tracks"], conf)
+
+    return ClassifyResult.load(
+        classify_info, algorithm_id, filtered_tracks, tags.get(MULTIPLE, None)
     )
 
-    logger.debug("processing %s", recording["filename"])
 
+def run_classify_command(command, dir):
     with HandleCalledProcessError():
         proc = subprocess.run(
             command,
-            cwd=conf.classify_dir,
+            cwd=dir,
             shell=True,
             encoding="ascii",
             check=True,
@@ -85,29 +94,44 @@ def classify(conf, recording, api, s3, logger):
         raise ValueError(
             "failed to JSON decode classifier output:\n{}".format(proc.stdout)
         ) from err
+    return classify_info
 
-    track_info = classify_info["tracks"]
-    formatted_tracks = format_track_data(track_info)
 
-    # Auto tag the video
-    tagged_tracks, tags = calculate_tags(formatted_tracks, conf)
-    for tag in tags:
-        logger.debug("tag: %s (%.2f)", tag, tags[tag]["confidence"])
-        if tag == MULTIPLE:
-            api.tag_recording(recording, tag, tags[tag])
+def is_wallaby_device(wallaby_devices, recording_meta):
+    device_id = recording_meta.get("DeviceId")
+    if device_id is not None:
+        return device_id in wallaby_devices
+    return False
 
-    algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
 
-    upload_tracks(api, recording, algorithm_id, tagged_tracks)
+def classify(conf, recording, api, logger):
+    working_dir = recording["filename"].parent
+    wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
+    command = conf.classify_cmd.format(
+        folder=str(working_dir), source=recording["filename"].name
+    )
+    logger.debug("processing %s ", recording["filename"])
+    classify_result = classify_file(api, command, conf, recording.get("duration", 0))
 
-    # Upload mp4
-    video_filename = str(replace_ext(recording["filename"], ".mp4"))
-    logger.debug("uploading %s", video_filename)
-    new_key = s3.upload_recording(video_filename)
+    if classify_result.multiple_animals is not None:
+        logger.debug(
+            "multiple animals detected, (%.2f)",
+            classify_result.multiple_animals[CONFIDENCE],
+        )
+        api.tag_recording(recording, MULTIPLE, classify_result.multiple_animals)
 
-    metadata = {"additionalMetadata": {"algorithm": algorithm_id}}
-    api.report_done(recording, new_key, "video/mp4", metadata)
-    logger.info("Finished (new key: %s)", new_key)
+    upload_tracks(
+        api,
+        recording,
+        classify_result,
+        wallaby_device,
+        conf.master_tag,
+        logger,
+    )
+
+    metadata = {"additionalMetadata": {"algorithm": classify_result.tracking_algorithm}}
+    api.report_done(recording, None, None, metadata)
+    logger.info("Finished")
 
 
 def format_track_data(tracks):
@@ -124,27 +148,128 @@ def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
 
-def update_metadata(conf, recording, api):
-    with open(str(recording["filename"]), "rb") as f:
-        reader = CPTVReader(f)
-        metadata = {}
-        metadata["recordingDateTime"] = reader.timestamp.isoformat()
-        if reader.latitude != 0 and reader.longitude != 0:
-            metadata["location"] = (reader.latitude, reader.longitude)
+def upload_tracks(api, recording, classify_result, wallaby_device, master_name, logger):
+    for track in classify_result.tracks:
+        track["id"] = api.add_track(
+            recording, track, classify_result.tracking_algorithm
+        )
+        model_results = []
+        for model_result in track["predictions"]:
+            model = classify_result.models_by_id[model_result["id"]]
+            added, tag = add_track_tag(
+                api,
+                recording,
+                track,
+                model_result,
+                logger,
+                model_name=model.name,
+            )
+            if added:
+                model_results.append((model, model_result))
+        master_result = get_master_tag(model_results, wallaby_device)
 
-        if reader.preview_secs:
-            metadata["additionalMetadata"] = {"previewSecs": reader.preview_secs}
+        if master_result is not None:
+            add_track_tag(
+                api,
+                recording,
+                track,
+                master_result[1],
+                logger,
+                model_name=master_name,
+            )
 
-        count = 0
-        for _ in reader:
-            count += 1
-        metadata["duration"] = round(count / FRAME_RATE)
-    complete = not conf.do_classify
-    api.update_metadata(recording, metadata, complete)
+
+def use_tag(model, prediction, wallaby_device):
+    tag = prediction.get("tag")
+    if tag is None:
+        return False
+    if wallaby_device and tag.lower() != "wallaby":
+        return False
+    elif not wallaby_device and tag.lower() == "wallaby":
+        return False
+    if tag in model.ignored_tags:
+        return False
+    return wallaby_device == model.wallaby
 
 
-def upload_tracks(api, recording, algorithm_id, tracks):
-    for track in tracks:
-        track["id"] = api.add_track(recording, track, algorithm_id)
-        if "tag" in track:
-            api.add_track_tag(recording, track)
+def get_master_tag(model_results, wallaby_device=False):
+    """ Choose a tag to be the overriding tag for this track """
+    valid_results = [
+        (model, prediction)
+        for model, prediction in model_results
+        if prediction and use_tag(model, prediction, wallaby_device)
+    ]
+
+    if len(valid_results) == 0:
+        return None
+    clear_tags = [
+        (model, prediction)
+        for model, prediction in valid_results
+        if prediction["tag"] != "unidentified"
+    ]
+    if len(clear_tags) == 0:
+        return valid_results[0]
+
+    ordered = sorted(
+        clear_tags,
+        key=lambda model: model_rank(model[1]["tag"], model[0].tag_scores),
+        reverse=True,
+    )
+
+    return ordered[0]
+
+
+def model_rank(tag, tag_scores):
+    if tag in tag_scores:
+        return tag_scores[tag]
+    return tag_scores["default"]
+
+
+def add_track_tag(api, recording, track, prediction, logger, model_name=None):
+    if not track or TAG not in prediction:
+        return False, None
+    track_data = {
+        "name": model_name,
+    }
+    track_data["all_class_confidences"] = prediction.get("all_class_confidences")
+    predictions = prediction.get("predictions")
+    if predictions:
+        track_data["predictions"] = predictions
+    if prediction.get(MESSAGE) is not None:
+        track_data[MESSAGE] = prediction[MESSAGE]
+
+    logger.debug("adding %s track tag for track %s", track_data["name"], track["id"])
+
+    api.add_track_tag(recording, track["id"], prediction, data=track_data)
+    return True, tag
+
+
+@attr.s
+class ClassifyResult:
+    tracking_algorithm = attr.ib()
+    models_by_id = attr.ib()
+    tracks = attr.ib()
+    multiple_animals = attr.ib()
+
+    @classmethod
+    def load(cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals):
+        model = cls(
+            tracking_algorithm=tracking_algorithm,
+            models_by_id=load_models(classify_json.get("models", [])),
+            tracks=filtered_tracks,
+            multiple_animals=multiple_animals,
+        )
+        return model
+
+
+def load_models(models_json):
+    models = {}
+    for model_json in models_json:
+        model = ModelConfig.load(model_json)
+        models[model.id] = model
+    return models
+
+
+@property
+def tag(self):
+    return self.classification.get(Tagger.LABEL)

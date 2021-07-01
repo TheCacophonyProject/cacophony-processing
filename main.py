@@ -41,28 +41,47 @@ def main():
     Processor.log_q = logs.init_master()
 
     processors = Processors()
-    processors.add("audio", "toMp3", audio_convert.process, conf.audio_convert_workers)
     processors.add(
-        "audio", "analyse", audio_analysis.process, conf.audio_analysis_workers
+        "audio", ["toMp3"], audio_convert.process, conf.audio_convert_workers
     )
-    processors.add("thermalRaw", "getMetadata", thermal.process, conf.thermal_workers)
+    processors.add(
+        "audio",
+        ["analyse", "reprocess"],
+        audio_analysis.process,
+        conf.audio_analysis_workers,
+    )
+    if conf.do_classify:
+        processors.add(
+            "thermalRaw",
+            ["analyse", "reprocess"],
+            thermal.classify_job,
+            conf.thermal_workers,
+        )
 
     logger.info("checking for recordings")
     while True:
+        working = False
         try:
             for processor in processors:
-                processor.poll()
+                processor_busy = processor.poll()
+                working = working or processor_busy
         except:
             logger.error(traceback.format_exc())
 
-        time.sleep(SLEEP_SECS)
+        # To avoid hitting the server repetitively wait longer if nothing to process
+        if working:
+            logger.info("processing short sleep")
+            time.sleep(SLEEP_SECS)
+        else:
+            logger.info("Nothing to process - extending wait time")
+            time.sleep(conf.no_recordings_wait_secs)
 
 
 class Processors(list):
-    def add(self, recording_type, processing_state, process_func, num_workers):
+    def add(self, recording_type, processing_states, process_func, num_workers):
         if num_workers < 1:
             return
-        p = Processor(recording_type, processing_state, process_func, num_workers)
+        p = Processor(recording_type, processing_states, process_func, num_workers)
         self.append(p)
 
 
@@ -72,9 +91,9 @@ class Processor:
     api = None
     log_q = None
 
-    def __init__(self, recording_type, processing_state, process_func, num_workers):
+    def __init__(self, recording_type, processing_states, process_func, num_workers):
         self.recording_type = recording_type
-        self.processing_state = processing_state
+        self.processing_states = processing_states
         self.process_func = process_func
         self.num_workers = num_workers
         self.pool = ProcessPool(
@@ -85,30 +104,45 @@ class Processor:
     def poll(self):
         self.reap_completed()
         if len(self.in_progress) >= self.num_workers:
-            return
+            return True
 
-        recording = self.api.next_job(self.recording_type, self.processing_state)
-        if recording:
+        working = False
+        for state in self.processing_states:
+            recording = self.api.next_job(self.recording_type, state)
+            if not recording:
+                continue
+            if recording.get("id", 0) in self.in_progress:
+                logger.debug(
+                    "Recording %s (%s: %s) is already scheduled",
+                    recording["id"],
+                    recording["type"],
+                    state,
+                )
+                continue
             logger.debug(
                 "scheduling %s (%s: %s)",
                 recording["id"],
                 recording["type"],
-                self.processing_state,
+                state,
             )
             future = self.pool.schedule(self.process_func, (recording, self.conf))
-            self.in_progress[recording["id"]] = future
+            self.in_progress[recording["id"]] = (recording["jobKey"], future)
+            working = True
+        return working
 
     def reap_completed(self):
-        for recording_id, future in list(self.in_progress.items()):
+        for recording_id, job in list(self.in_progress.items()):
+            future = job[1]
             if future.done():
-                del self.in_progress[recording_id]
                 err = future.exception()
                 if err:
-                    msg = f"{self.recording_type}.{self.processing_state} processing of {recording_id} failed: {err}"
+                    msg = f"{self.recording_type}.{self.processing_states} processing of {recording_id} failed: {err}"
                     tb = getattr(err, "traceback", None)
                     if tb:
                         msg += f":\n{tb}"
                     logger.error(msg)
+                    self.api.report_failed(recording_id, job[0])
+                del self.in_progress[recording_id]
 
 
 if __name__ == "__main__":
