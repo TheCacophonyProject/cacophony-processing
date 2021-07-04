@@ -142,7 +142,14 @@ class Processor:
                     if tb:
                         msg += f":\n{tb}"
                     logger.error(msg)
-                    self.api.report_failed(recording_id, job[0])
+                    try:
+                        self.api.report_failed(recording_id, job[0])
+                    except:
+                        logging.error(
+                            "Could not set %s to failed state",
+                            recording_id,
+                            exc_info=True,
+                        )
                 del self.in_progress[recording_id]
 
 
