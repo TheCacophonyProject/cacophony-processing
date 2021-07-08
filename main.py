@@ -145,7 +145,7 @@ class Processor:
                     try:
                         self.api.report_failed(recording_id, job[0])
                     except:
-                        logging.error(
+                        logger.error(
                             "Could not set %s to failed state",
                             recording_id,
                             exc_info=True,
