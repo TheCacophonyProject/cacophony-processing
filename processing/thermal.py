@@ -118,7 +118,6 @@ def classify(conf, recording, api, logger):
     )
     logger.debug("processing %s ", recording["filename"])
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
-
     if classify_result.multiple_animals is not None:
         logger.debug(
             "multiple animals detected, (%.2f)",
@@ -134,15 +133,19 @@ def classify(conf, recording, api, logger):
         conf.master_tag,
         logger,
     )
-
-    metadata = {"additionalMetadata": {"algorithm": classify_result.tracking_algorithm}}
+    additionalMetadata = {"algorithm": classify_result.tracking_algorithm}
     if classify_result.tracking_time is not None:
-        metadata["tracking_time"] = classify_result.tracking_time
+        additionalMetadata["tracking_time"] = classify_result.tracking_time
+    if classify_result.thumbnail_region is not None:
+        additionalMetadata["thumbnail_region"] = classify_result.thumbnail_region
     model_info = {}
     for model in classify_result.models_by_id.values():
         if model.classify_time is not None:
             model_info[model.name] = {"classify_time": model.classify_time}
-    metadata["models"] = model_info
+
+    additionalMetadata["models"] = model_info
+    metadata = {"additionalMetadata": additionalMetadata}
+
     api.report_done(recording, None, None, metadata)
     logger.info("Finished")
 
@@ -277,10 +280,12 @@ class ClassifyResult:
     models_by_id = attr.ib()
     tracks = attr.ib()
     multiple_animals = attr.ib()
+    thumbnail_region = attr.ib()
 
     @classmethod
     def load(cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals):
         model = cls(
+            thumbnail_region=classify_json.get("thumbnail_region"),
             tracking_algorithm=tracking_algorithm,
             tracking_time=classify_json.get("tracking_time"),
             models_by_id=load_models(classify_json.get("models", [])),
