@@ -35,9 +35,8 @@ def calc_track_movement(track):
     mid_xs = []
     mid_ys = []
     for frame in track["positions"]:
-        coords = frame[1]
-        mid_xs.append((coords[0] + coords[2]) / 2)
-        mid_ys.append((coords[1] + coords[3]) / 2)
+        mid_xs.append((frame["x"] + frame["width"]) / 2)
+        mid_ys.append((frame["y"] + frame["height"]) / 2)
     delta_x = max(mid_xs) - min(mid_xs)
     delta_y = max(mid_ys) - min(mid_ys)
     return max(delta_x, delta_y)
