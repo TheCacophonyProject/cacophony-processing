@@ -118,7 +118,6 @@ def classify(conf, recording, api, logger):
     )
     logger.debug("processing %s ", recording["filename"])
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
-
     if classify_result.multiple_animals is not None:
         logger.debug(
             "multiple animals detected, (%.2f)",
@@ -134,8 +133,19 @@ def classify(conf, recording, api, logger):
         conf.master_tag,
         logger,
     )
+    additionalMetadata = {"algorithm": classify_result.tracking_algorithm}
+    if classify_result.tracking_time is not None:
+        additionalMetadata["tracking_time"] = classify_result.tracking_time
+    if classify_result.thumbnail_region is not None:
+        additionalMetadata["thumbnail_region"] = classify_result.thumbnail_region
+    model_info = {}
+    for model in classify_result.models_by_id.values():
+        if model.classify_time is not None:
+            model_info[model.name] = {"classify_time": model.classify_time}
 
-    metadata = {"additionalMetadata": {"algorithm": classify_result.tracking_algorithm}}
+    additionalMetadata["models"] = model_info
+    metadata = {"additionalMetadata": additionalMetadata}
+
     api.report_done(recording, None, None, metadata)
     logger.info("Finished")
 
@@ -159,33 +169,32 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
         track["id"] = api.add_track(
             recording, track, classify_result.tracking_algorithm
         )
-        model_results = []
-        for model_result in track["predictions"]:
-            model = classify_result.models_by_id[model_result["id"]]
+        model_predictions = []
+        for model_prediction in track["predictions"]:
+            model = classify_result.models_by_id[model_prediction["model_id"]]
             added, tag = add_track_tag(
                 api,
                 recording,
                 track,
-                model_result,
+                model_prediction,
                 logger,
                 model_name=model.name,
             )
             if added:
-                model_results.append((model, model_result))
-        master_result = get_master_tag(model_results, wallaby_device)
-        if master_result is None:
-            master_result = default_tag(track["id"])
-        else:
-            master_result = master_result[1]
-        if master_result is not None:
-            add_track_tag(
-                api,
-                recording,
-                track,
-                master_result,
-                logger,
-                model_name=master_name,
-            )
+                model_predictions.append((model, model_prediction))
+        master_model, master_prediction = get_master_tag(
+            model_predictions, wallaby_device
+        )
+        if master_prediction is None:
+            master_prediction = default_tag(track["id"])
+        add_track_tag(
+            api,
+            recording,
+            track,
+            master_prediction,
+            logger,
+            model_name=master_name,
+        )
 
 
 def default_tag(track_id):
@@ -196,7 +205,7 @@ def default_tag(track_id):
 
 
 def use_tag(model, prediction, wallaby_device):
-    tag = prediction.get("tag")
+    tag = prediction.get(TAG)
     if tag is None:
         return False
     elif tag in model.ignored_tags:
@@ -214,18 +223,18 @@ def get_master_tag(model_results, wallaby_device=False):
         if prediction and use_tag(model, prediction, wallaby_device)
     ]
     if len(valid_results) == 0:
-        return None
+        return None, None
     clear_tags = [
         (model, prediction)
         for model, prediction in valid_results
-        if prediction["tag"] != UNIDENTIFIED
+        if prediction[TAG] != UNIDENTIFIED
     ]
     if len(clear_tags) == 0:
         return valid_results[0]
 
     ordered = sorted(
         clear_tags,
-        key=lambda model: model_rank(model[1]["tag"], model[0].tag_scores),
+        key=lambda model: model_rank(model[1][TAG], model[0].tag_scores),
         reverse=True,
     )
     return ordered[0]
@@ -243,6 +252,9 @@ def add_track_tag(api, recording, track, prediction, logger, model_name=None):
     track_data = {
         "name": model_name,
     }
+    if "classify_time" in prediction:
+        track_data["classify_time"] = prediction["classify_time"]
+
     track_data["all_class_confidences"] = prediction.get("all_class_confidences")
     predictions = prediction.get("predictions")
     if predictions:
@@ -250,7 +262,12 @@ def add_track_tag(api, recording, track, prediction, logger, model_name=None):
     if prediction.get(MESSAGE) is not None:
         track_data[MESSAGE] = prediction[MESSAGE]
 
-    logger.debug("adding %s track tag for track %s", track_data["name"], track["id"])
+    logger.debug(
+        "adding %s track tag %s for track %s",
+        track_data["name"],
+        prediction.get(TAG),
+        track["id"],
+    )
 
     api.add_track_tag(recording, track["id"], prediction, data=track_data)
     return True, tag
@@ -259,14 +276,18 @@ def add_track_tag(api, recording, track, prediction, logger, model_name=None):
 @attr.s
 class ClassifyResult:
     tracking_algorithm = attr.ib()
+    tracking_time = attr.ib()
     models_by_id = attr.ib()
     tracks = attr.ib()
     multiple_animals = attr.ib()
+    thumbnail_region = attr.ib()
 
     @classmethod
     def load(cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals):
         model = cls(
+            thumbnail_region=classify_json.get("thumbnail_region"),
             tracking_algorithm=tracking_algorithm,
+            tracking_time=classify_json.get("tracking_time"),
             models_by_id=load_models(classify_json.get("models", [])),
             tracks=filtered_tracks,
             multiple_animals=multiple_animals,

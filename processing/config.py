@@ -119,6 +119,7 @@ class ModelConfig:
     wallaby = attr.ib()
     tag_scores = attr.ib()
     ignored_tags = attr.ib()
+    classify_time = attr.ib()
 
     @classmethod
     def load(cls, raw):
@@ -129,5 +130,6 @@ class ModelConfig:
             wallaby=raw["wallaby"],
             tag_scores=raw["tag_scores"],
             ignored_tags=raw.get("ignored_tags", []),
+            classify_time=raw.get("classify_time"),
         )
         return model
