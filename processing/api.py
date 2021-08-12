@@ -137,15 +137,6 @@ class API:
         r.raise_for_status()
         return iter_to_file(filename, r.iter_content(chunk_size=4096))
 
-    def upload_file(self, token, filename):
-        r = requests.get(
-            urljoin(self.api_url, "/signedUrl"),
-            params={"jwt": token},
-            stream=True,
-        )
-        r.raise_for_status()
-        return iter_to_file(filename, r.iter_content(chunk_size=4096))
-
     def upload_file(self, filename):
         url = self.file_url + "/processed"
         data = {"fileHash": sha_hash(filename)}
