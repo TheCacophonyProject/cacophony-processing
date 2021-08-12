@@ -1,8 +1,8 @@
-boto3~=1.4.7
-PyYAML~=4.2b4
+PyYAML~=5.4.1
 requests~=2.20.0
 librosa~=0.6.2
 setuptools~=40.6.2
 Pebble~=4.4.0
 numba==0.48
 attrs~=20.3.0
+requests_toolbelt~=0.9.1
