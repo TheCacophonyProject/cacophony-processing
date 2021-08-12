@@ -3,7 +3,7 @@
 ---
 
 file_api_url: "http://127.0.0.1:2008/api/fileProcessing"
-api_url: "http://127.0.0.1:1080/api/v1/"
+api_url: "http://127.0.0.1:1080"
 
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
