@@ -37,7 +37,7 @@ def main():
     conf = processing.Config.load()
 
     Processor.conf = conf
-    Processor.api = API(conf.api_url)
+    Processor.api = API(conf.file_api_url, conf.api_url)
     Processor.log_q = logs.init_master()
 
     processors = Processors()
@@ -109,9 +109,12 @@ class Processor:
 
         working = False
         for state in self.processing_states:
-            recording = self.api.next_job(self.recording_type, state)
-            if not recording:
+            response = self.api.next_job(self.recording_type, state)
+
+            if not response:
                 continue
+            recording = response["recording"]
+            rawJWT = response["rawJWT"]
             if recording.get("id", 0) in self.in_progress:
                 logger.debug(
                     "Recording %s (%s: %s) is already scheduled",
@@ -126,7 +129,9 @@ class Processor:
                 recording["type"],
                 state,
             )
-            future = self.pool.schedule(self.process_func, (recording, self.conf))
+            future = self.pool.schedule(
+                self.process_func, (recording, rawJWT, self.conf)
+            )
             self.in_progress[recording["id"]] = (recording["jobKey"], future)
             working = True
         return working

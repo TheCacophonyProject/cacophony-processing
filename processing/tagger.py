@@ -110,7 +110,7 @@ def by_start_time(elem):
 
 
 def calculate_multiple_animal_confidence(all_tracks):
-    """ check that lower overlapping confidence is above threshold """
+    """check that lower overlapping confidence is above threshold"""
     confidence = 0
     all_tracks.sort(key=by_start_time)
     for i in range(0, len(all_tracks) - 1):

@@ -23,7 +23,6 @@ import tempfile
 from pathlib import Path
 
 from . import API
-from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
 from .tagger import (
@@ -45,17 +44,16 @@ FRAME_RATE = 9
 MIN_TRACK_CONFIDENCE = 0.85
 
 
-def classify_job(recording, conf):
+def classify_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-classify", recording["id"])
 
-    api = API(conf.api_url)
-    s3 = S3(conf)
+    api = API(conf.file_api_url, conf.api_url)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
         recording["filename"] = filename
         logger.debug("downloading recording")
-        s3.download(recording["rawFileKey"], str(filename))
+        api.download_file(rawJWT, str(filename))
         classify(conf, recording, api, logger)
 
 
@@ -216,7 +214,7 @@ def use_tag(model, prediction, wallaby_device):
 
 
 def get_master_tag(model_results, wallaby_device=False):
-    """ Choose a tag to be the overriding tag for this track """
+    """Choose a tag to be the overriding tag for this track"""
     valid_results = [
         (model, prediction)
         for model, prediction in model_results
