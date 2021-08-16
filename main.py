@@ -42,12 +42,15 @@ def main():
 
     processors = Processors()
     processors.add(
-        "audio", ["toMp3"], audio_convert.process, conf.audio_convert_workers
+        "audio",
+        ["toMp3", "reprocess"],
+        audio_convert.process,
+        conf.audio_convert_workers,
     )
 
     processors.add(
         "audio",
-        ["analyse", "reprocess"],
+        ["analyse"],
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
