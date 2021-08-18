@@ -18,21 +18,26 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import json
-
+import os
 import requests
+import logging
+from requests_toolbelt.multipart.encoder import MultipartEncoder
+from urllib.parse import urljoin
+import hashlib
 
 
 class API:
-    def __init__(self, url):
-        self.url = url
+    def __init__(self, file_url, api_url):
+        self.file_url = file_url
+        self.api_url = api_url
 
     def next_job(self, recording_type, state):
         params = {"type": recording_type, "state": state}
-        r = requests.get(self.url, params=params)
+        r = requests.get(self.file_url, params=params)
         if r.status_code == 204:
             return None
         r.raise_for_status()
-        return r.json()["recording"]
+        return r.json()
 
     def update_metadata(self, recording, fieldUpdates, completed):
         params = {
@@ -42,7 +47,7 @@ class API:
             "result": json.dumps({"fieldUpdates": fieldUpdates}),
             "complete": completed,
         }
-        r = requests.put(self.url, data=params)
+        r = requests.put(self.file_url, data=params)
         r.raise_for_status()
 
     def report_failed(self, rec_id, job_key):
@@ -53,7 +58,7 @@ class API:
             "jobKey": job_key,
         }
 
-        r = requests.put(self.url, data=params)
+        r = requests.put(self.file_url, data=params)
         r.raise_for_status()
 
     def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
@@ -72,7 +77,7 @@ class API:
         if newKey:
             params["newProcessedFileKey"] = newKey
 
-        r = requests.put(self.url, data=params)
+        r = requests.put(self.file_url, data=params)
         r.raise_for_status()
 
     def tag_recording(self, recording, label, metadata):
@@ -85,18 +90,18 @@ class API:
             tag["animal"] = label
 
         r = requests.post(
-            self.url + "/tags",
+            self.file_url + "/tags",
             data={"recordingId": recording["id"], "tag": json.dumps(tag)},
         )
         r.raise_for_status()
 
     def delete_tracks(self, recording):
-        url = self.url + "/{}/tracks".format(recording["id"])
+        url = self.file_url + "/{}/tracks".format(recording["id"])
         r = requests.delete(url)
         r.raise_for_status()
 
     def get_algorithm_id(self, algorithm):
-        url = self.url + "/algorithm"
+        url = self.file_url + "/algorithm"
         post_data = {"algorithm": json.dumps(algorithm)}
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
@@ -104,7 +109,7 @@ class API:
         raise IOError(r.text)
 
     def add_track(self, recording, track, algorithm_id):
-        url = self.url + "/{}/tracks".format(recording["id"])
+        url = self.file_url + "/{}/tracks".format(recording["id"])
         post_data = {"data": json.dumps(track), "algorithmId": algorithm_id}
         r = requests.post(url, data=post_data)
         if r.status_code == 200:
@@ -112,7 +117,7 @@ class API:
         raise IOError(r.text)
 
     def add_track_tag(self, recording, track_id, prediction, data=""):
-        url = self.url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
+        url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
         post_data = {
             "what": prediction["tag"],
             "confidence": prediction["confidence"],
@@ -122,3 +127,56 @@ class API:
         if r.status_code == 200:
             return r.json()["trackTagId"]
         raise IOError(r.text)
+
+    def download_file(self, token, filename):
+        r = requests.get(
+            urljoin(self.api_url, "/api/v1/signedUrl"),
+            params={"jwt": token},
+            stream=True,
+        )
+        r.raise_for_status()
+        return iter_to_file(filename, r.iter_content(chunk_size=4096))
+
+    def upload_file(self, filename):
+        url = self.file_url + "/processed"
+        data = {"fileHash": sha_hash(filename)}
+        try:
+            with open(filename, "rb") as content:
+                multipart_data = MultipartEncoder(
+                    fields={
+                        "data": json.dumps(data),
+                        "file": (os.path.basename(filename), content),
+                    }
+                )
+                headers = {"Content-Type": multipart_data.content_type}
+                r = requests.post(url, data=multipart_data, headers=headers)
+
+            if r.status_code == 200:
+                print("Successful upload of ", filename)
+            print("status is", r.status_code, r.json())
+        except:
+            logging.error("Error uploading", exc_info=true)
+        r.raise_for_status()
+        return r.json()
+
+
+def sha_hash(filename):
+    buffer = 65536
+    sha1 = hashlib.sha1()
+    with open(filename, "rb") as f:
+        while True:
+            data = f.read(buffer)
+            if not data:
+                break
+            sha1.update(data)
+    return sha1.hexdigest()
+
+
+def iter_to_file(filename, source, overwrite=True):
+    if not overwrite and Path(filename).is_file():
+        logging.debug("%s already exists", filename)
+        return False
+    with open(filename, "wb") as f:
+        for chunk in source:
+            f.write(chunk)
+    return True

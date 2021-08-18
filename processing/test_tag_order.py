@@ -53,10 +53,7 @@ def test_models():
 
 def test_config():
     return config.Config(
-        bucket_name="caocphony",
-        endpoint_url="http://127.0.0.1:9001",
-        access_key="minio",
-        secret_key="miniostorage",
+        file_api_url="http://127.0.0.1:2008/api/fileProcessing",
         api_url="http://127.0.0.1:2008/api/fileProcessing",
         no_recordings_wait_secs=30,
         classify_dir="",

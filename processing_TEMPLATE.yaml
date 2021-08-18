@@ -1,14 +1,9 @@
 # enter object store and API settings and save as processing.yaml.
 # the options listed below should work for the test api-server, set up with the ./run command
 ---
-s3:
-    access_key_id: "minio"
-    secret_access_key: "miniostorage"
-    default_bucket: "cacophony"
-    endpoint: "http://127.0.0.1:9001"
-    tls: "False"
 
-api_url: "http://127.0.0.1:2008/api/fileProcessing"
+file_api_url: "http://127.0.0.1:2008/api/fileProcessing"
+api_url: "http://127.0.0.1:1080"
 
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
