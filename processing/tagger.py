@@ -61,7 +61,7 @@ def prediction_is_clear(prediction, conf):
     if prediction[CLARITY] < conf.min_tag_clarity:
         prediction[MESSAGE] = "Confusion between two classes (similar confidence)"
         return False
-    if prediction["average_novelty"] > conf.max_tag_novelty:
+    if prediction.get("average_novelty", 0) > conf.max_tag_novelty:
         prediction[MESSAGE] = "High novelty"
         return False
     return True
