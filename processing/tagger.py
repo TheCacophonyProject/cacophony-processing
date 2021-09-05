@@ -55,7 +55,10 @@ def is_significant_track(track, confidence, conf):
 
 
 def prediction_is_clear(prediction, conf):
-    if prediction[CONFIDENCE] < conf.min_tag_confidence:
+    conf_thresh = conf.min_tag_confidence
+    if prediction[LABEL] == FALSE_POSITIVE:
+        conf_thresh = conf.min_tag_clarity_secondary
+    if prediction[CONFIDENCE] < conf_thresh:
         prediction[MESSAGE] = "Low confidence - no tag"
         return False
     if prediction[CLARITY] < conf.min_tag_clarity:
@@ -79,11 +82,6 @@ def get_significant_tracks(tracks, conf):
             if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
             if is_significant_track(track, prediction.get(CONFIDENCE, 0), conf):
-                if (
-                    prediction[LABEL] == FALSE_POSITIVE
-                    and prediction[CLARITY] > conf.min_tag_clarity_secondary
-                ):
-                    continue
                 confidence = prediction.get(CONFIDENCE, 0)
                 track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
                 if prediction_is_clear(prediction, conf):
