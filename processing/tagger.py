@@ -55,10 +55,7 @@ def is_significant_track(track, confidence, conf):
 
 
 def prediction_is_clear(prediction, conf):
-    conf_thresh = conf.min_tag_confidence
-    if prediction[LABEL] == FALSE_POSITIVE:
-        conf_thresh = conf.min_tag_clarity_secondary
-    if prediction[CONFIDENCE] < conf_thresh:
+    if prediction[CONFIDENCE] < conf.min_tag_confidence:
         prediction[MESSAGE] = "Low confidence - no tag"
         return False
     if prediction[CLARITY] < conf.min_tag_clarity:
