@@ -56,8 +56,9 @@ def test_config():
         file_api_url="http://127.0.0.1:2008/api/fileProcessing",
         api_url="http://127.0.0.1:2008/api/fileProcessing",
         no_recordings_wait_secs=30,
-        classify_dir="",
+        pipeline_dir="",
         classify_cmd="",
+        track_cmd="",
         do_classify=True,
         wallaby_devices=[1, 2],
         master_tag="Master",
@@ -66,8 +67,6 @@ def test_config():
         max_tag_novelty=0.7,
         min_tag_clarity=0.2,
         min_tag_clarity_secondary=0.05,
-        min_frames=3,
-        animal_movement=50,
         audio_analysis_cmd="",
         audio_analysis_tag="v1.1.0",
         audio_convert_workers=1,
@@ -75,6 +74,7 @@ def test_config():
         thermal_workers=1,
         ignore_tags=["not"],
         cache_clips_bigger_than=0,
+        tracking_workers=1,
     )
 
 

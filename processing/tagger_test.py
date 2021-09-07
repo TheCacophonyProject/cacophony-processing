@@ -1,5 +1,4 @@
 from processing.tagger import (
-    calc_track_movement,
     calculate_tags,
     MULTIPLE,
     FALSE_POSITIVE,
@@ -37,10 +36,10 @@ class TestTagCalculations:
         goodRatty = create_track("rat")
         assert self.get_tags([goodRatty]) == {"rat": {CONFIDENCE: 0.9}}
 
-    def test_ignores_short_not_great_track(self):
-        shortRatty = create_track("rat", confidence=0.65)
-        shortRatty["num_frames"] = 2
-        assert self.get_tags([shortRatty]) == {}
+    # def test_ignores_short_not_great_track(self):
+    #     shortRatty = create_track("rat", confidence=0.65)
+    #     shortRatty["num_frames"] = 2
+    #     assert self.get_tags([shortRatty]) == {}
 
     def test_one_track_middle_confidence(self):
         rat = create_track("rat", confidence=0.6)
@@ -56,8 +55,10 @@ class TestTagCalculations:
 
     def test_one_track_poor_confidence(self):
         poorRatty = create_track("rat", confidence=0.3)
-        assert self.get_tags([poorRatty]) == {}
-        assert poorRatty[MESSAGE] == "Poor confidence - ignore"
+        assert self.get_tags([poorRatty]) == {
+            UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
+        }
+        assert poorRatty[PREDICTIONS][0][MESSAGE] == "Low confidence - no tag"
 
     def test_one_track_poor_clarity_gives_unidentified(self):
         poorRatty = create_track("rat", clarity=0.02)
@@ -101,12 +102,18 @@ class TestTagCalculations:
     def test_multi_track_different_ignore_poor_quality(self):
         ratty = create_track("rat")
         hedgehog = create_track("hedgehog", confidence=0.35)
-        assert self.get_tags([ratty, hedgehog]) == {"rat": {CONFIDENCE: 0.9}}
+        assert self.get_tags([ratty, hedgehog]) == {
+            "rat": {CONFIDENCE: 0.9},
+            UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE},
+        }
 
     def test_multi_track_same_animal_and_poor_confidence_gives_one_tags(self):
         ratty1 = create_track("rat")
         ratty2 = create_track("rat", confidence=0.3)
-        assert self.get_tags([ratty1, ratty2]) == {"rat": {CONFIDENCE: 0.9}}
+        assert self.get_tags([ratty1, ratty2]) == {
+            "rat": {CONFIDENCE: 0.9},
+            UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE},
+        }
 
     def test_multi_track_same_animal_one_poor_confidence_good_clarity(self):
         ratty1 = create_track("rat")
