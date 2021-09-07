@@ -32,7 +32,7 @@ class TestTagCalculations:
 
     def test_one_false_positive_track(self):
         falsy = create_track(FALSE_POSITIVE)
-        assert self.get_tags([falsy]) == {}
+        assert FALSE_POSITIVE in self.get_tags([falsy])
 
     def test_one_track(self):
         goodRatty = create_track("rat")
@@ -124,13 +124,6 @@ class TestTagCalculations:
         assert self.get_tags([ratty1, ratty2]) == {
             "rat": {CONFIDENCE: 0.9},
             UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE},
-        }
-
-    def test_multi_track_ignores_false_positives_if_animal(self):
-        ratty1 = create_track("rat", confidence=0.6)
-        falsy = create_track(FALSE_POSITIVE)
-        assert self.get_tags([ratty1, falsy]) == {
-            UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
         }
 
     def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):

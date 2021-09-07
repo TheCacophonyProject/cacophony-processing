@@ -192,6 +192,7 @@ def upload_tracks(api, recording, classify_result, wallaby_device, master_name, 
             master_prediction,
             logger,
             model_name=master_name,
+            model_used=master_model.name if master_model is not None else None,
         )
 
 
@@ -244,15 +245,20 @@ def model_rank(tag, tag_scores):
     return tag_scores["default"]
 
 
-def add_track_tag(api, recording, track, prediction, logger, model_name=None):
+def add_track_tag(
+    api, recording, track, prediction, logger, model_name=None, model_used=None
+):
     if not track or TAG not in prediction:
         return False, None
     track_data = {
         "name": model_name,
     }
+    if model_used is not None:
+        # specifically for master tag to see which model was chosen
+        track_data["model_used"] = model_used
     if "classify_time" in prediction:
         track_data["classify_time"] = prediction["classify_time"]
-
+    track_data["clarity"] = prediction.get("clarity")
     track_data["all_class_confidences"] = prediction.get("all_class_confidences")
     predictions = prediction.get("predictions")
     if predictions:

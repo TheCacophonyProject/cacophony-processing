@@ -61,7 +61,7 @@ def prediction_is_clear(prediction, conf):
     if prediction[CLARITY] < conf.min_tag_clarity:
         prediction[MESSAGE] = "Confusion between two classes (similar confidence)"
         return False
-    if prediction["average_novelty"] > conf.max_tag_novelty:
+    if prediction.get("average_novelty", 0) > conf.max_tag_novelty:
         prediction[MESSAGE] = "High novelty"
         return False
     return True
@@ -79,11 +79,6 @@ def get_significant_tracks(tracks, conf):
             if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
             if is_significant_track(track, prediction.get(CONFIDENCE, 0), conf):
-                if (
-                    prediction[LABEL] == FALSE_POSITIVE
-                    and prediction[CLARITY] > conf.min_tag_clarity_secondary
-                ):
-                    continue
                 confidence = prediction.get(CONFIDENCE, 0)
                 track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
                 if prediction_is_clear(prediction, conf):
