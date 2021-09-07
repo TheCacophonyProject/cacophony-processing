@@ -92,7 +92,7 @@ class Processor:
     api = None
     log_q = None
 
-    def __init__(self, recording_type, processing_state, process_func, num_workers):
+    def __init__(self, recording_type, processing_states, process_func, num_workers):
         self.recording_type = recording_type
         self.processing_states = processing_states
         self.process_func = process_func
