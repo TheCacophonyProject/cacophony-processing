@@ -24,7 +24,6 @@ class TestTagCalculations:
     conf.max_tag_novelty = 0.6
     conf.min_tag_clarity = 0.1
     conf.min_tag_clarity_secondary = 0.05
-    conf.min_frames = 4
     conf.ignore_tags = None
 
     def test_no_tracks(self):
@@ -58,7 +57,7 @@ class TestTagCalculations:
     def test_one_track_poor_confidence(self):
         poorRatty = create_track("rat", confidence=0.3)
         assert self.get_tags([poorRatty]) == {}
-        assert poorRatty[MESSAGE] == "Low movement and poor confidence - ignore"
+        assert poorRatty[MESSAGE] == "Poor confidence - ignore"
 
     def test_one_track_poor_clarity_gives_unidentified(self):
         poorRatty = create_track("rat", clarity=0.02)
@@ -150,13 +149,14 @@ class TestTagCalculations:
             CONFIDENCE: 0.7,
         }
 
-    def test_calc_track_movement(self):
-        positions = [{"start_s": 1, "x": 2, "y": 24, "width": 42, "height": 44}]
-        assert calc_track_movement({"positions": positions}) == 0.0
-        positions.append({"start_s": 2, "x": 40, "y": 14, "width": 48, "height": 54})
-        assert calc_track_movement({"positions": positions}) == 22.0
-        positions.append({"start_s": 3, "x": 40, "y": 106, "width": 48, "height": 146})
-        assert calc_track_movement({"positions": positions}) == 92.0
+    #
+    # def test_calc_track_movement(self):
+    #     positions = [{"start_s": 1, "x": 2, "y": 24, "width": 42, "height": 44}]
+    #     assert calc_track_movement({"positions": positions}) == 0.0
+    #     positions.append({"start_s": 2, "x": 40, "y": 14, "width": 48, "height": 54})
+    #     assert calc_track_movement({"positions": positions}) == 22.0
+    #     positions.append({"start_s": 3, "x": 40, "y": 106, "width": 48, "height": 146})
+    #     assert calc_track_movement({"positions": positions}) == 92.0
 
     def test_large_track_movement_means_actual_track_even_with_low_confidence(self):
         poor_rat = create_track("rat", confidence=0.3)

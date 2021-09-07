@@ -34,6 +34,7 @@ from .tagger import (
     FALSE_POSITIVE,
     UNIDENTIFIED,
     MULTIPLE,
+    LABEL,
 )
 from .config import ModelConfig
 
@@ -44,8 +45,8 @@ FRAME_RATE = 9
 MIN_TRACK_CONFIDENCE = 0.85
 
 
-def classify_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("thermal-classify", recording["id"])
+def tracking_job(recording, rawJWT, conf):
+    logger = logs.worker_logger("thermal-tracking", recording["id"])
 
     api = API(conf.file_api_url, conf.api_url)
 
@@ -54,6 +55,54 @@ def classify_job(recording, rawJWT, conf):
         recording["filename"] = filename
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
+        track(conf, recording, api, logger)
+
+
+def track(conf, recording, api, logger):
+    command = conf.track_cmd.format(source=recording["filename"])
+    logger.info("tracking %s ", recording["filename"])
+    tracking_info = run_command(command, conf.pipeline_dir)
+    format_track_data(tracking_info["tracks"])
+    algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
+    tracking_result = ClassifyResult.load(
+        tracking_info, algorithm_id, tracking_info["tracks"]
+    )
+    for track in tracking_result.tracks:
+        track["id"] = api.add_track(
+            recording, track, tracking_result.tracking_algorithm
+        )
+    additionalMetadata = {"algorithm": tracking_result.tracking_algorithm}
+    if tracking_result.tracking_time is not None:
+        additionalMetadata["tracking_time"] = tracking_result.tracking_time
+    if tracking_result.thumbnail_region is not None:
+        additionalMetadata["thumbnail_region"] = tracking_result.thumbnail_region
+
+    metadata = {"additionalMetadata": additionalMetadata}
+    api.report_done(recording, None, None, metadata)
+    logger.info("Finished tracking")
+
+
+def classify_job(recording, rawJWT, conf):
+    logger = logs.worker_logger("thermal-classify", recording["id"])
+
+    api = API(conf.file_api_url, conf.api_url)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        filename = Path(temp_dir) / DOWNLOAD_FILENAME
+        recording["filename"] = str(filename)
+        logger.debug("downloading recording")
+        api.download_file(rawJWT, str(filename))
+        meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
+        track_info = api.get_track_info(recording["id"]).get("tracks")
+        for track in track_info:
+            track_data = track["data"]
+            track["start_s"] = track_data["start_s"]
+            track["end_s"] = track_data["end_s"]
+            track["num_frames"] = track_data["num_frames"]
+            track["positions"] = track_data["positions"]
+        recording["tracks"] = track_info
+        with open(str(meta_filename), "w") as f:
+            json.dump(recording, f)
         classify(conf, recording, api, logger)
 
 
@@ -67,20 +116,19 @@ def classify_file(api, command, conf, duration):
         command = "{} --cache y".format(command)
     else:
         command = "{} --cache n".format(command)
-    classify_info = run_classify_command(command, conf.classify_dir)
+    classify_info = run_command(command, conf.pipeline_dir)
 
     format_track_data(classify_info["tracks"])
 
     # Auto tag the video
-    algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
     filtered_tracks, tags = calculate_tags(classify_info["tracks"], conf)
 
     return ClassifyResult.load(
-        classify_info, algorithm_id, filtered_tracks, tags.get(MULTIPLE, None)
+        classify_info, 0, filtered_tracks, tags.get(MULTIPLE, None)
     )
 
 
-def run_classify_command(command, dir):
+def run_command(command, dir):
     with HandleCalledProcessError():
         proc = subprocess.run(
             command,
@@ -91,7 +139,6 @@ def run_classify_command(command, dir):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-
     try:
         classify_info = json.loads(proc.stdout)
     except json.decoder.JSONDecodeError as err:
@@ -109,11 +156,8 @@ def is_wallaby_device(wallaby_devices, recording_meta):
 
 
 def classify(conf, recording, api, logger):
-    working_dir = recording["filename"].parent
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
-    command = conf.classify_cmd.format(
-        folder=str(working_dir), source=recording["filename"].name
-    )
+    command = conf.classify_cmd.format(source=recording["filename"])
     logger.debug("processing %s ", recording["filename"])
     classify_result = classify_file(api, command, conf, recording.get("duration", 0))
     if classify_result.multiple_animals is not None:
@@ -123,7 +167,7 @@ def classify(conf, recording, api, logger):
         )
         api.tag_recording(recording, MULTIPLE, classify_result.multiple_animals)
 
-    upload_tracks(
+    upload_tags(
         api,
         recording,
         classify_result,
@@ -131,9 +175,7 @@ def classify(conf, recording, api, logger):
         conf.master_tag,
         logger,
     )
-    additionalMetadata = {"algorithm": classify_result.tracking_algorithm}
-    if classify_result.tracking_time is not None:
-        additionalMetadata["tracking_time"] = classify_result.tracking_time
+    additionalMetadata = {}
     if classify_result.thumbnail_region is not None:
         additionalMetadata["thumbnail_region"] = classify_result.thumbnail_region
     model_info = {}
@@ -162,11 +204,8 @@ def replace_ext(filename, ext):
     return filename.parent / (filename.stem + ext)
 
 
-def upload_tracks(api, recording, classify_result, wallaby_device, master_name, logger):
+def upload_tags(api, recording, classify_result, wallaby_device, master_name, logger):
     for track in classify_result.tracks:
-        track["id"] = api.add_track(
-            recording, track, classify_result.tracking_algorithm
-        )
         model_predictions = []
         for model_prediction in track["predictions"]:
             model = classify_result.models_by_id[model_prediction["model_id"]]
@@ -261,11 +300,15 @@ def add_track_tag(
     track_data["clarity"] = prediction.get("clarity")
     track_data["all_class_confidences"] = prediction.get("all_class_confidences")
     predictions = prediction.get("predictions")
-    if predictions:
+    if predictions is not None:
         track_data["predictions"] = predictions
+    prediction_frames = prediction.get("prediction_frames")
+    if prediction_frames is not None:
+        track_data["prediction_frames"] = prediction_frames
     if prediction.get(MESSAGE) is not None:
         track_data[MESSAGE] = prediction[MESSAGE]
-
+    if prediction.get(LABEL) is not None:
+        track_data["raw_tag"] = prediction[LABEL]
     logger.debug(
         "adding %s track tag %s for track %s",
         track_data["name"],
@@ -287,7 +330,9 @@ class ClassifyResult:
     thumbnail_region = attr.ib()
 
     @classmethod
-    def load(cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals):
+    def load(
+        cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals=False
+    ):
         model = cls(
             thumbnail_region=classify_json.get("thumbnail_region"),
             tracking_algorithm=tracking_algorithm,

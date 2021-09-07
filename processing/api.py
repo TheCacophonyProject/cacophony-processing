@@ -71,7 +71,6 @@ class API:
             "jobKey": recording["jobKey"],
             "id": recording["id"],
             "success": True,
-            "complete": True,
             "result": json.dumps({"fieldUpdates": metadata}),
         }
         if newKey:
@@ -127,6 +126,13 @@ class API:
         if r.status_code == 200:
             return r.json()["trackTagId"]
         raise IOError(r.text)
+
+    def get_track_info(self, recording_id):
+        r = requests.get(
+            self.file_url + "/{}/tracks".format(recording_id),
+        )
+        r.raise_for_status()
+        return r.json()
 
     def download_file(self, token, filename):
         r = requests.get(

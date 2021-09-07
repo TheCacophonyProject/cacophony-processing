@@ -54,6 +54,12 @@ def main():
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
+    processors.add(
+        "thermalRaw",
+        ["tracking"],
+        thermal.tracking_job,
+        conf.tracking_workers,
+    )
     if conf.do_classify:
         processors.add(
             "thermalRaw",
