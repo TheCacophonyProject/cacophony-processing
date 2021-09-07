@@ -32,7 +32,7 @@ class TestTagCalculations:
 
     def test_one_false_positive_track(self):
         falsy = create_track(FALSE_POSITIVE)
-        assert self.get_tags([falsy]) == {}
+        assert FALSE_POSITIVE in self.get_tags([falsy])
 
     def test_one_track(self):
         goodRatty = create_track("rat")
@@ -126,13 +126,6 @@ class TestTagCalculations:
             UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE},
         }
 
-    def test_multi_track_ignores_false_positives_if_animal(self):
-        ratty1 = create_track("rat", confidence=0.6)
-        falsy = create_track(FALSE_POSITIVE)
-        assert self.get_tags([ratty1, falsy]) == {
-            UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
-        }
-
     def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
         ratty1 = create_track("rat")
         ratty2 = create_track("rat", confidence=0.6)
@@ -158,16 +151,19 @@ class TestTagCalculations:
         }
 
     def test_calc_track_movement(self):
-        positions = [(1, (2, 24, 42, 44))]
+        positions = [{"start_s": 1, "x": 2, "y": 24, "width": 42, "height": 44}]
         assert calc_track_movement({"positions": positions}) == 0.0
-        positions.append((2, (40, 14, 48, 54)))
+        positions.append({"start_s": 2, "x": 40, "y": 14, "width": 48, "height": 54})
         assert calc_track_movement({"positions": positions}) == 22.0
-        positions.append((3, (40, 106, 48, 146)))
+        positions.append({"start_s": 3, "x": 40, "y": 106, "width": 48, "height": 146})
         assert calc_track_movement({"positions": positions}) == 92.0
 
     def test_large_track_movement_means_actual_track_even_with_low_confidence(self):
         poor_rat = create_track("rat", confidence=0.3)
-        poor_rat["positions"] = [(1, (2, 24, 42, 44)), (2, (102, 24, 142, 44))]
+        poor_rat["positions"] = [
+            {"start_s": 1, "x": 2, "y": 24, "width": 42, "height": 44},
+            {"start_s": 2, "x": 102, "y": 24, "width": 142, "height": 44},
+        ]
         assert self.get_tags([poor_rat]) == {
             UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
         }

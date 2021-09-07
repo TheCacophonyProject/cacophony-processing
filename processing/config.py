@@ -30,10 +30,7 @@ CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 configTuple = namedtuple(
     "Config",
     [
-        "bucket_name",
-        "endpoint_url",
-        "access_key",
-        "secret_key",
+        "file_api_url",
         "api_url",
         "no_recordings_wait_secs",
         "classify_dir",
@@ -69,14 +66,10 @@ class Config(configTuple):
     def load_from(cls, filename):
         with open(filename) as stream:
             y = yaml.load(stream)
-            s3 = y["s3"]
             thermal = y["thermal"]
             audio = y["audio"]
             return cls(
-                bucket_name=s3["default_bucket"],
-                endpoint_url=y["s3"]["endpoint"],
-                access_key=s3["access_key_id"],
-                secret_key=s3["secret_access_key"],
+                file_api_url=y["file_api_url"],
                 api_url=y["api_url"],
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
                 classify_dir=thermal["classify_command_dir"],
@@ -119,6 +112,7 @@ class ModelConfig:
     wallaby = attr.ib()
     tag_scores = attr.ib()
     ignored_tags = attr.ib()
+    classify_time = attr.ib()
 
     @classmethod
     def load(cls, raw):
@@ -129,5 +123,6 @@ class ModelConfig:
             wallaby=raw["wallaby"],
             tag_scores=raw["tag_scores"],
             ignored_tags=raw.get("ignored_tags", []),
+            classify_time=raw.get("classify_time"),
         )
         return model

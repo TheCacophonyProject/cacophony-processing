@@ -35,9 +35,8 @@ def calc_track_movement(track):
     mid_xs = []
     mid_ys = []
     for frame in track["positions"]:
-        coords = frame[1]
-        mid_xs.append((coords[0] + coords[2]) / 2)
-        mid_ys.append((coords[1] + coords[3]) / 2)
+        mid_xs.append((frame["x"] + frame["width"]) / 2)
+        mid_ys.append((frame["y"] + frame["height"]) / 2)
     delta_x = max(mid_xs) - min(mid_xs)
     delta_y = max(mid_ys) - min(mid_ys)
     return max(delta_x, delta_y)
@@ -62,7 +61,7 @@ def prediction_is_clear(prediction, conf):
     if prediction[CLARITY] < conf.min_tag_clarity:
         prediction[MESSAGE] = "Confusion between two classes (similar confidence)"
         return False
-    if prediction["average_novelty"] > conf.max_tag_novelty:
+    if prediction.get("average_novelty", 0) > conf.max_tag_novelty:
         prediction[MESSAGE] = "High novelty"
         return False
     return True
@@ -74,16 +73,12 @@ def get_significant_tracks(tracks, conf):
     tags = {}
 
     for track in tracks:
+        track[CONFIDENCE] = 0
         has_clear_prediction = False
         for prediction in track[PREDICTIONS]:
             if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
             if is_significant_track(track, prediction.get(CONFIDENCE, 0), conf):
-                if (
-                    prediction[LABEL] == FALSE_POSITIVE
-                    and prediction[CLARITY] > conf.min_tag_clarity_secondary
-                ):
-                    continue
                 confidence = prediction.get(CONFIDENCE, 0)
                 track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
                 if prediction_is_clear(prediction, conf):
@@ -110,7 +105,7 @@ def by_start_time(elem):
 
 
 def calculate_multiple_animal_confidence(all_tracks):
-    """ check that lower overlapping confidence is above threshold """
+    """check that lower overlapping confidence is above threshold"""
     confidence = 0
     all_tracks.sort(key=by_start_time)
     for i in range(0, len(all_tracks) - 1):

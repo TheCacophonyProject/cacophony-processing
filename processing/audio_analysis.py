@@ -24,16 +24,14 @@ import tempfile
 from pathlib import Path
 
 from . import API
-from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
 
 
-def process(recording, conf):
+def process(recording, jwtKey, conf):
     logger = logs.worker_logger("audio.analysis", recording["id"])
 
-    api = API(conf.api_url)
-    s3 = S3(conf)
+    api = API(conf.file_api_url, conf.api_url)
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -48,7 +46,7 @@ def process(recording, conf):
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
-        s3.download(recording["rawFileKey"], str(input_filename))
+        api.download_file(jwtKey, str(input_filename))
 
         logger.debug("passing recording through audio-processing")
         new_metadata["additionalMetadata"]["analysis"] = analyse(input_filename, conf)

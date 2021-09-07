@@ -25,7 +25,6 @@ from pathlib import Path
 import librosa
 
 from . import API
-from . import S3
 from . import logs
 from .processutils import HandleCalledProcessError
 
@@ -41,11 +40,10 @@ mimetypes.add_type("audio/x-flac", ".flac")
 BIT_RATE = "128k"
 
 
-def process(recording, conf):
+def process(recording, jwt, conf):
     logger = logs.worker_logger("audio.convert", recording["id"])
 
-    api = API(conf.api_url)
-    s3 = S3(conf)
+    api = API(conf.file_api_url, conf.api_url)
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -60,14 +58,14 @@ def process(recording, conf):
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
-        s3.download(recording["rawFileKey"], str(input_filename))
+        api.download_file(jwt, str(input_filename))
 
         logger.debug("normalizing")
         output_filename, new_mime_type, amplification = normalize_file(input_filename)
         new_metadata["additionalMetadata"]["amplification"] = amplification
 
         logger.debug("uploading from %s", output_filename)
-        new_key = s3.upload_recording(str(output_filename))
+        new_key = api.upload_file(str(output_filename))["fileKey"]
 
     api.report_done(recording, new_key, new_mime_type, new_metadata)
     logger.info("Finished")
