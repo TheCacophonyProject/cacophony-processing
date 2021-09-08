@@ -77,8 +77,8 @@ def main():
             logger.error(traceback.format_exc())
 
         # To avoid hitting the server repetitively wait longer if nothing to process
-        if all(processor.full() for processor in processors):
-            logger.info("All processors are working, short sleep")
+        if any(processor.has_work() for processor in processors):
+            logger.info("Processing, short sleep")
             time.sleep(SLEEP_SECS)
         elif all(processor.has_no_work() for processor in processors):
             logger.info("Nothing to process - extending wait time")
@@ -113,6 +113,9 @@ class Processor:
 
     def has_no_work(self):
         return len(self.in_progress) == 0
+
+    def has_work(self):
+        return len(self.in_progress) > 0
 
     def poll(self):
         self.reap_completed()
