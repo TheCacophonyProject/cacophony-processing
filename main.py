@@ -70,19 +70,17 @@ def main():
 
     logger.info("checking for recordings")
     while True:
-        working = False
         try:
             for processor in processors:
-                processor_busy = processor.poll()
-                working = working or processor_busy
+                processor.poll()
         except:
             logger.error(traceback.format_exc())
 
         # To avoid hitting the server repetitively wait longer if nothing to process
-        if working:
-            logger.info("processing short sleep")
+        if all(processor.full() for processor in processors):
+            logger.info("All processors are working, short sleep")
             time.sleep(SLEEP_SECS)
-        else:
+        elif all(processor.has_no_work() for processor in processors):
             logger.info("Nothing to process - extending wait time")
             time.sleep(conf.no_recordings_wait_secs)
 
@@ -96,7 +94,6 @@ class Processors(list):
 
 
 class Processor:
-
     conf = None
     api = None
     log_q = None
@@ -111,9 +108,15 @@ class Processor:
         )
         self.in_progress = {}
 
+    def full(self):
+        return len(self.in_progress) >= self.num_workers
+
+    def has_no_work(self):
+        return len(self.in_progress) == 0
+
     def poll(self):
         self.reap_completed()
-        if len(self.in_progress) >= self.num_workers:
+        if self.full():
             return True
 
         working = False
