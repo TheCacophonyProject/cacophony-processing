@@ -20,6 +20,7 @@ import attr
 import json
 import subprocess
 import tempfile
+import socket
 from pathlib import Path
 
 from . import API
@@ -106,17 +107,27 @@ def classify_job(recording, rawJWT, conf):
         classify(conf, recording, api, logger)
 
 
-def classify_file(api, command, conf, duration):
-
+def classify_file(api, file, conf, duration, logger):
+    data = {"file": file}
     if (
         duration is not None
         and conf.cache_clips_bigger_than
         and duration > conf.cache_clips_bigger_than
     ):
-        command = "{} --cache y".format(command)
-    else:
-        command = "{} --cache n".format(command)
-    classify_info = run_command(command, conf.pipeline_dir)
+        data["cache"] = True
+
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+    try:
+        logger.debug("Connecting to socket %s", conf.classify_pipe)
+        sock.connect(conf.classify_pipe)
+        sock.send(json.dumps(data).encode())
+
+        results = read_all(sock).decode()
+        classify_info = json.loads(str(results))
+    finally:
+        # Clean up the connection
+        sock.close()
 
     format_track_data(classify_info["tracks"])
 
@@ -126,6 +137,18 @@ def classify_file(api, command, conf, duration):
     return ClassifyResult.load(
         classify_info, 0, filtered_tracks, tags.get(MULTIPLE, None)
     )
+
+
+def read_all(socket):
+    size = 4096
+    data = bytearray()
+
+    while size > 0:
+        packet = socket.recv(size)
+        data.extend(packet)
+        if len(packet) < size:
+            break
+    return data
 
 
 def run_command(command, dir):
@@ -157,9 +180,10 @@ def is_wallaby_device(wallaby_devices, recording_meta):
 
 def classify(conf, recording, api, logger):
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
-    command = conf.classify_cmd.format(source=recording["filename"])
     logger.debug("processing %s ", recording["filename"])
-    classify_result = classify_file(api, command, conf, recording.get("duration", 0))
+    classify_result = classify_file(
+        api, recording["filename"], conf, recording.get("duration", 0), logger
+    )
     if classify_result.multiple_animals is not None:
         logger.debug(
             "multiple animals detected, (%.2f)",

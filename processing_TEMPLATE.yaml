@@ -20,7 +20,7 @@ thermal:
     pipeline_dir: "../classifier-pipeline"
     # Relative paths in this command are relative from the classify_command_dir.
     # Should be run using the classifier_pipeline python3.6 virtual environment.
-    classify_cmd: "venv/bin/python classify.py -o {source}"
+    classify_pipe: "/var/run/classifier"
     track_cmd: "venv/bin/python classify.py -o {source}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
