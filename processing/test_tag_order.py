@@ -57,7 +57,7 @@ def test_config():
         api_url="http://127.0.0.1:2008/api/fileProcessing",
         no_recordings_wait_secs=30,
         pipeline_dir="",
-        classify_cmd="",
+        classify_pipe="",
         track_cmd="",
         do_classify=True,
         wallaby_devices=[1, 2],
