@@ -124,12 +124,14 @@ def classify_file(api, file, conf, duration, logger):
         sock.send(json.dumps(data).encode())
 
         results = read_all(sock).decode()
-        if "error" in results:
-            raise Exception(results["error"])
-        classify_info = json.loads(str(results))
     finally:
         # Clean up the connection
         sock.close()
+
+    logger.info("RESULTS %s", str(results))
+    classify_info = json.loads(str(results))
+    if "error" in classify_info:
+        raise Exception(results["error"])
 
     format_track_data(classify_info["tracks"])
 
