@@ -123,7 +123,7 @@ def classify_file(api, file, conf, duration, logger):
         sock.connect(conf.classify_pipe)
         sock.sendall(json.dumps(data).encode())
 
-        results = read_all(sock).decode()
+        results = read_response(sock).decode()
     finally:
         # Clean up the connection
         sock.close()
@@ -142,14 +142,15 @@ def classify_file(api, file, conf, duration, logger):
     )
 
 
-def read_all(socket):
+def read_response(socket):
     size = 4096
     data = bytearray()
 
-    while size > 0:
+    while True:
         packet = socket.recv(size)
-        data.extend(packet)
-        if len(packet) < size:
+        if packet:
+            data.extend(packet)
+        else:
             break
     return data
 
