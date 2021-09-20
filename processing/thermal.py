@@ -121,14 +121,13 @@ def classify_file(api, file, conf, duration, logger):
     try:
         logger.debug("Connecting to socket %s", conf.classify_pipe)
         sock.connect(conf.classify_pipe)
-        sock.send(json.dumps(data).encode())
+        sock.sendall(json.dumps(data).encode())
 
         results = read_all(sock).decode()
     finally:
         # Clean up the connection
         sock.close()
 
-    logger.info("RESULTS %s", str(results))
     classify_info = json.loads(str(results))
     if "error" in classify_info:
         raise Exception(results["error"])
