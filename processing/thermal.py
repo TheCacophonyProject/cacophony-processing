@@ -121,16 +121,15 @@ def classify_file(api, file, conf, duration, logger):
     try:
         logger.debug("Connecting to socket %s", conf.classify_pipe)
         sock.connect(conf.classify_pipe)
-        sock.sendall(json.dumps(data).encode())
+        sock.send(json.dumps(data).encode())
 
-        results = read_response(sock).decode()
+        results = read_all(sock).decode()
+        classify_info = json.loads(str(results))
+        if "error" in results:
+            raise Exception(results["error"])
     finally:
         # Clean up the connection
         sock.close()
-
-    classify_info = json.loads(str(results))
-    if "error" in classify_info:
-        raise Exception(results["error"])
 
     format_track_data(classify_info["tracks"])
 
@@ -142,15 +141,14 @@ def classify_file(api, file, conf, duration, logger):
     )
 
 
-def read_response(socket):
+def read_all(socket):
     size = 4096
     data = bytearray()
 
-    while True:
+    while size > 0:
         packet = socket.recv(size)
-        if packet:
-            data.extend(packet)
-        else:
+        data.extend(packet)
+        if len(packet) < size:
             break
     return data
 
