@@ -145,6 +145,19 @@ def read_all(socket):
     size = 4096
     data = bytearray()
 
+    while True:
+        packet = socket.recv(size)
+        if packet:
+            data.extend(packet)
+        else:
+            break
+    return data
+
+
+def read_all(socket):
+    size = 4096
+    data = bytearray()
+
     while size > 0:
         packet = socket.recv(size)
         data.extend(packet)
