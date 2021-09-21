@@ -125,7 +125,7 @@ def classify_file(api, file, conf, duration, logger):
 
         results = read_all(sock).decode()
         classify_info = json.loads(str(results))
-        if "error" in classify_info:
+        if "error" in classify_infox:
             raise Exception(classify_info["error"])
     finally:
         # Clean up the connection
@@ -150,18 +150,6 @@ def read_all(socket):
         if packet:
             data.extend(packet)
         else:
-            break
-    return data
-
-
-def read_all(socket):
-    size = 4096
-    data = bytearray()
-
-    while size > 0:
-        packet = socket.recv(size)
-        data.extend(packet)
-        if len(packet) < size:
             break
     return data
 
