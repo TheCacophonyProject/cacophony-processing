@@ -125,8 +125,8 @@ def classify_file(api, file, conf, duration, logger):
 
         results = read_all(sock).decode()
         classify_info = json.loads(str(results))
-        if "error" in results:
-            raise Exception(results["error"])
+        if "error" in classify_info:
+            raise Exception(classify_info["error"])
     finally:
         # Clean up the connection
         sock.close()
