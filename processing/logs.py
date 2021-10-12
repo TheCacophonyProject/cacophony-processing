@@ -27,7 +27,7 @@ def init_master():
 
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
 
     master_logger().addHandler(QueueHandler(q))
 
