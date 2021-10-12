@@ -161,7 +161,7 @@ class API:
                 print("Successful upload of ", filename)
             print("status is", r.status_code, r.json())
         except:
-            logging.error("Error uploading", exc_info=true)
+            logging.error("Error uploading", exc_info=True)
         r.raise_for_status()
         return r.json()
 
