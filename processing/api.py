@@ -71,7 +71,6 @@ class API:
             "jobKey": recording["jobKey"],
             "id": recording["id"],
             "success": True,
-            "complete": True,
             "result": json.dumps({"fieldUpdates": metadata}),
         }
         if newKey:
@@ -128,6 +127,13 @@ class API:
             return r.json()["trackTagId"]
         raise IOError(r.text)
 
+    def get_track_info(self, recording_id):
+        r = requests.get(
+            self.file_url + "/{}/tracks".format(recording_id),
+        )
+        r.raise_for_status()
+        return r.json()
+
     def download_file(self, token, filename):
         r = requests.get(
             urljoin(self.api_url, "/api/v1/signedUrl"),
@@ -155,7 +161,7 @@ class API:
                 print("Successful upload of ", filename)
             print("status is", r.status_code, r.json())
         except:
-            logging.error("Error uploading", exc_info=true)
+            logging.error("Error uploading", exc_info=True)
         r.raise_for_status()
         return r.json()
 
