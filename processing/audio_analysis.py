@@ -29,6 +29,19 @@ from .processutils import HandleCalledProcessError
 
 
 def process(recording, jwtKey, conf):
+    """ Process the audio file.
+    
+    Downloads the file, runs the AI models & cacophony index algorithm,
+    and uploads the results to the API.
+
+    Args:
+        recording: The recording to process.
+        jwtKey: The JWT key to use for the API.
+        conf: The configuration object.
+
+    Returns:
+        The API response.
+    """
     logger = logs.worker_logger("audio.analysis", recording["id"])
 
     api = API(conf.file_api_url, conf.api_url)
@@ -47,12 +60,32 @@ def process(recording, jwtKey, conf):
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
         api.download_file(jwtKey, str(input_filename))
+        analysis = analyse(input_filename, conf)
+        new_metadata = {}
 
-        logger.debug("passing recording through audio-processing")
-        new_metadata["additionalMetadata"]["analysis"] = analyse(input_filename, conf)
+        if analysis["species_identify"]:
+            species_identify = analysis.pop("species_identify")
+            for analysis_result in species_identify:
+                track = {
+                    "start_s": analysis_result["begin_s"],
+                    "end_s": analysis_result["end_s"],
+                }
+                algorithm_id = api.get_algorithm_id({"algorithm":"sliding_window"})
+                id = api.add_track(recording, track, algorithm_id)
+                analysis_result["tag"] = analysis_result["species"]
+                analysis_result["confidence"] = analysis_result["liklihood"]
+                data = {"name": "Master"}
+                api.add_track_tag(recording, id, analysis_result, data)
+
+        if analysis["cacophony_index"]:
+            cacophony_index = analysis.pop("cacophony_index")
+            new_metadata["cacophonyIndex"] = cacophony_index
+            logger.info("cacophony_index: %s", cacophony_index)
+
+        new_metadata["additionalMetadata"] = analysis
 
     api.report_done(recording, metadata=new_metadata)
-    logger.info("finished")
+    logger.info("Completed processing for file: %s", recording["id"])
 
 
 def analyse(filename, conf):

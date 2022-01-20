@@ -1,3 +1,4 @@
 processing.yaml
 *.pyc
 /build/
+/model/
