@@ -66,9 +66,23 @@ def process(recording, jwtKey, conf):
         if analysis["species_identify"]:
             species_identify = analysis.pop("species_identify")
             for analysis_result in species_identify:
+                start_s = analysis_result["begin_s"]
+                end_s = analysis_result["end_s"]
+                x = start_s / recording["duration"]
+                width = end_s / recording["duration"] - x
+                #convert to 2 decimal places
+                x = round(x, 2)
+                width = round(width, 2)
+                position = {
+                    "x": x,
+                    "y": 0,
+                    "width": width,
+                    "height": 1,
+                }
                 track = {
-                    "start_s": analysis_result["begin_s"],
-                    "end_s": analysis_result["end_s"],
+                    "start_s": start_s,
+                    "end_s": end_s,
+                    "positions": [position],
                 }
                 algorithm_id = api.get_algorithm_id({"algorithm":"sliding_window"})
                 id = api.add_track(recording, track, algorithm_id)
