@@ -9,7 +9,7 @@ api_url: "http://127.0.0.1:1080"
 no_recordings_wait_secs : 30
 thermal:
     thermal_workers: 2
-      tracking_workers: 2
+    tracking_workers: 2
 
     #cache clips that have more than this amount of frames, null is never cache
     cache_clips_bigger_than: 2160
@@ -90,7 +90,7 @@ audio:
     convert_workers: 2
     analysis_workers: 2
 
-    # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection)
-    analysis_command: 'docker run --rm -v "{folder}":/io cacophonyproject/audio-analysis:{tag} /io/"{basename}"'
+    # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
+    analysis_command: 'docker run --rm -v /absolute_path/to/model:/model -v "{folder}":/io cacophonyproject/audio-analysis:{tag} /io/"{basename}" /io/. /model'
 
-    analysis_tag: v1.1.0
+    analysis_tag: v1.4.1

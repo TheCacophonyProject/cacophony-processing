@@ -65,7 +65,7 @@ class Config(configTuple):
     @classmethod
     def load_from(cls, filename):
         with open(filename) as stream:
-            y = yaml.load(stream)
+            y = yaml.load(stream, Loader=yaml.FullLoader)
             thermal = y["thermal"]
             audio = y["audio"]
             return cls(
