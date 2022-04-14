@@ -60,26 +60,24 @@ def process(recording, jwt, conf):
         logger.debug("downloading recording to %s", input_filename)
         api.download_file(jwt, str(input_filename))
 
-        logger.debug("normalizing")
-        output_filename, new_mime_type, amplification = normalize_file(input_filename)
-        new_metadata["additionalMetadata"]["amplification"] = amplification
+        output_filename, new_mime_type, duration = create_wav(input_filename)
+        new_metadata["duration"] = duration
 
-        logger.debug("uploading from %s", output_filename)
+        logger.debug("uploading from %s, duration: %s sample_rate: %s", output_filename, duration, sr)
         new_key = api.upload_file(str(output_filename))["fileKey"]
 
     api.report_done(recording, new_key, new_mime_type, new_metadata)
     logger.info("Finished")
 
 
-def normalize_file(filename):
-    data, sr = librosa.core.load(str(filename), sr=None)
-    amplification = normalize(data, MAX_AMPLIFICATION)
+def create_wav(filename):
+    data, sr = librosa.load(str(filename), sr=None)
+    duration = librosa.get_duration(data, sr)
 
     wav_filename = filename.parent / "output.wav"
 
     librosa.output.write_wav(str(wav_filename), data, sr)
-    out_filename, out_mimetype = encode_file(wav_filename)
-    return out_filename, out_mimetype, amplification
+    return str(wav_filename), "audio/wav", duration
 
 
 def normalize(data, max_amp):

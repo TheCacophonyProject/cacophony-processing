@@ -115,7 +115,7 @@ class API:
             return r.json()["trackId"]
         raise IOError(r.text)
 
-    def add_track_tag(self, recording, track_id, prediction, data=""):
+    def add_track_tag(self, recording, track_id, prediction, data={}):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
         post_data = {
             "what": prediction["tag"],

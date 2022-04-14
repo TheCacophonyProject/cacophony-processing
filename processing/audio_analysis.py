@@ -63,16 +63,17 @@ def process(recording, jwtKey, conf):
         analysis = analyse(input_filename, conf)
         new_metadata = {}
 
-        if analysis["species_identify"]:
+        if "species_identify" in analysis:
             species_identify = analysis.pop("species_identify")
             for analysis_result in species_identify:
                 start_s = analysis_result["begin_s"]
                 end_s = analysis_result["end_s"]
                 x = start_s / recording["duration"]
                 width = end_s / recording["duration"] - x
+                logger.info("x: %s width: %s duration: %s", analysis_result, width, recording["duration"])
                 #convert to 2 decimal places
-                x = round(x, 2)
-                width = round(width, 2)
+                x = round(x, 4)
+                width = round(width, 4)
                 position = {
                     "x": x,
                     "y": 0,
@@ -91,7 +92,7 @@ def process(recording, jwtKey, conf):
                 data = {"name": "Master"}
                 api.add_track_tag(recording, id, analysis_result, data)
 
-        if analysis["cacophony_index"]:
+        if "cacophony_index" in analysis:
             cacophony_index = analysis.pop("cacophony_index")
             new_metadata["cacophonyIndex"] = cacophony_index
             logger.info("cacophony_index: %s", cacophony_index)
