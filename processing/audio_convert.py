@@ -63,7 +63,7 @@ def process(recording, jwt, conf):
         output_filename, new_mime_type, duration = create_wav(input_filename)
         new_metadata["duration"] = duration
 
-        logger.debug("uploading from %s, duration: %s sample_rate: %s", output_filename, duration, sr)
+        logger.debug("uploading from %s, duration: %s sample_rate: %s", output_filename, duration )
         new_key = api.upload_file(str(output_filename))["fileKey"]
 
     api.report_done(recording, new_key, new_mime_type, new_metadata)
