@@ -297,6 +297,7 @@ def get_master_tag(model_results, wallaby_device=False):
     # use submodels where applicable
     for (re_m, prediction) in valid_results.values():
         if re_m.reclassify is None or re_m.submodel:
+            valid_models.append((re_m, prediction))
             continue
         sub_id = re_m.reclassify.get(prediction[TAG])
         if sub_id is not None:
