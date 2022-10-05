@@ -39,7 +39,7 @@ from .tagger import (
 )
 from .config import ModelConfig
 
-DOWNLOAD_FILENAME = "recording.cptv"
+DOWNLOAD_FILENAME = "recording"
 SLEEP_SECS = 10
 FRAME_RATE = 9
 
@@ -50,9 +50,11 @@ def tracking_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-tracking", recording["id"])
 
     api = API(conf.file_api_url, conf.api_url)
-
+    mp4 = recording.get("rawMimeType") == "video/mp4"
     with tempfile.TemporaryDirectory() as temp_dir:
+        ext = ".mp4" if mp4 else ".cptv"
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
+        filename = filename.with_suffix(ext)
         recording["filename"] = filename
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
@@ -87,9 +89,12 @@ def classify_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-classify", recording["id"])
 
     api = API(conf.file_api_url, conf.api_url)
+    mp4 = recording.get("rawMimeType") == "video/mp4"
+    ext = ".mp4" if mp4 else ".cptv"
 
     with tempfile.TemporaryDirectory() as temp_dir:
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
+        filename = filename.with_suffix(ext)
         recording["filename"] = str(filename)
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))

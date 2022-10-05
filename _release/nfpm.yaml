@@ -11,7 +11,7 @@ license: "GPLv3"
 overrides:
   deb:
     depends:
-      - python3.6
+      - python3.8
 
 files:
   build/cacophony-processing.pex: "/usr/bin/cacophony-processing.pex"
