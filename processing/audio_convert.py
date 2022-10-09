@@ -23,6 +23,7 @@ import mimetypes
 from pathlib import Path
 
 import librosa
+import soundfile as sf
 
 from . import API
 from . import logs
@@ -77,7 +78,7 @@ def normalize_file(filename):
 
     wav_filename = filename.parent / "output.wav"
 
-    librosa.output.write_wav(str(wav_filename), data, sr)
+    sf.write(str(wav_filename), data, sr)
     out_filename, out_mimetype = encode_file(wav_filename)
     return out_filename, out_mimetype, amplification
 
