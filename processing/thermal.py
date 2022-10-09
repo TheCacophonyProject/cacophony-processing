@@ -104,8 +104,8 @@ def classify_job(recording, rawJWT, conf):
             track_data = track["data"]
             track["start_s"] = track_data["start_s"]
             track["end_s"] = track_data["end_s"]
-            track["num_frames"] = track_data["num_frames"]
             track["positions"] = track_data["positions"]
+            track["num_frames"] = track_data["num_frames"]
         recording["tracks"] = track_info
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)
@@ -287,20 +287,36 @@ def use_tag(model, prediction, wallaby_device):
 
 def get_master_tag(model_results, wallaby_device=False):
     """Choose a tag to be the overriding tag for this track"""
-    valid_results = [
-        (model, prediction)
+    valid_results = {
+        model.id: (model, prediction)
         for model, prediction in model_results
         if prediction and use_tag(model, prediction, wallaby_device)
-    ]
-    if len(valid_results) == 0:
+    }
+
+    valid_models = []
+    # use submodels where applicable
+    for (re_m, prediction) in valid_results.values():
+        if re_m.submodel:
+            continue
+        if re_m.reclassify is None:
+            valid_models.append((re_m, prediction))
+            continue
+        sub_id = re_m.reclassify.get(prediction[TAG])
+        if sub_id is not None:
+            # use sub model instead of parent model
+            valid_models.append(valid_results[sub_id])
+        else:
+            # use parent model
+            valid_models.append((re_m, prediction))
+    if len(valid_models) == 0:
         return None, None
     clear_tags = [
         (model, prediction)
-        for model, prediction in valid_results
+        for model, prediction in valid_models
         if prediction[TAG] != UNIDENTIFIED
     ]
     if len(clear_tags) == 0:
-        return valid_results[0]
+        return valid_models[0]
 
     ordered = sorted(
         clear_tags,

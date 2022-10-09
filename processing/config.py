@@ -113,6 +113,8 @@ class ModelConfig:
     tag_scores = attr.ib()
     ignored_tags = attr.ib()
     classify_time = attr.ib()
+    reclassify = attr.ib(default=None)
+    submodel = attr.ib(default=False)
 
     @classmethod
     def load(cls, raw):
@@ -124,5 +126,7 @@ class ModelConfig:
             tag_scores=raw["tag_scores"],
             ignored_tags=raw.get("ignored_tags", []),
             classify_time=raw.get("classify_time"),
+            reclassify=raw.get("reclassify"),
+            submodel=raw.get("submodel", False),
         )
         return model

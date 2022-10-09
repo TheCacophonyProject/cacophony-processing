@@ -35,7 +35,7 @@ def main():
     conf = processing.Config.load()
     args = parse_args()
     recording_meta = {
-        "filename": Path(args.source),
+        "filename": args.source,
         "id": "testrecid",
         "jobKey": "test job key",
     }
