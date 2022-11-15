@@ -14,7 +14,7 @@ before_deploy:
 - "pip install pex"
 - "mkdir -p /tmp/x"
 - "curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz | tar -C /tmp/x -xzf -"
-- "PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}"
+- "PATH=/tmp/x:$PATH sudo _release/build ${TRAVIS_TAG}"
 
 deploy:
   provider: releases
