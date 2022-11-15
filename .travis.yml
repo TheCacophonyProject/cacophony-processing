@@ -11,7 +11,7 @@ script:
 
 before_deploy:
 - "pip install pex"
-- "pip install --upgrade pip"
+- "pip install --upgrade pip setuptools"
 - "mkdir -p /tmp/x"
 - "curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz | tar -C /tmp/x -xzf -"
 - "PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}"
