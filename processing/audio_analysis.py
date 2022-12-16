@@ -29,8 +29,8 @@ from .processutils import HandleCalledProcessError
 
 
 def process(recording, jwtKey, conf):
-    """ Process the audio file.
-    
+    """Process the audio file.
+
     Downloads the file, runs the AI models & cacophony index algorithm,
     and uploads the results to the API.
 
@@ -70,7 +70,7 @@ def process(recording, jwtKey, conf):
                 end_s = analysis_result["end_s"]
                 x = start_s / recording["duration"]
                 width = end_s / recording["duration"] - x
-                #convert to 2 decimal places
+                # convert to 2 decimal places
                 x = round(x, 2)
                 width = round(width, 2)
                 position = {
@@ -84,10 +84,10 @@ def process(recording, jwtKey, conf):
                     "end_s": end_s,
                     "positions": [position],
                 }
-                algorithm_id = api.get_algorithm_id({"algorithm":"sliding_window"})
+                algorithm_id = api.get_algorithm_id({"algorithm": "sliding_window"})
                 id = api.add_track(recording, track, algorithm_id)
                 analysis_result["tag"] = analysis_result["species"]
-                analysis_result["confidence"] = analysis_result["liklihood"]
+                analysis_result["confidence"] = analysis_result["likelihood"]
                 data = {"name": "Master"}
                 api.add_track_tag(recording, id, analysis_result, data)
 
