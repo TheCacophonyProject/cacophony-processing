@@ -2,24 +2,21 @@ dist: bionic
 language: python
 python:
 - '3.9'
-
 install:
 - pip install -r requirements.txt
-
 script:
 - pytest
-
 before_deploy:
-- "pip install pex"
-- "mkdir -p /tmp/x"
-- "curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz | tar -C /tmp/x -xzf -"
-- "PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}"
-
+- pip install pex
+- mkdir -p /tmp/x
+- curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz
+  | tar -C /tmp/x -xzf -
+- PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}
 deploy:
   provider: releases
   api_key:
-    secure: NMdk23tFGPLrMOMa5uKoPkSKVkvKsSJ11dnA65/vtGRgP3PDZ5ZlU5d/JCfisNghuQlFh8nOFzxO/U/D1HUDDdup3eUIH5sGnICJsPDFtqB3t1HLVQ0WrTbiJ4l7Q2Bu7JT3HO6rTSW53XDBIXSuMvBA9c50P9RiYIQSwvYoQ8Zm7w9Ug3TOB+vSk6d1wDqYP1XxOmIRMufUEgW9LAAtmlUwmniyk4NkWF33QBRLruzip0p3rl+VPWBocP/4A+fJvgmsA6eK5K9c7/cXYmdKDRRaZLh56is9xwB9PqAhzZR2sbbZDA2PJVvmMR/Mtbfx9rFYiITjwszfJ3s6KiD1ENY5Bp8ATTZN+qdWAw+fUXhDX7hyB5QgOhy440tU1FuufjBxKZaCWxjdt8E1718dGn1F/A34yKvrQBGb5vG48yJ2tifczhIt9gjOrN9rBn6WvQR0rJ1fxhMbqxchryO9WwXakEY+Db+4+Ovtj6Iw10PaBDD5IgXcInWQ74vY1d6GkO+0wy1Z+VFKn1oVVbMGUrZwbu06NBIN6i3IqqnGEQD/2mJb+dpSkSO6ZVepX09GGAwwpt2xGA87bSSkQk/cTpwETqvkDhgzVBCiKkb8St2kCw3KBIO8ejPdDT2+PKeBd/6zsoJ/pizIMmZZ6tJEXav7Ewb1g0OaAdoV32tOXU0=
-  skip_cleanup: true
+    secure: F7d8pO6uTcCnTEBpK6fX4aL9W69DXRVSBSd88GmeggvkUFKW7Y9MWh0ri3i5Ebefm3j+v34boCDirsE+/Fa5BgnlzLxhG7vdOnkQwN0gj1h14w45iJS9GcKnr4APbOVEvPoJwWJiVc4EL6nSoNNfUdZ4+KtDcSopVI0Jhnh79lLVJV0KcZaxj791jmLoeoAF6jLO2D8hi1sSsW+VqNopgZQbnxJ0LkvFFsRYh3ozlan/Ob7RFrkVPVnY57zOvUXuher7TjRvOH/EO331nCyIXY8xHSjg7vtBo5tyzZLLx8lOH60L1/6Ji04icI7Mrw63t0LgP3/JK/WhsFjJh79l94IbI1eL9tcApp1thUIG+6JQ8xZV9kpVxQMqL6qdJN1RrbPnKga2j+AHy1P/V0zObJ2DvgNAbrCrs447dH76GP07nH4+IY9zVWZfsYgjdrbqz35nXaJ0kzVzMFB+rGg87k3+FnW4/PKH7SWMQq8r+nHuE/KxyDGS7Kb21yhJ5cQCXySK381ySntCuJZaGrCKheY5AhlcRYEKcUtFhqTMQCAXeETYttVezB8AfKmDYNouypvhXYPLraSrCxJDdghw58Y73GU8YHnvvCY8r/vxbNT1LxemSGITtqrrV9IgPVvcvXrTokDa0iP3b9YrhsRJqiPHwnFldgrAqVlSrrBZr4o=
+  skip_cleanup: 'true'
   file_glob: true
   file: "build/*.deb"
   on:
