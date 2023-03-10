@@ -1,13 +1,14 @@
-dist: xenial
+dist: bionic
 language: python
 python:
-- '3.6'
+- '3.9'
 install:
+- python -m pip install --upgrade pip
 - pip install -r requirements.txt
 script:
 - pytest
 before_deploy:
-- pip install pex
+- "pip install pex==2.1.90"
 - mkdir -p /tmp/x
 - curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz
   | tar -C /tmp/x -xzf -

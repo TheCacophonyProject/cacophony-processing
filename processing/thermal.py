@@ -314,6 +314,7 @@ def get_master_tag(model_results, wallaby_device=False):
         (model, prediction)
         for model, prediction in valid_models
         if prediction[TAG] != UNIDENTIFIED
+        and model_rank(prediction[TAG], model.tag_scores) is not None
     ]
     if len(clear_tags) == 0:
         return valid_models[0]

@@ -88,7 +88,7 @@ def process(recording, jwtKey, conf):
                 algorithm_id = api.get_algorithm_id({"algorithm": "sliding_window"})
                 id = api.add_track(recording, track, algorithm_id)
                 analysis_result["tag"] = analysis_result["species"]
-                analysis_result["confidence"] = analysis_result["liklihood"]
+                analysis_result["confidence"] = analysis_result["likelihood"]
                 data = {"name": "Master"}
                 api.add_track_tag(recording, id, analysis_result, data)
                 data["name"] = model_name
