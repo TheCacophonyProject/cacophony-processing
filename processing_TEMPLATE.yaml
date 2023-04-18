@@ -91,6 +91,6 @@ audio:
     analysis_workers: 2
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
-    analysis_command: 'docker run --rm -v /absolute_path/to/model:/model -v "{folder}":/io cacophonyproject/audio-analysis:{tag} /io/"{basename}" /io/. /model'
-
-    analysis_tag: v1.4.1
+    analysis_command: 'docker run --rm -v /var/lib/audio-analysis/models:/audio-models -v {folder}:/io cacophonyproject/audio-analysis --morepork-model /audio-models/moreporkmodels/ --bird-model /audio-models/birdmodel/ /io/"{basename}"'
+    # can be used in command with template {tag}, other wise latest image will be used
+    # analysis_tag: v1.8.3
