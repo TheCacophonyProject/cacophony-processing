@@ -1,24 +1,22 @@
-dist: xenial
+dist: bionic
 language: python
 python:
-- '3.6'
-
+- '3.9'
 install:
+- python -m pip install --upgrade pip
 - pip install -r requirements.txt
-
 script:
 - pytest
-
 before_deploy:
-- "pip install pex"
-- "mkdir -p /tmp/x"
-- "curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz | tar -C /tmp/x -xzf -"
-- "PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}"
-
+- "pip install pex==2.1.90"
+- mkdir -p /tmp/x
+- curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz
+  | tar -C /tmp/x -xzf -
+- PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}
 deploy:
   provider: releases
   api_key:
-    secure: NMdk23tFGPLrMOMa5uKoPkSKVkvKsSJ11dnA65/vtGRgP3PDZ5ZlU5d/JCfisNghuQlFh8nOFzxO/U/D1HUDDdup3eUIH5sGnICJsPDFtqB3t1HLVQ0WrTbiJ4l7Q2Bu7JT3HO6rTSW53XDBIXSuMvBA9c50P9RiYIQSwvYoQ8Zm7w9Ug3TOB+vSk6d1wDqYP1XxOmIRMufUEgW9LAAtmlUwmniyk4NkWF33QBRLruzip0p3rl+VPWBocP/4A+fJvgmsA6eK5K9c7/cXYmdKDRRaZLh56is9xwB9PqAhzZR2sbbZDA2PJVvmMR/Mtbfx9rFYiITjwszfJ3s6KiD1ENY5Bp8ATTZN+qdWAw+fUXhDX7hyB5QgOhy440tU1FuufjBxKZaCWxjdt8E1718dGn1F/A34yKvrQBGb5vG48yJ2tifczhIt9gjOrN9rBn6WvQR0rJ1fxhMbqxchryO9WwXakEY+Db+4+Ovtj6Iw10PaBDD5IgXcInWQ74vY1d6GkO+0wy1Z+VFKn1oVVbMGUrZwbu06NBIN6i3IqqnGEQD/2mJb+dpSkSO6ZVepX09GGAwwpt2xGA87bSSkQk/cTpwETqvkDhgzVBCiKkb8St2kCw3KBIO8ejPdDT2+PKeBd/6zsoJ/pizIMmZZ6tJEXav7Ewb1g0OaAdoV32tOXU0=
+    secure: e9vLA+hL6Ie60tVxcFVJXWsHhUbT96xgJBHi9HwIpcvRusGKEJx3Vmh+TGSP4H7+FTvCnEAwv09EGo4QyWauf7NZMvg0xzfvmWUn0IcNITW/XH1XJMCBYVaQmDUJ2Krp7xuTHAnYV0vz7Z8uzNRsjvGBqAutt0r/u5KsR1C/u9vn9NL/TDG/w1b8gHmQ2c9H40pc+Q5nlokMjYL1RVQXvng3iU/jIwQvhpqdOSCZXsRFfDxPb0gDN0asSN9yyDcCRQSIe0rXE/oaQmxXcaIdY9uB+WjN9vj7haJP3BGAiUZqQGXl35hjZgp+OXSN/+I6bA53AiQ2aC+8ihhMinO7Ni01zmADc6zUBBZAut0CeN56veO0J9viFBuSX+G1Wvd+8CuTSZQHFU/nqV7qtVriOC92yitpyi10mDeuK0bAzDcxxdFM6GhsjPtih5W+RlOS7DIggpLfVdPC2+2H4tp/IaXtJYD33gYxH0ka8EJG5Nzs1+qHwUgC+JRe8KHfYDx+xTnCYXbss7fHqxtAPA930T2jeZxXlyVGgT59Zs/sXTsO0i1G0O9BwwCOxDdinwb6mlV2vxG2ZVCm6G2lGX3DBKwwiA23peHjBZk62Eqf/1zOSZMrgO1o3gVjto3pB5mfFZ7V3YGCjFNjYOzRJs84O17XGWZHAfZcAXF6Kshuxg0=
   skip_cleanup: true
   file_glob: true
   file: "build/*.deb"

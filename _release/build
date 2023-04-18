@@ -27,7 +27,6 @@ rm -rf *.pex _release
 find -name __pycache__ | xargs rm -rf
 
 echo "building .pex..."
-python3 --version
 pex --python python3 -D . -r requirements.txt -o cacophony-processing.pex
 
 cd "$src"
