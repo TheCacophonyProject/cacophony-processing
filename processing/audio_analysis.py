@@ -91,7 +91,7 @@ def process(recording, jwtKey, conf):
                 analysis_result["confidence"] = analysis_result["likelihood"]
                 # browse isn't handling master tag so just do tag for the specific model
                 data = {"name": "Master"}
-                # api.add_track_tag(recording, id, analysis_result, data)
+                api.add_track_tag(recording, id, analysis_result, data)
                 data["name"] = model_name
                 api.add_track_tag(recording, id, analysis_result, data)
 
