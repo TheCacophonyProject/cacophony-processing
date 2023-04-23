@@ -17,11 +17,12 @@ thermal:
     classify: True
 
     # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
-    pipeline_dir: "../classifier-pipeline"
+    pipeline_dir: "/var/lib/classifier-pipeline"
     # Relative paths in this command are relative from the classify_command_dir.
     # Should be run using the classifier_pipeline python3.6 virtual environment.
     classify_pipe: "/var/run/classifier"
-    track_cmd: "venv/bin/python classify.py -o {source}"
+
+    track_cmd: "/usr/bin/classifier-pipeline.pex -m extract -o {source}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
     master_tag: "Master"
@@ -91,6 +92,6 @@ audio:
     analysis_workers: 2
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
-    analysis_command: 'docker run --rm -v /absolute_path/to/model:/model -v "{folder}":/io cacophonyproject/audio-analysis:{tag} /io/"{basename}" /io/. /model'
+    analysis_command: 'docker run --rm -v /var/lib/audio-analysis/models:/audio-models -v {folder}:/io cacophonyproject/audio-analysis:{tag} --morepork-model /audio-models/moreporkmodels/ --bird-model /audio-models/birdmodel/ /io/"{basename}"'
 
-    analysis_tag: v1.4.1
+    analysis_tag: v1.8.4
