@@ -22,7 +22,7 @@ thermal:
     # Should be run using the classifier_pipeline python3.6 virtual environment.
     classify_pipe: "/var/run/classifier"
 
-    track_cmd: "/usr/bin/classifier-pipeline.pex -m extract -o {source}"
+    track_cmd: "/usr/bin/classifier-pipeline.pex -m extract -o {source} --cache {cache}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
     master_tag: "Master"

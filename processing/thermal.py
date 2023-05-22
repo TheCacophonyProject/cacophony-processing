@@ -57,12 +57,18 @@ def tracking_job(recording, rawJWT, conf):
         recording["filename"] = filename
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
-        track(conf, recording, api, logger)
+        track(conf, recording, api, recording.get("duration", 0), logger)
 
 
-def track(conf, recording, api, logger):
-    command = conf.track_cmd.format(source=recording["filename"])
-    logger.info("tracking %s ", recording["filename"])
+def track(conf, recording, api, duration, logger):
+    cache = (
+        duration is not None
+        and conf.cache_clips_bigger_than
+        and duration > conf.cache_clips_bigger_than
+    )
+
+    command = conf.track_cmd.format(source=recording["filename"], cache=cache)
+    logger.info("tracking %s", recording["filename"])
     tracking_info = run_command(command, conf.pipeline_dir)
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
