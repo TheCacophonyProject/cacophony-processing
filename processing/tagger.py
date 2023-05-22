@@ -83,7 +83,6 @@ def calculate_multiple_animal_confidence(all_tracks):
     animal_tracks = []
     for t in all_tracks:
         tag = t.get(MASTER_TAG)
-
         if tag is None:
             continue
         tag = tag.get(TAG)
