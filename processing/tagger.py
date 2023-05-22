@@ -12,6 +12,7 @@ PREDICTIONS = "predictions"
 
 MESSAGE = "message"
 CONFIDENCE = "confidence"
+MASTER_TAG = "master_tag"
 
 
 def calculate_tags(tracks, conf):
@@ -22,11 +23,6 @@ def calculate_tags(tracks, conf):
         return tracks, tags
     clear_tracks, unclear_tracks, tags = get_significant_tracks(tracks, conf)
 
-    all_tracks = clear_tracks + unclear_tracks
-    all_tracks = [t for t in all_tracks if t.get(TAG) != FALSE_POSITIVE]
-    multiple_confidence = calculate_multiple_animal_confidence(all_tracks)
-    if multiple_confidence > conf.min_confidence:
-        tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
     return tracks, tags
 
 
@@ -84,10 +80,22 @@ def by_start_time(elem):
 def calculate_multiple_animal_confidence(all_tracks):
     """check that lower overlapping confidence is above threshold"""
     confidence = 0
-    all_tracks.sort(key=by_start_time)
-    for i in range(0, len(all_tracks) - 1):
-        for j in range(i + 1, len(all_tracks)):
-            if all_tracks[j]["start_s"] + 1 < all_tracks[i]["end_s"]:
-                this_conf = min(all_tracks[i][CONFIDENCE], all_tracks[j][CONFIDENCE])
+    animal_tracks = []
+    for t in all_tracks:
+        tag = t.get(MASTER_TAG)
+
+        if tag is None:
+            continue
+        tag = tag.get(TAG)
+        if tag is not None and tag not in [FALSE_POSITIVE, UNIDENTIFIED]:
+            animal_tracks.append(t)
+    animal_tracks.sort(key=by_start_time)
+
+    for i in range(0, len(animal_tracks) - 1):
+        for j in range(i + 1, len(animal_tracks)):
+            if animal_tracks[j]["start_s"] + 1 < animal_tracks[i]["end_s"]:
+                this_conf = min(
+                    animal_tracks[i][CONFIDENCE], animal_tracks[j][CONFIDENCE]
+                )
                 confidence = max(confidence, this_conf)
     return confidence

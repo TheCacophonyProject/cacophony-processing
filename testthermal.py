@@ -40,7 +40,7 @@ def main():
         "jobKey": "test job key",
     }
     api = TestAPI()
-    thermal.track(conf, recording_meta, api, logging)
+    thermal.track(conf, recording_meta, api, 10, logging)
 
     thermal.classify(conf, recording_meta, api, logging)
 
