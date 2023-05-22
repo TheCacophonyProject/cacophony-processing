@@ -21,9 +21,10 @@ def calculate_tags(tracks, conf):
     if not tracks:
         return tracks, tags
     clear_tracks, unclear_tracks, tags = get_significant_tracks(tracks, conf)
-    multiple_confidence = calculate_multiple_animal_confidence(
-        clear_tracks + unclear_tracks
-    )
+
+    all_tracks = clear_tracks + unclear_tracks
+    all_tracks = [t for t in all_tracks if t.get(TAG) != FALSE_POSITIVE]
+    multiple_confidence = calculate_multiple_animal_confidence(all_tracks)
     if multiple_confidence > conf.min_confidence:
         tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
     return tracks, tags

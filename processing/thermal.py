@@ -30,7 +30,6 @@ from .tagger import (
     calculate_tags,
     MESSAGE,
     TAG,
-    MULTIPLE,
     CONFIDENCE,
     FALSE_POSITIVE,
     UNIDENTIFIED,
@@ -295,7 +294,7 @@ def get_master_tag(model_results, wallaby_device=False):
 
     valid_models = []
     # use submodels where applicable
-    for (re_m, prediction) in valid_results.values():
+    for re_m, prediction in valid_results.values():
         if re_m.submodel:
             continue
         if re_m.reclassify is None:

@@ -58,7 +58,6 @@ class TestAPI:
         logging.warn("TestAPI Recording %s failed".rec_id)
 
     def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
-
         if not metadata:
             metadata = {}
         if newMimeType:
