@@ -30,6 +30,8 @@ CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 configTuple = namedtuple(
     "Config",
     [
+        "user",
+        "password",
         "file_api_url",
         "api_url",
         "no_recordings_wait_secs",
@@ -69,6 +71,8 @@ class Config(configTuple):
             thermal = y["thermal"]
             audio = y["audio"]
             return cls(
+                user=y["api_user"],
+                password=y["api_password"],
                 file_api_url=y["file_api_url"],
                 api_url=y["api_url"],
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],

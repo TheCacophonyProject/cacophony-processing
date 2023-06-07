@@ -37,7 +37,7 @@ def main():
     conf = processing.Config.load()
 
     Processor.conf = conf
-    Processor.api = API(conf.file_api_url, conf.api_url)
+    Processor.api = API(conf.file_api_url, conf.api_url, conf.user, conf.password)
     Processor.log_q = logs.init_master()
 
     processors = Processors()
