@@ -28,14 +28,16 @@ from . import logs
 from .processutils import HandleCalledProcessError
 from .tagger import (
     calculate_tags,
+    calculate_multiple_animal_confidence,
     MESSAGE,
     TAG,
-    MULTIPLE,
     CONFIDENCE,
     FALSE_POSITIVE,
     UNIDENTIFIED,
     MULTIPLE,
     LABEL,
+    MASTER_TAG,
+    PREDICTIONS,
 )
 from .config import ModelConfig
 
@@ -198,12 +200,6 @@ def classify(conf, recording, api, logger):
     classify_result = classify_file(
         api, recording["filename"], conf, recording.get("duration", 0), logger
     )
-    if classify_result.multiple_animals is not None:
-        logger.debug(
-            "multiple animals detected, (%.2f)",
-            classify_result.multiple_animals[CONFIDENCE],
-        )
-        api.tag_recording(recording, MULTIPLE, classify_result.multiple_animals)
 
     upload_tags(
         api,
@@ -213,6 +209,16 @@ def classify(conf, recording, api, logger):
         conf.master_tag,
         logger,
     )
+
+    multiple_confidence = calculate_multiple_animal_confidence(classify_result.tracks)
+    if multiple_confidence > conf.min_confidence:
+        logger.debug("multiple animals detected, (%.2f)", multiple_confidence)
+        api.tag_recording(
+            recording,
+            MULTIPLE,
+            {"event": MULTIPLE, CONFIDENCE: multiple_confidence},
+        )
+
     additionalMetadata = {}
     if classify_result.thumbnail_region is not None:
         additionalMetadata["thumbnail_region"] = classify_result.thumbnail_region
@@ -271,6 +277,7 @@ def upload_tags(api, recording, classify_result, wallaby_device, master_name, lo
             model_name=master_name,
             model_used=master_model.name if master_model is not None else None,
         )
+        track[MASTER_TAG] = master_prediction
 
 
 def default_tag(track_id):
@@ -301,7 +308,7 @@ def get_master_tag(model_results, wallaby_device=False):
 
     valid_models = []
     # use submodels where applicable
-    for (re_m, prediction) in valid_results.values():
+    for re_m, prediction in valid_results.values():
         if re_m.submodel:
             continue
         if re_m.reclassify is None:

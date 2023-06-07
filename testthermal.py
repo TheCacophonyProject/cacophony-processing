@@ -40,7 +40,7 @@ def main():
         "jobKey": "test job key",
     }
     api = TestAPI()
-    thermal.track(conf, recording_meta, api, logging)
+    thermal.track(conf, recording_meta, api, 10, logging)
 
     thermal.classify(conf, recording_meta, api, logging)
 
@@ -58,7 +58,6 @@ class TestAPI:
         logging.warn("TestAPI Recording %s failed".rec_id)
 
     def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
-
         if not metadata:
             metadata = {}
         if newMimeType:

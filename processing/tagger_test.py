@@ -1,5 +1,6 @@
 from processing.tagger import (
     calculate_tags,
+    calculate_multiple_animal_confidence,
     MULTIPLE,
     FALSE_POSITIVE,
     UNIDENTIFIED,
@@ -9,6 +10,7 @@ from processing.tagger import (
     PREDICTIONS,
     LABEL,
     TAG,
+    MASTER_TAG,
 )
 import json
 import processing
@@ -134,36 +136,45 @@ class TestTagCalculations:
 
     def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
         ratty1 = create_track("rat")
-        ratty2 = create_track("rat", confidence=0.6)
+        ratty2 = create_track("rat", confidence=0.85)
         ratty1["start_s"] = 5
         ratty1["end_s"] = 8
         ratty2["start_s"] = 3
         ratty2["end_s"] = 7
         assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {
             "event": MULTIPLE,
-            CONFIDENCE: 0.6,
+            CONFIDENCE: 0.85,
         }
 
     def test_not_first_tracks_overlap(self):
         ratty1 = create_track("rat", confidence=0.9)
-        ratty2 = create_track("rat", confidence=0.7)
+        ratty2 = create_track("rat", confidence=0.8)
         ratty1["start_s"] = 1
         ratty1["end_s"] = 8
         ratty2["start_s"] = 5
         ratty2["end_s"] = 8
         assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {
             "event": MULTIPLE,
-            CONFIDENCE: 0.7,
+            CONFIDENCE: 0.8,
         }
 
-    #
-    # def test_calc_track_movement(self):
-    #     positions = [{"start_s": 1, "x": 2, "y": 24, "width": 42, "height": 44}]
-    #     assert calc_track_movement({"positions": positions}) == 0.0
-    #     positions.append({"start_s": 2, "x": 40, "y": 14, "width": 48, "height": 54})
-    #     assert calc_track_movement({"positions": positions}) == 22.0
-    #     positions.append({"start_s": 3, "x": 40, "y": 106, "width": 48, "height": 146})
-    #     assert calc_track_movement({"positions": positions}) == 92.0
+    def test_fp_not_multiple(self):
+        ratty1 = create_track("rat", confidence=0.9)
+        ratty2 = create_track("false-positive", confidence=0.8)
+        ratty1["start_s"] = 1
+        ratty1["end_s"] = 8
+        ratty2["start_s"] = 5
+        ratty2["end_s"] = 8
+        assert MULTIPLE not in self.get_tags([ratty1, ratty2])
+
+    def test_unknown_not_multiple(self):
+        ratty1 = create_track("rat", confidence=0.9)
+        ratty2 = create_track(UNIDENTIFIED, confidence=0.8)
+        ratty1["start_s"] = 1
+        ratty1["end_s"] = 8
+        ratty2["start_s"] = 5
+        ratty2["end_s"] = 8
+        assert MULTIPLE not in self.get_tags([ratty1, ratty2])
 
     def test_large_track_movement_means_actual_track_even_with_low_confidence(self):
         poor_rat = create_track("rat", confidence=0.3)
@@ -176,7 +187,15 @@ class TestTagCalculations:
         }
 
     def get_tags(self, tracks):
-        _, tags = calculate_tags(tracks, self.conf)
+        tracks, tags = calculate_tags(tracks, self.conf)
+        for t in tracks:
+            preds = t.get(PREDICTIONS)
+            # could incorporate master logic here but since just dealing with one model in tests
+            if preds:
+                t[MASTER_TAG] = preds[0]
+        multiple_confidence = calculate_multiple_animal_confidence(tracks)
+        if multiple_confidence > self.conf.min_confidence:
+            tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
         return tags
 
 
