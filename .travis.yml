@@ -9,7 +9,7 @@ install:
 script:
 - pytest
 before_deploy:
-- "pip install pex==2.1.90"
+- pip install pex==2.1.90
 - mkdir -p /tmp/x
 - curl -sL https://github.com/goreleaser/nfpm/releases/download/v0.9.5/nfpm_0.9.5_Linux_x86_64.tar.gz
   | tar -C /tmp/x -xzf -
@@ -17,7 +17,7 @@ before_deploy:
 deploy:
   provider: releases
   api_key:
-    secure: e9vLA+hL6Ie60tVxcFVJXWsHhUbT96xgJBHi9HwIpcvRusGKEJx3Vmh+TGSP4H7+FTvCnEAwv09EGo4QyWauf7NZMvg0xzfvmWUn0IcNITW/XH1XJMCBYVaQmDUJ2Krp7xuTHAnYV0vz7Z8uzNRsjvGBqAutt0r/u5KsR1C/u9vn9NL/TDG/w1b8gHmQ2c9H40pc+Q5nlokMjYL1RVQXvng3iU/jIwQvhpqdOSCZXsRFfDxPb0gDN0asSN9yyDcCRQSIe0rXE/oaQmxXcaIdY9uB+WjN9vj7haJP3BGAiUZqQGXl35hjZgp+OXSN/+I6bA53AiQ2aC+8ihhMinO7Ni01zmADc6zUBBZAut0CeN56veO0J9viFBuSX+G1Wvd+8CuTSZQHFU/nqV7qtVriOC92yitpyi10mDeuK0bAzDcxxdFM6GhsjPtih5W+RlOS7DIggpLfVdPC2+2H4tp/IaXtJYD33gYxH0ka8EJG5Nzs1+qHwUgC+JRe8KHfYDx+xTnCYXbss7fHqxtAPA930T2jeZxXlyVGgT59Zs/sXTsO0i1G0O9BwwCOxDdinwb6mlV2vxG2ZVCm6G2lGX3DBKwwiA23peHjBZk62Eqf/1zOSZMrgO1o3gVjto3pB5mfFZ7V3YGCjFNjYOzRJs84O17XGWZHAfZcAXF6Kshuxg0=
+    secure: akYQvmopJlIou34+0W64lqGhLN3aEX9MPe5VKkVzQ78a85dESQG8JoWnK2u6RebSQAtl4dGPXlfnZ9kk7R34oMmuxwpKXUXS+0e+mK5ekQeyaFsdI2UDfsPbZJcD4FmG7u45LzjsMy3o476XpgUvQAH58GUEeCVhr7dc6ts17MsK1ftqSwKg1d0hEpwRYKffpehYr3Yi5DO/QPus9uPH7JssHddXXMf41bJLUrn8mVDeGXT43F5NVYmq5Wocp7ZpQ7EETMu7CplHas+rl5F10f/9Yj92sj8rUkmw/kyKbCb9WxumcUajW6WzpsIJi1S59fODy7wZuXKxoPX2cpcfwETjn+WFlWMzZcbj/gQbqCz0l9iVvnuwCOeP1hXm3pNTS7YcN05KZdj6wnCBYVB8Ye1o3/tyCIxA7/cn1ObErKT+eYqX//8bRhgWIDigrFH1jC9hJJgpyiokew6RvsZu/zEYvPNyG11dur6z0gMtAE/IbI6un/0tzpkBXIHeU9AZ7PZ57GqkORzb/Q64oKjZRPhtXdgAvxtl0UT9FdmA+Q3P/xapHa8y08u30iWJg2qIJhKY5fC449Vr1EkVavcKUVnslYeVPNszCURjv1W2d1G543qAN0RjWlL5cxTaRIL5nYHB6jR07kpXmzoK8qa1jqszcRcyjL1oCiEuI21zFZk=
   skip_cleanup: true
   file_glob: true
   file: "build/*.deb"
