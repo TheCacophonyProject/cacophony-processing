@@ -55,6 +55,8 @@ def test_config():
     return config.Config(
         file_api_url="http://127.0.0.1:2008/api/fileProcessing",
         api_url="http://127.0.0.1:2008/api/fileProcessing",
+        user="test",
+        password="testpass",
         no_recordings_wait_secs=30,
         pipeline_dir="",
         classify_pipe="",
@@ -69,7 +71,6 @@ def test_config():
         min_tag_clarity_secondary=0.05,
         audio_analysis_cmd="",
         audio_analysis_tag="v1.1.0",
-        audio_convert_workers=1,
         audio_analysis_workers=1,
         thermal_workers=1,
         ignore_tags=["not"],
