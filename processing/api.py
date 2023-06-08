@@ -24,13 +24,13 @@ import logging
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 from urllib.parse import urljoin
 import hashlib
-import pyjwt
+import jwt
 import time
 
 
 class API:
     def __init__(self, api_url, user, password):
-        self.file_url = api_url
+        self.file_url = urljoin(api_url, "api/v1/processing")
         self.api_url = api_url
         self.user = user
         self._password = password
@@ -44,6 +44,10 @@ class API:
         return headers
 
     # convenience methods to ensure authentication token is valid
+    def put(self, url, **args):
+        self.ensure_valid_auth(args)
+        return requests.put(url, **args)
+
     def post(self, url, **args):
         self.ensure_valid_auth(args)
         return requests.post(url, **args)
@@ -61,16 +65,17 @@ class API:
         return {"Authorization": self._token}
 
     def login(self):
-        self._token = self._get_jwt(self)
+        self._token = self._get_jwt()
         self._expiry = jwt.decode(
-            self._token, algorithms=["HS256"], options={"verify_signature": False}
+            self._token.replace("JWT ", ""),
+            algorithms=["HS256"],
+            options={"verify_signature": False},
         )["exp"]
 
     def _get_jwt(self):
-        url = urljoin(self._baseurl, "/authenticate_" + logintype)
+        url = urljoin(self.api_url, "/api/v1/users/authenticate")
         r = requests.post(url, data={"email": self.user, "password": self._password})
         r.raise_for_status()
-
         return r.json().get("token")
 
     # if token expired get a new one
@@ -132,19 +137,18 @@ class API:
 
         # Convert "false positive" to API representation.
         if not "event" in metadata:
-            tag["event"] = "just wandering about"
-            tag["animal"] = label
-
+            tag["detail"] = label
+            tag["confidence"] = metadata.get("confidence")
+        else:
+            tag["detail"] = tag["event"]
+            del tag["event"]
+        rec_id = recording["id"]
+        print("uploading ", tag, json.dumps(tag))
         r = self.post(
-            self.file_url + "/tags",
-            data={"recordingId": recording["id"], "tag": json.dumps(tag)},
+            f"{self.api_url}/api/v1/recordings/{rec_id}/tags",
+            data={"tag": json.dumps(tag)},
         )
 
-        r.raise_for_status()
-
-    def delete_tracks(self, recording):
-        url = self.file_url + "/{}/tracks".format(recording["id"])
-        r = requests.delete(url)
         r.raise_for_status()
 
     def get_algorithm_id(self, algorithm):
@@ -165,6 +169,7 @@ class API:
 
     def add_track_tag(self, recording, track_id, prediction, data=""):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
+
         post_data = {
             "what": prediction["tag"],
             "confidence": prediction["confidence"],
@@ -176,7 +181,7 @@ class API:
         raise IOError(r.text)
 
     def get_track_info(self, recording_id):
-        r = self.get(self.file_url + "/{}/tracks".format(recording_id))
+        r = self.get(self.api_url + "/api/v1/recordings/{}/tracks".format(recording_id))
         r.raise_for_status()
         return r.json()
 
@@ -188,41 +193,6 @@ class API:
         )
         r.raise_for_status()
         return iter_to_file(filename, r.iter_content(chunk_size=4096))
-
-    def upload_file(self, filename):
-        url = self.file_url + "/processed"
-        data = {"fileHash": sha_hash(filename)}
-        try:
-            with open(filename, "rb") as content:
-                multipart_data = MultipartEncoder(
-                    fields={
-                        "data": json.dumps(data),
-                        "file": (os.path.basename(filename), content),
-                    }
-                )
-                headers = {"Content-Type": multipart_data.content_type}
-                headers.update(self.auth_header)
-                r = self.post(url, data=multipart_data)
-
-            if r.status_code == 200:
-                print("Successful upload of ", filename)
-            print("status is", r.status_code, r.json())
-        except:
-            logging.error("Error uploading", exc_info=True)
-        r.raise_for_status()
-        return r.json()
-
-
-def sha_hash(filename):
-    buffer = 65536
-    sha1 = hashlib.sha1()
-    with open(filename, "rb") as f:
-        while True:
-            data = f.read(buffer)
-            if not data:
-                break
-            sha1.update(data)
-    return sha1.hexdigest()
 
 
 def iter_to_file(filename, source, overwrite=True):

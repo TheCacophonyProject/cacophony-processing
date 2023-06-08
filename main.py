@@ -22,6 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import contextlib
 import time
 import traceback
+import requests
 
 from pebble import ProcessPool
 
@@ -37,20 +38,13 @@ def main():
     conf = processing.Config.load()
 
     Processor.conf = conf
-    Processor.api = API(conf.file_api_url, conf.api_url, conf.user, conf.password)
+    Processor.api = API(conf.api_url, conf.user, conf.password)
     Processor.log_q = logs.init_master()
 
     processors = Processors()
     processors.add(
         "audio",
-        ["toMp3", "reprocess"],
-        audio_convert.process,
-        conf.audio_convert_workers,
-    )
-
-    processors.add(
-        "audio",
-        ["analyse"],
+        ["analyse", "reprocess"],
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
@@ -73,6 +67,11 @@ def main():
         try:
             for processor in processors:
                 processor.poll()
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                "Request Exception, make sure api user is a super user for api\n%s",
+                traceback.format_exc(),
+            )
         except:
             logger.error(traceback.format_exc())
 
