@@ -53,7 +53,6 @@ def test_models():
 
 def test_config():
     return config.Config(
-        file_api_url="http://127.0.0.1:2008/api/fileProcessing",
         api_url="http://127.0.0.1:2008/api/fileProcessing",
         user="test",
         password="testpass",
