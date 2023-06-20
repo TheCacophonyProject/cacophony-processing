@@ -49,33 +49,70 @@ class API:
     # convenience methods to ensure authentication token is valid
     def put(self, url, **args):
         self.ensure_valid_auth(args)
-        return requests.put(url, **args)
+        return self.retry_if_auth(requests.put, url, args)
 
     def post(self, url, **args):
         self.ensure_valid_auth(args)
-        return requests.post(url, **args)
+        return self.retry_if_auth(requests.post, url, args)
 
     def get(self, url, **args):
         self.ensure_valid_auth(args)
-        return requests.get(url, **args)
+        return self.retry_if_auth(requests.get, url, args)
 
     def delete(self, url, **args):
         self.ensure_valid_auth(args)
-        return requests.delete(url, **args)
+        return self.retry_if_auth(requests.delete, url, args)
+
+    # helper code to retry auth error once
+    def retry_if_auth(self, request, url, args):
+        retries = 1
+        count = 0
+        while True:
+            try:
+                r = request(url, **args)
+                r.raise_for_status()
+                return r
+            except requests.exceptions.RequestException as e:
+                if r.status_code != 401 or count >= retries:
+                    raise e
+                self.logger.warn(
+                    "Request failed with 401 token should be valid until %s",
+                    datetime.fromtimestamp(self._expiry),
+                )
+                # hopefully just have failed JWT
+                self.login()
+                self.ensure_valid_auth(args)
+            count += 1
 
     @property
     def auth_header(self):
         return {"Authorization": self._token}
 
     def login(self):
+        request_time = time.time()
         self._token = self._get_jwt()
-        self._expiry = jwt.decode(
-            self._token.replace("JWT ", ""),
-            algorithms=["HS256"],
-            options={"verify_signature": False},
-        )["exp"]
-
-        self.logger.debug("login expires at %s", datetime.fromtimestamp(self._expiry))
+        try:
+            decoded = jwt.decode(
+                self._token.replace("JWT ", ""),
+                algorithms=["HS256"],
+                options={"verify_signature": False},
+            )
+            expiry = decoded["exp"]
+            iat = decoded["iat"]
+            exp_seconds = expiry - iat
+            # give 30 seconds less so we are always valid
+            self._expiry = request_time + exp_seconds - 30
+            self.logger.debug(
+                "login expires at %s iat %s JWT expiry %s",
+                datetime.fromtimestamp(self._expiry),
+                datetime.fromtimestamp(iat),
+                datetime.fromtimestamp(expiry),
+            )
+        except:
+            self.logger.error(
+                "Error getting token expiry using 5 minute", exc_info=True
+            )
+            self._expiry = request_time + 5 * 60 - 30
 
     def _get_jwt(self):
         url = urljoin(self.api_url, "/api/v1/users/authenticate")
