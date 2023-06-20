@@ -59,8 +59,9 @@ configTuple = namedtuple(
 
 class Config(configTuple):
     @classmethod
-    def load(cls):
-        filename = find_config()
+    def load(cls, filename=None):
+        if filename is None:
+            filename = find_config()
         return cls.load_from(filename)
 
     @classmethod

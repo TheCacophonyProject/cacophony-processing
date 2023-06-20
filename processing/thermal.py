@@ -51,7 +51,7 @@ MIN_TRACK_CONFIDENCE = 0.85
 def tracking_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-tracking", recording["id"])
 
-    api = API(conf.api_url, conf.user, conf.password)
+    api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("rawMimeType") == "video/mp4"
     with tempfile.TemporaryDirectory() as temp_dir:
         ext = ".mp4" if mp4 else ".cptv"
@@ -96,7 +96,7 @@ def track(conf, recording, api, duration, logger):
 def classify_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-classify", recording["id"])
 
-    api = API(conf.api_url, conf.user, conf.password)
+    api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("rawMimeType") == "video/mp4"
     ext = ".mp4" if mp4 else ".cptv"
 

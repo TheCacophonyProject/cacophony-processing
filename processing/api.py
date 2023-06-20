@@ -27,13 +27,16 @@ import hashlib
 import jwt
 import time
 
+from datetime import datetime
+
 
 class API:
-    def __init__(self, api_url, user, password):
+    def __init__(self, api_url, user, password, logger):
         self.file_url = urljoin(api_url, "api/v1/processing")
         self.api_url = api_url
         self.user = user
         self._password = password
+        self.logger = logger
         self.login()
 
     def ensure_valid_auth(self, args):
@@ -72,6 +75,8 @@ class API:
             options={"verify_signature": False},
         )["exp"]
 
+        self.logger.debug("login expires at %s", datetime.fromtimestamp(self._expiry))
+
     def _get_jwt(self):
         url = urljoin(self.api_url, "/api/v1/users/authenticate")
         r = requests.post(url, data={"email": self.user, "password": self._password})
@@ -80,6 +85,12 @@ class API:
 
     # if token expired get a new one
     def check_token(self):
+        self.logger.debug(
+            "login expired %s expires at %s",
+            self._expiry < time.time(),
+            datetime.fromtimestamp(self._expiry),
+        )
+
         if self._expiry < time.time():
             self.login()
 

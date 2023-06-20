@@ -29,17 +29,26 @@ from pebble import ProcessPool
 import processing
 from processing import API, logs, audio_convert, audio_analysis, thermal
 
+import argparse
+
 SLEEP_SECS = 2
 
 logger = logs.master_logger()
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config-file", help="Path to config file to use")
+    return parser.parse_args()
+
+
 def main():
-    conf = processing.Config.load()
+    args = parse_args()
+    conf = processing.Config.load(args.config_file)
 
     Processor.conf = conf
-    Processor.api = API(conf.api_url, conf.user, conf.password)
     Processor.log_q = logs.init_master()
+    Processor.api = API(conf.api_url, conf.user, conf.password, logger)
 
     processors = Processors()
     processors.add(
@@ -124,7 +133,6 @@ class Processor:
         working = False
         for state in self.processing_states:
             response = self.api.next_job(self.recording_type, state)
-
             if not response:
                 continue
             recording = response["recording"]
