@@ -27,7 +27,7 @@ def init_master():
 
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
 
     master_logger().addHandler(QueueHandler(q))
 
@@ -42,19 +42,19 @@ def init_master():
 
 def init_worker(q):
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logger.addHandler(QueueHandler(q))
     return logger
 
 
 def master_logger():
     logger = logging.getLogger("master")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     return logger
 
 
 def worker_logger(name, recording_id):
     logger = logging.getLogger("worker").getChild(f"{name}[{recording_id}]")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logger.info("Starting")
     return logger
