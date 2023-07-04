@@ -53,12 +53,13 @@ def test_models():
 
 def test_config():
     return config.Config(
+        temp_dir="/",
         api_url="http://127.0.0.1:2008/api/fileProcessing",
         user="test",
         password="testpass",
         no_recordings_wait_secs=30,
-        pipeline_dir="",
-        classify_pipe="",
+        classify_image="",
+        classify_cmd="",
         track_cmd="",
         do_classify=True,
         wallaby_devices=[1, 2],
