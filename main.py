@@ -25,10 +25,11 @@ import traceback
 import requests
 
 from pebble import ProcessPool
-
+from pathlib import Path
 import processing
 from processing import API, logs, audio_convert, audio_analysis, thermal
-
+from processing.processutils import HandleCalledProcessError
+import subprocess
 import argparse
 
 SLEEP_SECS = 2
@@ -42,6 +43,37 @@ def parse_args():
     return parser.parse_args()
 
 
+def run_command(cmd):
+    with HandleCalledProcessError():
+        proc = subprocess.run(
+            cmd,
+            shell=True,
+            encoding="ascii",
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return proc.stdout
+
+
+# We do this so that the container can load the model needed, and classify faster
+def run_thermal_docker(config):
+    stop_cmd = "docker stop classifier && docker rm classifier"
+    try:
+        logger.info("Removing classifier container")
+        output = run_command(stop_cmd)
+
+    except:
+        logger.error(
+            "Error removing classifier container (May just be it was never running so no error at all)",
+            exc_info=True,
+        )
+
+    start_cmd = f"docker run -v {config.temp_dir}:{config.temp_dir} --name classifier -d {config.classify_image} /usr/bin/supervisord"
+    output = run_command(start_cmd)
+    logger.info("Started docker container %s", config.classify_image)
+
+
 def main():
     args = parse_args()
     conf = processing.Config.load(args.config_file)
@@ -49,7 +81,10 @@ def main():
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
-
+    run_thermal_docker(conf)
+    temp_dir = Path(conf.temp_dir)
+    temp_dir.mkdir(exist_ok=True, parents=True)
+    # return
     processors = Processors()
     processors.add(
         "audio",

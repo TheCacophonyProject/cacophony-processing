@@ -72,7 +72,7 @@ def track(conf, recording, api, duration, logger):
 
     command = conf.track_cmd.format(source=recording["filename"], cache=cache)
     logger.info("tracking %s", recording["filename"])
-    tracking_info = run_command(command, conf.pipeline_dir)
+    tracking_info = run_command(command)
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
     tracking_result = ClassifyResult.load(
@@ -129,7 +129,7 @@ def classify_file(api, file, conf, duration, logger):
 
     command = conf.classify_cmd.format(source=file, cache=cache)
     logger.info("Classifying %s with command %s", file, command)
-    classify_info = run_command(command, conf.pipeline_dir)
+    classify_info = run_command(command)
 
     format_track_data(classify_info["tracks"])
 
@@ -154,11 +154,10 @@ def read_all(socket):
     return data
 
 
-def run_command(command, dir):
+def run_command(command):
     with HandleCalledProcessError():
         proc = subprocess.run(
             command,
-            cwd=dir,
             shell=True,
             encoding="ascii",
             check=True,
