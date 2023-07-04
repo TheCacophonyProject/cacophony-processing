@@ -30,12 +30,13 @@ CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 configTuple = namedtuple(
     "Config",
     [
+        "temp_dir",
         "user",
         "password",
         "api_url",
         "no_recordings_wait_secs",
         "pipeline_dir",
-        "classify_pipe",
+        "classify_cmd",
         "track_cmd",
         "do_classify",
         "min_confidence",
@@ -70,12 +71,13 @@ class Config(configTuple):
             thermal = y["thermal"]
             audio = y["audio"]
             return cls(
+                temp_dir=y["temp_dir"],
                 user=y["api_user"],
                 password=y["api_password"],
                 api_url=y["api_url"],
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
                 pipeline_dir=thermal["pipeline_dir"],
-                classify_pipe=thermal["classify_pipe"],
+                classify_cmd=thermal["classify_cmd"],
                 track_cmd=thermal["track_cmd"],
                 do_classify=thermal.get("classify", True),
                 master_tag=thermal.get("master_tag", "Master"),

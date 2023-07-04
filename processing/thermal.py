@@ -53,7 +53,7 @@ def tracking_job(recording, rawJWT, conf):
 
     api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("rawMimeType") == "video/mp4"
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
         ext = ".mp4" if mp4 else ".cptv"
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
         filename = filename.with_suffix(ext)
@@ -100,7 +100,7 @@ def classify_job(recording, rawJWT, conf):
     mp4 = recording.get("rawMimeType") == "video/mp4"
     ext = ".mp4" if mp4 else ".cptv"
 
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
         filename = filename.with_suffix(ext)
         recording["filename"] = str(filename)
@@ -119,28 +119,17 @@ def classify_job(recording, rawJWT, conf):
 
 
 def classify_file(api, file, conf, duration, logger):
-    data = {"file": file}
+    cache = False
     if (
         duration is not None
         and conf.cache_clips_bigger_than
         and duration > conf.cache_clips_bigger_than
     ):
-        data["cache"] = True
+        cache = True
 
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-    try:
-        logger.debug("Connecting to socket %s", conf.classify_pipe)
-        sock.connect(conf.classify_pipe)
-        sock.send(json.dumps(data).encode())
-
-        results = read_all(sock).decode()
-        classify_info = json.loads(str(results))
-        if "error" in classify_info:
-            raise Exception(classify_info["error"])
-    finally:
-        # Clean up the connection
-        sock.close()
+    command = conf.classify_cmd.format(source=file, cache=cache)
+    logger.info("Classifying %s with command %s", file, command)
+    classify_info = run_command(command, conf.pipeline_dir)
 
     format_track_data(classify_info["tracks"])
 

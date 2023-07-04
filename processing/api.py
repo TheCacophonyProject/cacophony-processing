@@ -191,7 +191,6 @@ class API:
             tag["detail"] = tag["event"]
             del tag["event"]
         rec_id = recording["id"]
-        print("uploading ", tag, json.dumps(tag))
         r = self.post(
             f"{self.api_url}/api/v1/recordings/{rec_id}/tags",
             data={"tag": json.dumps(tag)},
