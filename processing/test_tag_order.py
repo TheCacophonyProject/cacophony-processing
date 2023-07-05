@@ -53,6 +53,8 @@ def test_models():
 
 def test_config():
     return config.Config(
+        stop_docker="",
+        start_docker="",
         temp_dir="/",
         api_url="http://127.0.0.1:2008/api/fileProcessing",
         user="test",
