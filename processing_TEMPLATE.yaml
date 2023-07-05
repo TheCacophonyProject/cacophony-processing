@@ -17,7 +17,10 @@ thermal:
     # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
     classify: True
 
-
+    # used to clear existing docker iamge
+    stop_docker: "docker stop classifier && docker rm classifier"
+    # used to run a docker image
+    start_docker: "docker run -v {temp_dir}:{temp_dir} --name classifier -d {classify_image} /usr/bin/supervisord"
     # dokcer hub classify image to use
     classify_image: "cacophonyproject/classifier:0.1"
     classify_cmd: "docker exec classifier python3 classifyjob.py -o {source} --cache {cache}"

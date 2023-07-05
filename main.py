@@ -58,18 +58,20 @@ def run_command(cmd):
 
 # We do this so that the container can load the model needed, and classify faster
 def run_thermal_docker(config):
-    stop_cmd = "docker stop classifier && docker rm classifier"
-    try:
-        logger.info("Removing classifier container")
-        output = run_command(stop_cmd)
+    stop_cmd = config.stop_docker
+    if stop_cmd is not None:
+        try:
+            logger.info("Removing classifier container")
+            output = run_command(stop_cmd)
 
-    except:
-        logger.error(
-            "Error removing classifier container (May just be it was never running so no error at all)",
-            exc_info=True,
-        )
-
-    start_cmd = f"docker run -v {config.temp_dir}:{config.temp_dir} --name classifier -d {config.classify_image} /usr/bin/supervisord"
+        except:
+            logger.error(
+                "Error removing classifier container (May just be it was never running so no error at all)",
+                exc_info=True,
+            )
+    start_cmd = config.start_docker.format(
+        temp_dir=config.temp_dir, classify_image=config.classify_image
+    )
     output = run_command(start_cmd)
     logger.info("Started docker container %s", config.classify_image)
 
