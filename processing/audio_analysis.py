@@ -27,6 +27,8 @@ from . import API
 from . import logs
 from .processutils import HandleCalledProcessError
 
+MAX_FRQUENCY = 48000 / 2
+
 
 def process(recording, jwtKey, conf):
     """Process the audio file.
@@ -71,28 +73,47 @@ def process(recording, jwtKey, conf):
                 end_s = analysis_result["end_s"]
                 x = start_s / recording["duration"]
                 width = end_s / recording["duration"] - x
+                y = 0
+                height = 1
+                position = {}
+                track = {}
+                if "freq_end" in analysis_result:
+                    y = analysis_result["freq_start"] / MAX_FRQUENCY
+                    height = (
+                        analysis_result["freq_end"] - analysis_result["freq_start"]
+                    ) / MAX_FRQUENCY
+                    # api needs to allow this
+                    # track["minFreq"] = analysis_result["freq_start"]
+                    # track["maxFreq"] = analysis_result["freq_end"]
                 # convert to 2 decimal places
                 x = round(x, 2)
                 width = round(width, 2)
                 position = {
                     "x": x,
-                    "y": 0,
+                    "y": y,
                     "width": width,
-                    "height": 1,
+                    "height": height,
                 }
-                track = {
-                    "start_s": start_s,
-                    "end_s": end_s,
-                    "positions": [position],
-                }
+                track.update(
+                    {
+                        "start_s": start_s,
+                        "end_s": end_s,
+                        "positions": [position],
+                    }
+                )
                 algorithm_id = api.get_algorithm_id({"algorithm": "sliding_window"})
                 id = api.add_track(recording, track, algorithm_id)
-                analysis_result["tag"] = analysis_result["species"]
+                species = analysis_result["species"]
                 analysis_result["confidence"] = analysis_result["likelihood"]
-                data = {"name": "Master"}
-                api.add_track_tag(recording, id, analysis_result, data)
-                data["name"] = model_name
-                api.add_track_tag(recording, id, analysis_result, data)
+                del analysis_result["species"]
+                if isinstance(species, str):
+                    species = [species]
+                for s in species:
+                    analysis_result["tag"] = s
+                    data = {"name": "Master"}
+                    api.add_track_tag(recording, id, analysis_result, data)
+                    data["name"] = model_name
+                    api.add_track_tag(recording, id, analysis_result, data)
 
         if analysis["cacophony_index"]:
             cacophony_index = analysis.pop("cacophony_index")
