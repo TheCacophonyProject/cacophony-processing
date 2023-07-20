@@ -82,7 +82,6 @@ def process(recording, jwtKey, conf):
                     height = (
                         analysis_result["freq_end"] - analysis_result["freq_start"]
                     ) / MAX_FRQUENCY
-                    # api needs to allow this
                     track["minFreq"] = analysis_result["freq_start"]
                     track["maxFreq"] = analysis_result["freq_end"]
                 track["scale"] = "linear"
