@@ -83,10 +83,7 @@ def main():
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
-    run_thermal_docker(conf)
-    temp_dir = Path(conf.temp_dir)
-    temp_dir.mkdir(exist_ok=True, parents=True)
-    # return
+
     processors = Processors()
     processors.add(
         "audio",
