@@ -83,8 +83,9 @@ def process(recording, jwtKey, conf):
                         analysis_result["freq_end"] - analysis_result["freq_start"]
                     ) / MAX_FRQUENCY
                     # api needs to allow this
-                    # track["minFreq"] = analysis_result["freq_start"]
-                    # track["maxFreq"] = analysis_result["freq_end"]
+                    track["minFreq"] = analysis_result["freq_start"]
+                    track["maxFreq"] = analysis_result["freq_end"]
+                track["scale"] = "linear"
                 # convert to 2 decimal places
                 x = round(x, 2)
                 width = round(width, 2)
