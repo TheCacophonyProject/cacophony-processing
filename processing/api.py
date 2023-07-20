@@ -24,16 +24,116 @@ import logging
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 from urllib.parse import urljoin
 import hashlib
+import jwt
+import time
+
+from datetime import datetime
 
 
 class API:
-    def __init__(self, file_url, api_url):
-        self.file_url = file_url
+    def __init__(self, api_url, user, password, logger):
+        self.file_url = urljoin(api_url, "api/v1/processing")
         self.api_url = api_url
+        self.user = user
+        self._password = password
+        self.logger = logger
+        self.login()
+
+    def ensure_valid_auth(self, args):
+        self.check_token()
+        auth = self.auth_header
+        headers = args.setdefault("headers", {})
+        headers.update(auth)
+        return headers
+
+    # convenience methods to ensure authentication token is valid
+    def put(self, url, **args):
+        self.ensure_valid_auth(args)
+        return self.retry_if_auth(requests.put, url, args)
+
+    def post(self, url, **args):
+        self.ensure_valid_auth(args)
+        return self.retry_if_auth(requests.post, url, args)
+
+    def get(self, url, **args):
+        self.ensure_valid_auth(args)
+        return self.retry_if_auth(requests.get, url, args)
+
+    def delete(self, url, **args):
+        self.ensure_valid_auth(args)
+        return self.retry_if_auth(requests.delete, url, args)
+
+    # helper code to retry auth error once
+    def retry_if_auth(self, request, url, args):
+        retries = 1
+        count = 0
+        while True:
+            try:
+                r = request(url, **args)
+                r.raise_for_status()
+                return r
+            except requests.exceptions.RequestException as e:
+                if r.status_code != 401 or count >= retries:
+                    raise e
+                self.logger.warn(
+                    "Request failed with 401 token should be valid until %s",
+                    datetime.fromtimestamp(self._expiry),
+                )
+                # hopefully just have failed JWT
+                self.login()
+                self.ensure_valid_auth(args)
+            count += 1
+
+    @property
+    def auth_header(self):
+        return {"Authorization": self._token}
+
+    def login(self):
+        request_time = time.time()
+        self._token = self._get_jwt()
+        try:
+            decoded = jwt.decode(
+                self._token.replace("JWT ", ""),
+                algorithms=["HS256"],
+                options={"verify_signature": False},
+            )
+            expiry = decoded["exp"]
+            iat = decoded["iat"]
+            exp_seconds = expiry - iat
+            # give 30 seconds less so we are always valid
+            self._expiry = request_time + exp_seconds - 30
+            self.logger.debug(
+                "login expires at %s iat %s JWT expiry %s",
+                datetime.fromtimestamp(self._expiry),
+                datetime.fromtimestamp(iat),
+                datetime.fromtimestamp(expiry),
+            )
+        except:
+            self.logger.error(
+                "Error getting token expiry using 5 minute", exc_info=True
+            )
+            self._expiry = request_time + 5 * 60 - 30
+
+    def _get_jwt(self):
+        url = urljoin(self.api_url, "/api/v1/users/authenticate")
+        r = requests.post(url, data={"email": self.user, "password": self._password})
+        r.raise_for_status()
+        return r.json().get("token")
+
+    # if token expired get a new one
+    def check_token(self):
+        self.logger.debug(
+            "login expired %s expires at %s",
+            self._expiry < time.time(),
+            datetime.fromtimestamp(self._expiry),
+        )
+
+        if self._expiry < time.time():
+            self.login()
 
     def next_job(self, recording_type, state):
         params = {"type": recording_type, "state": state}
-        r = requests.get(self.file_url, params=params)
+        r = self.get(self.file_url, params=params)
         if r.status_code == 204:
             return None
         r.raise_for_status()
@@ -47,7 +147,7 @@ class API:
             "result": json.dumps({"fieldUpdates": fieldUpdates}),
             "complete": completed,
         }
-        r = requests.put(self.file_url, data=params)
+        r = self.put(self.file_url, data=params)
         r.raise_for_status()
 
     def report_failed(self, rec_id, job_key):
@@ -58,7 +158,7 @@ class API:
             "jobKey": job_key,
         }
 
-        r = requests.put(self.file_url, data=params)
+        r = self.put(self.file_url, data=params)
         r.raise_for_status()
 
     def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
@@ -76,7 +176,7 @@ class API:
         if newKey:
             params["newProcessedFileKey"] = newKey
 
-        r = requests.put(self.file_url, data=params)
+        r = self.put(self.file_url, data=params)
         r.raise_for_status()
 
     def tag_recording(self, recording, label, metadata):
@@ -85,24 +185,23 @@ class API:
 
         # Convert "false positive" to API representation.
         if not "event" in metadata:
-            tag["event"] = "just wandering about"
-            tag["animal"] = label
-
-        r = requests.post(
-            self.file_url + "/tags",
-            data={"recordingId": recording["id"], "tag": json.dumps(tag)},
+            tag["detail"] = label
+            tag["confidence"] = metadata.get("confidence")
+        else:
+            tag["detail"] = tag["event"]
+            del tag["event"]
+        rec_id = recording["id"]
+        r = self.post(
+            f"{self.api_url}/api/v1/recordings/{rec_id}/tags",
+            data={"tag": json.dumps(tag)},
         )
-        r.raise_for_status()
 
-    def delete_tracks(self, recording):
-        url = self.file_url + "/{}/tracks".format(recording["id"])
-        r = requests.delete(url)
         r.raise_for_status()
 
     def get_algorithm_id(self, algorithm):
         url = self.file_url + "/algorithm"
         post_data = {"algorithm": json.dumps(algorithm)}
-        r = requests.post(url, data=post_data)
+        r = self.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["algorithmId"]
         raise IOError(r.text)
@@ -110,27 +209,26 @@ class API:
     def add_track(self, recording, track, algorithm_id):
         url = self.file_url + "/{}/tracks".format(recording["id"])
         post_data = {"data": json.dumps(track), "algorithmId": algorithm_id}
-        r = requests.post(url, data=post_data)
+        r = self.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackId"]
         raise IOError(r.text)
 
     def add_track_tag(self, recording, track_id, prediction, data=""):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
+
         post_data = {
             "what": prediction["tag"],
             "confidence": prediction["confidence"],
             "data": json.dumps(data),
         }
-        r = requests.post(url, data=post_data)
+        r = self.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackTagId"]
         raise IOError(r.text)
 
     def get_track_info(self, recording_id):
-        r = requests.get(
-            self.file_url + "/{}/tracks".format(recording_id),
-        )
+        r = self.get(self.api_url + "/api/v1/recordings/{}/tracks".format(recording_id))
         r.raise_for_status()
         return r.json()
 
@@ -142,40 +240,6 @@ class API:
         )
         r.raise_for_status()
         return iter_to_file(filename, r.iter_content(chunk_size=4096))
-
-    def upload_file(self, filename):
-        url = self.file_url + "/processed"
-        data = {"fileHash": sha_hash(filename)}
-        try:
-            with open(filename, "rb") as content:
-                multipart_data = MultipartEncoder(
-                    fields={
-                        "data": json.dumps(data),
-                        "file": (os.path.basename(filename), content),
-                    }
-                )
-                headers = {"Content-Type": multipart_data.content_type}
-                r = requests.post(url, data=multipart_data, headers=headers)
-
-            if r.status_code == 200:
-                print("Successful upload of ", filename)
-            print("status is", r.status_code, r.json())
-        except:
-            logging.error("Error uploading", exc_info=True)
-        r.raise_for_status()
-        return r.json()
-
-
-def sha_hash(filename):
-    buffer = 65536
-    sha1 = hashlib.sha1()
-    with open(filename, "rb") as f:
-        while True:
-            data = f.read(buffer)
-            if not data:
-                break
-            sha1.update(data)
-    return sha1.hexdigest()
 
 
 def iter_to_file(filename, source, overwrite=True):

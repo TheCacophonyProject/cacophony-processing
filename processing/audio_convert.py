@@ -44,7 +44,7 @@ BIT_RATE = "128k"
 def process(recording, jwt, conf):
     logger = logs.worker_logger("audio.convert", recording["id"])
 
-    api = API(conf.file_api_url, conf.api_url)
+    api = API(conf.api_url, conf.user, conf.password, logger)
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 

@@ -30,7 +30,8 @@ CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 configTuple = namedtuple(
     "Config",
     [
-        "file_api_url",
+        "user",
+        "password",
         "api_url",
         "no_recordings_wait_secs",
         "pipeline_dir",
@@ -44,7 +45,6 @@ configTuple = namedtuple(
         "min_tag_clarity_secondary",
         "audio_analysis_cmd",
         "audio_analysis_tag",
-        "audio_convert_workers",
         "audio_analysis_workers",
         "thermal_workers",
         "tracking_workers",
@@ -58,8 +58,9 @@ configTuple = namedtuple(
 
 class Config(configTuple):
     @classmethod
-    def load(cls):
-        filename = find_config()
+    def load(cls, filename=None):
+        if filename is None:
+            filename = find_config()
         return cls.load_from(filename)
 
     @classmethod
@@ -69,7 +70,8 @@ class Config(configTuple):
             thermal = y["thermal"]
             audio = y["audio"]
             return cls(
-                file_api_url=y["file_api_url"],
+                user=y["api_user"],
+                password=y["api_password"],
                 api_url=y["api_url"],
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
                 pipeline_dir=thermal["pipeline_dir"],
@@ -87,7 +89,6 @@ class Config(configTuple):
                 ],
                 audio_analysis_cmd=audio["analysis_command"],
                 audio_analysis_tag=audio["analysis_tag"],
-                audio_convert_workers=audio.get("convert_workers", 1),
                 audio_analysis_workers=audio.get("analysis_workers", 1),
                 thermal_workers=thermal.get("thermal_workers", 1),
                 tracking_workers=thermal.get("tracking_workers", 1),

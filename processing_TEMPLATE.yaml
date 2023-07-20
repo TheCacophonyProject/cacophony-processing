@@ -2,9 +2,9 @@
 # the options listed below should work for the test api-server, set up with the ./run command
 ---
 
-file_api_url: "http://127.0.0.1:2008/api/fileProcessing"
 api_url: "http://127.0.0.1:1080"
-
+api_user: test-user
+api_password: test-password
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
 thermal:
@@ -88,7 +88,6 @@ thermal:
 
 
 audio:
-    convert_workers: 2
     analysis_workers: 2
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models

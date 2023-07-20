@@ -22,35 +22,38 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import contextlib
 import time
 import traceback
+import requests
 
 from pebble import ProcessPool
 
 import processing
 from processing import API, logs, audio_convert, audio_analysis, thermal
 
+import argparse
+
 SLEEP_SECS = 2
 
 logger = logs.master_logger()
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config-file", help="Path to config file to use")
+    return parser.parse_args()
+
+
 def main():
-    conf = processing.Config.load()
+    args = parse_args()
+    conf = processing.Config.load(args.config_file)
 
     Processor.conf = conf
-    Processor.api = API(conf.file_api_url, conf.api_url)
     Processor.log_q = logs.init_master()
+    Processor.api = API(conf.api_url, conf.user, conf.password, logger)
 
     processors = Processors()
     processors.add(
         "audio",
-        ["toMp3", "reprocess"],
-        audio_convert.process,
-        conf.audio_convert_workers,
-    )
-
-    processors.add(
-        "audio",
-        ["analyse"],
+        ["analyse", "reprocess"],
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
@@ -73,6 +76,11 @@ def main():
         try:
             for processor in processors:
                 processor.poll()
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                "Request Exception, make sure api user is a super user for api\n%s",
+                traceback.format_exc(),
+            )
         except:
             logger.error(traceback.format_exc())
 
@@ -125,7 +133,6 @@ class Processor:
         working = False
         for state in self.processing_states:
             response = self.api.next_job(self.recording_type, state)
-
             if not response:
                 continue
             recording = response["recording"]

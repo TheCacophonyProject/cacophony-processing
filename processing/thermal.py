@@ -51,7 +51,7 @@ MIN_TRACK_CONFIDENCE = 0.85
 def tracking_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-tracking", recording["id"])
 
-    api = API(conf.file_api_url, conf.api_url)
+    api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("rawMimeType") == "video/mp4"
     with tempfile.TemporaryDirectory() as temp_dir:
         ext = ".mp4" if mp4 else ".cptv"
@@ -96,7 +96,7 @@ def track(conf, recording, api, duration, logger):
 def classify_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-classify", recording["id"])
 
-    api = API(conf.file_api_url, conf.api_url)
+    api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("rawMimeType") == "video/mp4"
     ext = ".mp4" if mp4 else ".cptv"
 
@@ -109,11 +109,9 @@ def classify_job(recording, rawJWT, conf):
         meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
         track_info = api.get_track_info(recording["id"]).get("tracks")
         for track in track_info:
-            track_data = track["data"]
-            track["start_s"] = track_data["start_s"]
-            track["end_s"] = track_data["end_s"]
-            track["positions"] = track_data["positions"]
-            track["num_frames"] = track_data["num_frames"]
+            track["start_s"] = track["start"]
+            track["end_s"] = track["end"]
+            track["positions"] = track["positions"]
         recording["tracks"] = track_info
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)

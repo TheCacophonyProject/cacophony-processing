@@ -7,3 +7,5 @@ numba~=0.56.0
 attrs~=20.3.0
 requests_toolbelt~=0.9.1
 numpy~=1.23.0
+pyjwt
+argparse
