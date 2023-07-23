@@ -69,11 +69,12 @@ class API:
         count = 0
         while True:
             try:
+                r = None
                 r = request(url, **args)
                 r.raise_for_status()
                 return r
             except requests.exceptions.RequestException as e:
-                if r.status_code != 401 or count >= retries:
+                if r is None or r.status_code != 401 or count >= retries:
                     raise e
                 self.logger.warn(
                     "Request failed with 401 token should be valid until %s",

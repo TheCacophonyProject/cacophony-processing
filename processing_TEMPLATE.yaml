@@ -5,6 +5,7 @@
 api_url: "http://127.0.0.1:1080"
 api_user: test-user
 api_password: test-password
+temp_dir: /tmp/cacophony
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
 thermal:
@@ -16,13 +17,14 @@ thermal:
     # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
     classify: True
 
-    # Setup classifier_pipeline [https://github.com/TheCacophonyProject/classifier-pipeline]
-    pipeline_dir: "/var/lib/classifier-pipeline"
-    # Relative paths in this command are relative from the classify_command_dir.
-    # Should be run using the classifier_pipeline python3.6 virtual environment.
-    classify_pipe: "/var/run/classifier"
-
-    track_cmd: "/usr/bin/classifier-pipeline.pex -m extract -o {source} --cache {cache}"
+    # used to clear existing docker iamge
+    stop_docker: "docker stop classifier && docker rm classifier"
+    # used to run a docker image
+    start_docker: "docker run -v {temp_dir}:{temp_dir} --name classifier -d {classify_image} /usr/bin/supervisord"
+    # dokcer hub classify image to use
+    classify_image: "cacophonyproject/classifier:0.1"
+    classify_cmd: "docker exec classifier python3 classifyjob.py -o {source} --cache {cache}"
+    track_cmd: "docker exec classifier python3 extract.py -o {source} --cache {cache}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
     master_tag: "Master"
@@ -91,6 +93,6 @@ audio:
     analysis_workers: 2
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
-    analysis_command: 'docker run --rm -v /var/lib/audio-analysis/models:/audio-models -v {folder}:/io cacophonyproject/audio-analysis:{tag} --morepork-model /audio-models/moreporkmodels/ --bird-model /audio-models/birdmodel/ /io/"{basename}"'
+    analysis_command: 'docker run --rm -v {folder}:/io cacophonyproject/audio-analysis:{tag} /io/"{basename}"'
 
-    analysis_tag: v1.8.4
+    analysis_tag: v1.21.1

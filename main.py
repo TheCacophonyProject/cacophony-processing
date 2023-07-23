@@ -25,10 +25,11 @@ import traceback
 import requests
 
 from pebble import ProcessPool
-
+from pathlib import Path
 import processing
 from processing import API, logs, audio_convert, audio_analysis, thermal
-
+from processing.processutils import HandleCalledProcessError
+import subprocess
 import argparse
 
 SLEEP_SECS = 2
@@ -40,6 +41,39 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", help="Path to config file to use")
     return parser.parse_args()
+
+
+def run_command(cmd):
+    with HandleCalledProcessError():
+        proc = subprocess.run(
+            cmd,
+            shell=True,
+            encoding="ascii",
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return proc.stdout
+
+
+# We do this so that the container can load the model needed, and classify faster
+def run_thermal_docker(config):
+    stop_cmd = config.stop_docker
+    if stop_cmd is not None:
+        try:
+            logger.info("Removing classifier container")
+            output = run_command(stop_cmd)
+
+        except:
+            logger.error(
+                "Error removing classifier container (May just be it was never running so no error at all)",
+                exc_info=True,
+            )
+    start_cmd = config.start_docker.format(
+        temp_dir=config.temp_dir, classify_image=config.classify_image
+    )
+    output = run_command(start_cmd)
+    logger.info("Started docker container %s", config.classify_image)
 
 
 def main():
@@ -82,11 +116,14 @@ def main():
                 traceback.format_exc(),
             )
         except:
-            logger.error(traceback.format_exc())
+            logger.error("Error polling", exc_info=True)
+
+        procesing_ids = []
+        [procesing_ids.extend(processor.in_progress.keys()) for processor in processors]
 
         # To avoid hitting the server repetitively wait longer if nothing to process
         if any(processor.has_work() for processor in processors):
-            logger.info("Processing, short sleep")
+            logger.info("Processing %s , short sleep", procesing_ids)
             time.sleep(SLEEP_SECS)
         elif all(processor.has_no_work() for processor in processors):
             logger.info("Nothing to process - extending wait time")
