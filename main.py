@@ -116,11 +116,14 @@ def main():
                 traceback.format_exc(),
             )
         except:
-            logger.error(traceback.format_exc())
+            logger.error("Error polling", exc_info=True)
+
+        procesing_ids = []
+        [procesing_ids.extend(processor.in_progress.keys()) for processor in processors]
 
         # To avoid hitting the server repetitively wait longer if nothing to process
         if any(processor.has_work() for processor in processors):
-            logger.info("Processing, short sleep")
+            logger.info("Processing %s , short sleep", procesing_ids)
             time.sleep(SLEEP_SECS)
         elif all(processor.has_no_work() for processor in processors):
             logger.info("Nothing to process - extending wait time")
