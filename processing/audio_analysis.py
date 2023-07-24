@@ -26,6 +26,7 @@ from pathlib import Path
 from . import API
 from . import logs
 from .processutils import HandleCalledProcessError
+from .tagger import UNIDENTIFIED
 
 MAX_FRQUENCY = 48000 / 2
 
@@ -104,13 +105,20 @@ def process(recording, jwtKey, conf):
                 algorithm_id = api.get_algorithm_id({"algorithm": "sliding_window"})
                 id = api.add_track(recording, track, algorithm_id)
                 species = analysis_result["species"]
-                analysis_result["confidence"] = analysis_result["likelihood"]
+                confidences = analysis_result["likelihood"]
                 del analysis_result["species"]
-                if isinstance(species, str):
-                    species = [species]
-                for s in species:
+                raw_tag = None
+                if len(confidences) == 0 and "raw_tag" in analysis_result:
+                    raw_tag = analysis_result["raw_tag"]
+                    species = [UNIDENTIFIED]
+                    confidences = [analysis_result["raw_confidence"]]
+
+                for confidence, s in zip(confidences, species):
+                    analysis_result["confidence"] = confidence
                     analysis_result["tag"] = s
                     data = {"name": "Master"}
+                    if raw_tag is not None:
+                        data["raw_tag"] = raw_tag
                     api.add_track_tag(recording, id, analysis_result, data)
                     data["name"] = model_name
                     api.add_track_tag(recording, id, analysis_result, data)
