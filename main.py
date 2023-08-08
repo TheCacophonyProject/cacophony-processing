@@ -175,13 +175,21 @@ class Processor:
             recording = response["recording"]
             rawJWT = response["rawJWT"]
             if recording.get("id", 0) in self.in_progress:
-                logger.debug(
-                    "Recording %s (%s: %s) is already scheduled",
+                logger.info(
+                    "Recording %s (%s: %s) is already scheduled, cancelling %s",
                     recording["id"],
                     recording["type"],
                     state,
+                    self.in_progress[recording["id"]],
                 )
-                continue
+
+                success = self.in_progress[recording["id"]][1].cancel()
+                logger.info(
+                    "Job cancelled with success? %s",
+                    success,
+                )
+                if not success:
+                    continue
             logger.debug(
                 "scheduling %s (%s: %s)",
                 recording["id"],

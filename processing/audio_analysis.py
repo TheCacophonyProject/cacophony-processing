@@ -26,6 +26,7 @@ from pathlib import Path
 from . import API
 from . import logs
 from .processutils import HandleCalledProcessError
+from .tagger import UNIDENTIFIED
 
 MAX_FRQUENCY = 48000 / 2
 
@@ -103,17 +104,29 @@ def process(recording, jwtKey, conf):
                 )
                 algorithm_id = api.get_algorithm_id({"algorithm": "sliding_window"})
                 id = api.add_track(recording, track, algorithm_id)
-                species = analysis_result["species"]
-                analysis_result["confidence"] = analysis_result["likelihood"]
-                del analysis_result["species"]
-                if isinstance(species, str):
-                    species = [species]
-                for s in species:
-                    analysis_result["tag"] = s
-                    data = {"name": "Master"}
-                    api.add_track_tag(recording, id, analysis_result, data)
-                    data["name"] = model_name
-                    api.add_track_tag(recording, id, analysis_result, data)
+                predictions = analysis_result["predictions"]
+                for i, prediction in enumerate(predictions):
+                    species = prediction["species"]
+                    confidences = prediction["likelihood"]
+                    del prediction["species"]
+                    raw_tag = None
+                    if len(confidences) == 0 and "raw_tag" in prediction:
+                        raw_tag = prediction["raw_tag"]
+                        species = [UNIDENTIFIED]
+                        confidences = [prediction["raw_confidence"]]
+
+                    for confidence, s in zip(confidences, species):
+                        prediction["confidence"] = confidence
+                        prediction["tag"] = s
+                        data = {"name": "Master"}
+                        if raw_tag is not None:
+                            data["raw_tag"] = raw_tag
+
+                        if i == 0:
+                            # just add master tag for first prediction
+                            api.add_track_tag(recording, id, prediction, data)
+                        data["name"] = prediction["model"]
+                        api.add_track_tag(recording, id, prediction, data)
 
         if analysis["cacophony_index"]:
             cacophony_index = analysis.pop("cacophony_index")
