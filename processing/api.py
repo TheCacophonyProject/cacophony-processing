@@ -32,7 +32,8 @@ from datetime import datetime
 
 class API:
     def __init__(self, api_url, user, password, logger):
-        self.file_url = urljoin(api_url, "api/v1/processing")
+        self.file_url = "http://127.0.0.1:2008/api/fileProcessing"
+        # urljoin(api_url, "api/v1/processing")
         self.api_url = api_url
         self.user = user
         self._password = password
@@ -116,7 +117,7 @@ class API:
             self._expiry = request_time + 5 * 60 - 30
 
     def _get_jwt(self):
-        url = urljoin(self.api_url, "/api/v1/users/authenticate")
+        url = urljoin(self.api_url, "/authenticate_user")
         r = requests.post(url, data={"email": self.user, "password": self._password})
         r.raise_for_status()
         return r.json().get("token")
@@ -205,6 +206,14 @@ class API:
         r = self.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["algorithmId"]
+        raise IOError(r.text)
+
+    def update_track(self, recording, track):
+        url = self.file_url + "/{}/tracks/{}".format(recording["id"], track["id"])
+        post_data = {"data": json.dumps(track)}
+        r = self.post(url, data=post_data)
+        if r.status_code == 200:
+            return
         raise IOError(r.text)
 
     def add_track(self, recording, track, algorithm_id):

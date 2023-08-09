@@ -73,13 +73,14 @@ def run_thermal_docker(config):
         temp_dir=config.temp_dir, classify_image=config.classify_image
     )
     output = run_command(start_cmd)
+
     logger.info("Started docker container %s", config.classify_image)
 
 
 def main():
     args = parse_args()
     conf = processing.Config.load(args.config_file)
-
+    run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
@@ -91,9 +92,10 @@ def main():
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
+
     processors.add(
         "thermalRaw",
-        ["tracking"],
+        ["tracking", "retrack"],
         thermal.tracking_job,
         conf.tracking_workers,
     )

@@ -50,27 +50,38 @@ MIN_TRACK_CONFIDENCE = 0.85
 
 def tracking_job(recording, rawJWT, conf):
     logger = logs.worker_logger("thermal-tracking", recording["id"])
-
+    retrack = recording["processingState"] == "retrack"
     api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("rawMimeType") == "video/mp4"
     with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
         ext = ".mp4" if mp4 else ".cptv"
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
         filename = filename.with_suffix(ext)
-        recording["filename"] = filename
+        recording["filename"] = str(filename)
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
-        track(conf, recording, api, recording.get("duration", 0), logger)
+        if retrack:
+            track_info = api.get_track_info(recording["id"]).get("tracks")
+            for t in track_info:
+                t["start_s"] = t["start"]
+                t["end_s"] = t["end"]
+                t["positions"] = t["positions"]
+            recording["tracks"] = track_info
+            filename = filename.with_suffix(".txt")
+            with filename.open("w") as f:
+                json.dump(recording, f)
+        track(conf, recording, api, recording.get("duration", 0), retrack, logger)
 
 
-def track(conf, recording, api, duration, logger):
+def track(conf, recording, api, duration, retrack, logger):
     cache = (
         duration is not None
         and conf.cache_clips_bigger_than
         and duration > conf.cache_clips_bigger_than
     )
-
-    command = conf.track_cmd.format(source=recording["filename"], cache=cache)
+    command = conf.track_cmd.format(
+        source=recording["filename"], cache=cache, retrack=retrack
+    )
     logger.info("tracking %s", recording["filename"])
     tracking_info = run_command(command)
     format_track_data(tracking_info["tracks"])
@@ -79,9 +90,13 @@ def track(conf, recording, api, duration, logger):
         tracking_info, algorithm_id, tracking_info["tracks"]
     )
     for track in tracking_result.tracks:
-        track["id"] = api.add_track(
-            recording, track, tracking_result.tracking_algorithm
-        )
+        if retrack:
+            del track["thumbnail"]
+            api.update_track(recording, track)
+        else:
+            track["id"] = api.add_track(
+                recording, track, tracking_result.tracking_algorithm
+            )
     additionalMetadata = {"algorithm": tracking_result.tracking_algorithm}
     if tracking_result.tracking_time is not None:
         additionalMetadata["tracking_time"] = tracking_result.tracking_time
@@ -165,7 +180,13 @@ def run_command(command):
             stderr=subprocess.PIPE,
         )
     try:
-        classify_info = json.loads(proc.stdout)
+        # removes any prints that shouldn't be there
+        output = proc.stdout
+        sub_start = output.index("{")
+        sub_end = output.rindex("}")
+        output = output[sub_start : sub_end + 1]
+
+        classify_info = json.loads(output)
     except json.decoder.JSONDecodeError as err:
         raise ValueError(
             "failed to JSON decode classifier output:\n{}".format(proc.stdout)
