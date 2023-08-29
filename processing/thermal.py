@@ -91,7 +91,8 @@ def track(conf, recording, api, duration, retrack, logger):
     )
     for track in tracking_result.tracks:
         if retrack:
-            del track["thumbnail"]
+            if "thumbnail" in track:
+                del track["thumbnail"]
             api.update_track(recording, track)
         else:
             track["id"] = api.add_track(
