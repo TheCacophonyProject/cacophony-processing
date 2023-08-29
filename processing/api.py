@@ -208,6 +208,15 @@ class API:
             return r.json()["algorithmId"]
         raise IOError(r.text)
 
+    def archive_track(self, recording, track):
+        url = self.file_url + "/{}/tracks/{}/archive".format(
+            recording["id"], track["id"]
+        )
+        r = self.post(url)
+        if r.status_code == 200:
+            return
+        raise IOError(r.text)
+
     def update_track(self, recording, track):
         url = self.file_url + "/{}/tracks/{}".format(recording["id"], track["id"])
         post_data = {"data": json.dumps(track)}

@@ -93,7 +93,10 @@ def track(conf, recording, api, duration, retrack, logger):
         if retrack:
             if "thumbnail" in track:
                 del track["thumbnail"]
-            api.update_track(recording, track)
+            if len(track["positions"]) == 0:
+                api.archive_track(recording, track)
+            else:
+                api.update_track(recording, track)
         else:
             track["id"] = api.add_track(
                 recording, track, tracking_result.tracking_algorithm

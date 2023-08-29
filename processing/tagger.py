@@ -47,7 +47,7 @@ def get_significant_tracks(tracks, conf):
     for track in tracks:
         track[CONFIDENCE] = 0
         has_clear_prediction = False
-        for prediction in track[PREDICTIONS]:
+        for prediction in track.get(PREDICTIONS, []):
             if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
                 continue
 
