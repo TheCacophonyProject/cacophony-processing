@@ -262,7 +262,7 @@ def replace_ext(filename, ext):
 def upload_tags(api, recording, classify_result, wallaby_device, master_name, logger):
     for track in classify_result.tracks:
         model_predictions = []
-        for model_prediction in track["predictions"]:
+        for model_prediction in track.get("predictions", []):
             model = classify_result.models_by_id[model_prediction["model_id"]]
             added, tag = add_track_tag(
                 api,
