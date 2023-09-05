@@ -49,10 +49,10 @@ MIN_TRACK_CONFIDENCE = 0.85
 
 
 def tracking_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("thermal-tracking", recording["id"])
+    logger = logs.worker_logger("tracking", recording["id"])
     retrack = recording["processingState"] == "retrack"
     api = API(conf.api_url, conf.user, conf.password, logger)
-    mp4 = recording.get("rawMimeType") == "video/mp4"
+    mp4 = recording.get("type") == "irRaw"
     with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
         ext = ".mp4" if mp4 else ".cptv"
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
@@ -91,8 +91,8 @@ def track(conf, recording, api, duration, retrack, logger):
     )
     for track in tracking_result.tracks:
         if retrack:
-            if "thumbnail" in track:
-                del track["thumbnail"]
+            # if "thumbnail" in track:
+            # del track["thumbnail"]
             if len(track["positions"]) == 0:
                 api.archive_track(recording, track)
             else:
@@ -113,10 +113,10 @@ def track(conf, recording, api, duration, retrack, logger):
 
 
 def classify_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("thermal-classify", recording["id"])
+    logger = logs.worker_logger("classify", recording["id"])
 
     api = API(conf.api_url, conf.user, conf.password, logger)
-    mp4 = recording.get("rawMimeType") == "video/mp4"
+    mp4 = recording.get("type") == "irRaw"
     ext = ".mp4" if mp4 else ".cptv"
 
     with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:

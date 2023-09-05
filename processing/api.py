@@ -32,8 +32,7 @@ from datetime import datetime
 
 class API:
     def __init__(self, api_url, user, password, logger):
-        self.file_url = "http://127.0.0.1:2008/api/fileProcessing"
-        # urljoin(api_url, "api/v1/processing")
+        self.file_url = urljoin(api_url, "api/v1/processing")
         self.api_url = api_url
         self.user = user
         self._password = password

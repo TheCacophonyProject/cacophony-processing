@@ -94,6 +94,12 @@ def main():
     )
 
     processors.add(
+        "irRaw",
+        ["tracking", "retrack"],
+        thermal.tracking_job,
+        conf.tracking_workers,
+    )
+    processors.add(
         "thermalRaw",
         ["tracking", "retrack"],
         thermal.tracking_job,
@@ -106,7 +112,12 @@ def main():
             thermal.classify_job,
             conf.thermal_workers,
         )
-
+        processors.add(
+            "irRaw",
+            ["analyse", "reprocess"],
+            thermal.classify_job,
+            conf.tracking_workers,
+        ))
     logger.info("checking for recordings")
     while True:
         try:
