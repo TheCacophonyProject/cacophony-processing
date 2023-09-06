@@ -117,7 +117,7 @@ def main():
             ["analyse", "reprocess"],
             thermal.classify_job,
             conf.tracking_workers,
-        ))
+        )
     logger.info("checking for recordings")
     while True:
         try:
