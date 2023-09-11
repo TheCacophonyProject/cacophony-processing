@@ -8,6 +8,10 @@ api_password: test-password
 temp_dir: /tmp/cacophony
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
+trailcam:
+  trail_workers: 1
+  run_cmd: docker run --env CUDA_VISIBLE_DEVICES=0 --rm     --volume {folder}:/images --env IMG_FILE={basename} --env MD_FILE={outfile}  zaandahl/megadetector:5.0
+
 thermal:
     thermal_workers: 2
     tracking_workers: 2
@@ -22,7 +26,7 @@ thermal:
     # used to run a docker image
     start_docker: "docker run -v {temp_dir}:{temp_dir} --name classifier -d {classify_image} /usr/bin/supervisord"
     # to run custom model can addd
-    #--mount type=bind,source=\"$(pwd)\"/<classifier config.yaml>,target=/etc/cacophony/classifier.yaml -v <model path>:/etc/cacophony/models/<model> 
+    #--mount type=bind,source=\"$(pwd)\"/<classifier config.yaml>,target=/etc/cacophony/classifier.yaml -v <model path>:/etc/cacophony/models/<model>
     # dokcer hub classify image to use
     classify_image: "cacophonyproject/classifier:0.1"
     classify_cmd: "docker exec classifier python3 classifyjob.py -o {source} --cache {cache}"

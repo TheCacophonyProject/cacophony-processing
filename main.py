@@ -27,7 +27,7 @@ import requests
 from pebble import ProcessPool
 from pathlib import Path
 import processing
-from processing import API, logs, audio_convert, audio_analysis, thermal
+from processing import API, logs, audio_convert, audio_analysis, thermal, trail_analysis
 from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
@@ -80,7 +80,8 @@ def run_thermal_docker(config):
 def main():
     args = parse_args()
     conf = processing.Config.load(args.config_file)
-    run_thermal_docker(conf)
+    if conf.thermal_workers > 0 or conf.tracking_workers > 0:
+        run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
@@ -117,6 +118,13 @@ def main():
             ["analyse", "reprocess"],
             thermal.classify_job,
             conf.tracking_workers,
+        )
+    if conf.trail_workers > 0:
+        processors.add(
+            "trailcam-image",
+            ["analyse"],
+            trail_analysis.analyse_image,
+            conf.trail_workers,
         )
     logger.info("checking for recordings")
     while True:
