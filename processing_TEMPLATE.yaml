@@ -11,7 +11,9 @@ no_recordings_wait_secs : 30
 trailcam:
   trail_workers: 1
   run_cmd: docker run --env CUDA_VISIBLE_DEVICES=0 --rm     --volume {folder}:/images --env IMG_FILE={basename} --env MD_FILE={outfile}  zaandahl/megadetector:5.0
-
+ir:
+  tracking_workers: 0
+  analyse_workers: 0
 thermal:
     thermal_workers: 2
     tracking_workers: 2

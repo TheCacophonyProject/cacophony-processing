@@ -63,7 +63,6 @@ def test_config():
         classify_image="",
         classify_cmd="",
         track_cmd="",
-        do_classify=True,
         wallaby_devices=[1, 2],
         master_tag="Master",
         min_confidence=0.4,
@@ -80,6 +79,9 @@ def test_config():
         tracking_workers=1,
         trail_workers=1,
         classify_trail_cmd="",
+        do_retrack=False,
+        ir_tracking_workers=0,
+        ir_analyse_workers=0,
     )
 
 

@@ -93,32 +93,37 @@ def main():
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
-
-    processors.add(
-        "irRaw",
-        ["tracking", "retrack"],
-        thermal.tracking_job,
-        conf.tracking_workers,
-    )
+    if conf.ir_tracking_workers > 0:
+        processors.add(
+            "irRaw",
+            ["tracking", "retrack"],
+            thermal.tracking_job,
+            conf.ir_tracking_workers,
+        )
+    tracking_states = ["tracking"]
+    if conf.do_retrack:
+        tracking_states.append("retrack")
     processors.add(
         "thermalRaw",
-        ["tracking", "retrack"],
+        tracking_states,
         thermal.tracking_job,
         conf.tracking_workers,
     )
-    if conf.do_classify:
+    if conf.ir_analyse_workers > 0:
+        processors.add(
+            "irRaw",
+            ["analyse", "reprocess"],
+            thermal.classify_job,
+            conf.ir_analyse_workers,
+        )
+    if conf.thermal_workers > 0:
         processors.add(
             "thermalRaw",
             ["analyse", "reprocess"],
             thermal.classify_job,
             conf.thermal_workers,
         )
-        processors.add(
-            "irRaw",
-            ["analyse", "reprocess"],
-            thermal.classify_job,
-            conf.tracking_workers,
-        )
+
     if conf.trail_workers > 0:
         processors.add(
             "trailcam-image",
@@ -187,7 +192,6 @@ class Processor:
         self.reap_completed()
         if self.full():
             return True
-
         working = False
         for state in self.processing_states:
             response = self.api.next_job(self.recording_type, state)

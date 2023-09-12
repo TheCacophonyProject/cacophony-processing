@@ -40,7 +40,6 @@ configTuple = namedtuple(
         "classify_image",
         "classify_cmd",
         "track_cmd",
-        "do_classify",
         "min_confidence",
         "min_tag_confidence",
         "max_tag_novelty",
@@ -57,6 +56,9 @@ configTuple = namedtuple(
         "cache_clips_bigger_than",
         "classify_trail_cmd",
         "trail_workers",
+        "ir_tracking_workers",
+        "ir_analyse_workers",
+        "do_retrack",
     ],
 )
 
@@ -75,6 +77,7 @@ class Config(configTuple):
             thermal = y["thermal"]
             audio = y["audio"]
             trail = y["trailcam"]
+            ir = y["ir"]
             return cls(
                 temp_dir=y["temp_dir"],
                 user=y["api_user"],
@@ -86,7 +89,6 @@ class Config(configTuple):
                 classify_image=thermal["classify_image"],
                 classify_cmd=thermal["classify_cmd"],
                 track_cmd=thermal["track_cmd"],
-                do_classify=thermal.get("classify", True),
                 master_tag=thermal.get("master_tag", "Master"),
                 wallaby_devices=thermal["wallaby_devices"],
                 min_confidence=thermal["tagging"]["min_confidence"],
@@ -105,6 +107,9 @@ class Config(configTuple):
                 cache_clips_bigger_than=thermal.get("cache_clips_bigger_than"),
                 classify_trail_cmd=trail["run_cmd"],
                 trail_workers=trail.get("trail_workers", 1),
+                ir_tracking_workers=ir.get("tracking_workers", 0),
+                ir_analyse_workers=ir.get("analyse_workers", 0),
+                do_retrack=thermal.get("do_retrack", False),
             )
 
 

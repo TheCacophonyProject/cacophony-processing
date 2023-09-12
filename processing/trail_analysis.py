@@ -9,7 +9,7 @@ import mimetypes
 
 
 def analyse_image(recording, jwtKey, conf):
-    logger = logs.worker_logger("audio.analysis", recording["id"])
+    logger = logs.worker_logger("trail.analysis", recording["id"])
     api = API(conf.api_url, conf.user, conf.password, logger)
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
