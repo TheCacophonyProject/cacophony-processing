@@ -82,6 +82,7 @@ def test_config():
         do_retrack=False,
         ir_tracking_workers=0,
         ir_analyse_workers=0,
+        container_name="test",
     )
 
 

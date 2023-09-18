@@ -56,9 +56,16 @@ def run_command(cmd):
         return proc.stdout
 
 
+def is_docker_running(config):
+    output = run_command(
+        f"docker inspect --format '{{{{.State.Status}}}}' {config.container_name}"
+    )
+    return output.strip() == "running"
+
+
 # We do this so that the container can load the model needed, and classify faster
 def run_thermal_docker(config):
-    stop_cmd = config.stop_docker
+    stop_cmd = config.stop_docker.format(container_name=config.container_name)
     if stop_cmd is not None:
         try:
             logger.info("Removing classifier container")
@@ -70,7 +77,9 @@ def run_thermal_docker(config):
                 exc_info=True,
             )
     start_cmd = config.start_docker.format(
-        temp_dir=config.temp_dir, classify_image=config.classify_image
+        temp_dir=config.temp_dir,
+        classify_image=config.classify_image,
+        container_name=config.container_name,
     )
     output = run_command(start_cmd)
 
@@ -80,7 +89,13 @@ def run_thermal_docker(config):
 def main():
     args = parse_args()
     conf = processing.Config.load(args.config_file)
-    if conf.thermal_workers > 0 or conf.tracking_workers > 0:
+    requires_docker = (
+        conf.thermal_workers > 0
+        or conf.tracking_workers > 0
+        or conf.ir_tracking_workers > 0
+        or conf.ir_analyse_workers > 0
+    )
+    if requires_docker:
         run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
@@ -134,6 +149,10 @@ def main():
     logger.info("checking for recordings")
     while True:
         try:
+            if requires_docker and not is_docker_running(conf):
+                logger.warning("Docker container not running, restarting")
+                run_thermal_docker(conf)
+
             for processor in processors:
                 processor.poll()
         except requests.exceptions.RequestException as e:
