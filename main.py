@@ -118,18 +118,19 @@ def main():
     tracking_states = ["tracking"]
     if conf.do_retrack:
         tracking_states.append("retrack")
-    processors.add(
-        "thermalRaw",
-        tracking_states,
-        thermal.tracking_job,
-        conf.tracking_workers,
-    )
     if conf.ir_analyse_workers > 0:
         processors.add(
             "irRaw",
             ["analyse", "reprocess"],
             thermal.classify_job,
             conf.ir_analyse_workers,
+        )
+    if conf.tracking_workers > 0:
+        processors.add(
+            "thermalRaw",
+            tracking_states,
+            thermal.tracking_job,
+            conf.tracking_workers,
         )
     if conf.thermal_workers > 0:
         processors.add(
