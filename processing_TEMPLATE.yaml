@@ -8,6 +8,10 @@ api_password: test-password
 temp_dir: /tmp/cacophony
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
+
+# restart after x hours
+restart_after: 10
+
 trailcam:
   trail_workers: 1
   run_cmd: docker run --env CUDA_VISIBLE_DEVICES=0 --rm     --volume {folder}:/images --env IMG_FILE={basename} --env MD_FILE={outfile}  zaandahl/megadetector:5.0

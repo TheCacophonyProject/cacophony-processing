@@ -53,6 +53,7 @@ def test_models():
 
 def test_config():
     return config.Config(
+        restart_after=None,
         stop_docker="",
         start_docker="",
         temp_dir="/",

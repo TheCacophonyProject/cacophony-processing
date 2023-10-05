@@ -30,6 +30,7 @@ CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 configTuple = namedtuple(
     "Config",
     [
+        "restart_after",
         "temp_dir",
         "user",
         "password",
@@ -79,7 +80,12 @@ class Config(configTuple):
             audio = y["audio"]
             trail = y["trailcam"]
             ir = y["ir"]
+            restart_after = y.get("restart_after")
+            if restart_after is not None:
+                # convert to seconds
+                restart_after = restart_after * 60 * 60
             return cls(
+                restart_after=restart_after,
                 temp_dir=y["temp_dir"],
                 user=y["api_user"],
                 password=y["api_password"],

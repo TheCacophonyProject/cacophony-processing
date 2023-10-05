@@ -87,6 +87,7 @@ def run_thermal_docker(config):
 
 
 def main():
+    start_time = time.time()
     args = parse_args()
     conf = processing.Config.load(args.config_file)
     requires_docker = (
@@ -174,6 +175,16 @@ def main():
             logger.info("Processing %s , short sleep", procesing_ids)
             time.sleep(SLEEP_SECS)
         elif all(processor.has_no_work() for processor in processors):
+            if (
+                conf.restart_after is not None
+                and (time.time() - start_time) > conf.restart_after
+            ):
+                logger.info(
+                    "Restarting as have been running for %s hours",
+                    round((time.time() - start_time) / 3600, 1),
+                )
+                time.sleep(1)
+                return
             logger.info("Nothing to process - extending wait time")
             time.sleep(conf.no_recordings_wait_secs)
 
