@@ -116,6 +116,8 @@ def main():
             conf.ir_tracking_workers,
         )
     tracking_states = ["tracking"]
+
+    # just for if api isn't updated to use retrack state
     if conf.do_retrack:
         tracking_states.append("retrack")
     if conf.ir_analyse_workers > 0:
