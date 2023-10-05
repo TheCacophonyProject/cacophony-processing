@@ -253,8 +253,20 @@ class Processor:
     def reap_completed(self):
         for recording_id, job in list(self.in_progress.items()):
             future = job[1]
-            if future.done():
-                err = future.exception()
+            err = None
+            try:
+                err = future.exception(timeout=0)
+            except:
+                pass
+            # for debugging
+            if err is not None and not future.done():
+                logger.error("Have exception %s while future is not done", err)
+            if future.done() or err is not None:
+                if err is None:
+                    try:
+                        err = future.exception(timeout=0)
+                    except:
+                        pass
                 if err:
                     msg = f"{self.recording_type}.{self.processing_states} processing of {recording_id} failed: {err}"
                     tb = getattr(err, "traceback", None)

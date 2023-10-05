@@ -116,7 +116,7 @@ class API:
             self._expiry = request_time + 5 * 60 - 30
 
     def _get_jwt(self):
-        url = urljoin(self.api_url, "/authenticate_user")
+        url = urljoin(self.api_url, "api/v1/users/authenticate")
         r = requests.post(url, data={"email": self.user, "password": self._password})
         r.raise_for_status()
         return r.json().get("token")
