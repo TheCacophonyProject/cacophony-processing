@@ -40,40 +40,6 @@ thermal:
     master_tag: "Master"
     wallaby_devices: []
 
-    # A master tag will be chosen based of the highest score, based of the model and tag
-    # i.e. if the original model classifies as a bird, it will get a score of 4
-    # if resnet classifies as anything it will get a score of 3
-    models:
-    - name: "original"
-      model_file: "/path/to/original-model"
-      preview: "classified"
-      tag_scores:
-          bird: 4
-          default: 1
-      ignored_tags: ["mustelid"]
-    - name: "Retrained"
-      model_file: "/path/to/retrained"
-      preview: "classified"
-      tag_scores:
-        default: 2
-      ignored_tags: ["mustelid"]
-    - name: "Resnet"
-      model_file: "/path/to/resnet"
-      preview: "classified"
-      tag_scores:
-        default: 3
-      ignored_tags: ["mustelid"]
-    - name: "wallaby"
-      model_file: "/path/to/wallaby"
-      tag_scores:
-        default: 2
-      wallaby: true
-    - name: "wallaby-old"
-      model_file: "/path/to/wallaby-old"
-      tag_scores:
-        default: 1
-      wallaby: true
-
     tagging:
       ignore_tags: ["not"]
 
