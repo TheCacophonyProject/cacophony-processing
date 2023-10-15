@@ -26,7 +26,9 @@ def init_master():
     q = multiprocessing.Queue()
 
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
+    handler.setFormatter(
+        logging.Formatter("%(process)d %(name)s %(levelname)s: %(message)s")
+    )
     handler.setLevel(logging.INFO)
 
     master_logger().addHandler(QueueHandler(q))

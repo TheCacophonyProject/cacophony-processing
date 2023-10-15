@@ -43,7 +43,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_command(cmd):
+def run_command(cmd, timeout=None):
     with HandleCalledProcessError():
         proc = subprocess.run(
             cmd,
@@ -52,14 +52,20 @@ def run_command(cmd):
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            timeout=timeout,
         )
         return proc.stdout
 
 
 def is_docker_running(config):
-    output = run_command(
-        f"docker inspect --format '{{{{.State.Status}}}}' {config.container_name}"
-    )
+    try:
+        output = run_command(
+            f"docker inspect --format '{{{{.State.Status}}}}' {config.container_name}",
+            timeout=30,
+        )
+    except:
+        logger.error("Could not check if docker is running ", exc_info=True)
+        return None
     return output.strip() == "running"
 
 
@@ -153,7 +159,7 @@ def main():
     logger.info("checking for recordings")
     while True:
         try:
-            if requires_docker and not is_docker_running(conf):
+            if requires_docker and is_docker_running(conf) == False:
                 logger.warning("Docker container not running, restarting")
                 run_thermal_docker(conf)
 
@@ -278,6 +284,8 @@ class Processor:
                         err = future.exception(timeout=0)
                     except:
                         pass
+                if future.cancelled():
+                    logger.info("Job %s was cancelled", recording_id)
                 if err:
                     msg = f"{self.recording_type}.{self.processing_states} processing of {recording_id} failed: {err}"
                     tb = getattr(err, "traceback", None)

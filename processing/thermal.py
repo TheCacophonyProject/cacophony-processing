@@ -94,8 +94,6 @@ def track(conf, recording, api, duration, retrack, logger):
     )
     for track in tracking_result.tracks:
         if retrack:
-            # if "thumbnail" in track:
-            # del track["thumbnail"]
             if len(track["positions"]) == 0:
                 api.archive_track(recording, track)
             else:
