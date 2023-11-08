@@ -79,8 +79,8 @@ For Thermal:
 
 ```
 thermal:
-    thermal_workers: 2
     tracking_workers: 2  
+    analyse_workers: 2
 ```
 
 For Audio:

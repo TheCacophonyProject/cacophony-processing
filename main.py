@@ -40,7 +40,28 @@ logger = logs.master_logger()
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", help="Path to config file to use")
-    return parser.parse_args()
+    parser.add_argument(
+        "--user", help="API server emai. This will override whats in the config file"
+    )
+    parser.add_argument(
+        "--password",
+        help="API server password. This will ocerride whats in the config file",
+    )
+    parser.add_argument(
+        "--api",
+        default=None,
+        help='API server URL can be absolute URL or ("prod" for api.cacophony.org.nz or "test" for api-test.cacophony.org.nz or "ir" for api-ir.cacophony.org.nz) This will over ride whats in the config',
+    )
+
+    args = parser.parse_args()
+    if args.api == "prod":
+        args.api = "https://api.cacophony.org.nz"
+    elif args.api == "test":
+        args.api = "https://api-test.cacophony.org.nz"
+    elif args.api == "ir":
+        args.api = "https://api-ir.cacophony.org.nz"
+
+    return args
 
 
 def run_command(cmd, timeout=None):
@@ -96,9 +117,18 @@ def main():
     start_time = time.time()
     args = parse_args()
     conf = processing.Config.load(args.config_file)
+    api = conf.api_url
+    user = conf.user
+    password = conf.password
+    if args.api is not None:
+        api = args.api
+    if args.user is not None:
+        user = args.user
+    if args.password is not None:
+        password = args.password
     requires_docker = (
-        conf.thermal_workers > 0
-        or conf.tracking_workers > 0
+        conf.thermal_analyse_workers > 0
+        or conf.thermal_tracking_workers > 0
         or conf.ir_tracking_workers > 0
         or conf.ir_analyse_workers > 0
     )
@@ -106,7 +136,7 @@ def main():
         run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
-    Processor.api = API(conf.api_url, conf.user, conf.password, logger)
+    Processor.api = API(api, user, password, logger)
 
     processors = Processors()
     processors.add(
@@ -134,19 +164,19 @@ def main():
             thermal.classify_job,
             conf.ir_analyse_workers,
         )
-    if conf.tracking_workers > 0:
+    if conf.thermal_tracking_workers > 0:
         processors.add(
             "thermalRaw",
             tracking_states,
             thermal.tracking_job,
-            conf.tracking_workers,
+            conf.thermal_tracking_workers,
         )
-    if conf.thermal_workers > 0:
+    if conf.thermal_analyse_workers > 0:
         processors.add(
             "thermalRaw",
             ["analyse", "reprocess"],
             thermal.classify_job,
-            conf.thermal_workers,
+            conf.thermal_analyse_workers,
         )
 
     if conf.trail_workers > 0:

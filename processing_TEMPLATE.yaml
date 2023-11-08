@@ -19,9 +19,9 @@ ir:
   tracking_workers: 0
   analyse_workers: 0
 thermal:
-    thermal_workers: 2
     tracking_workers: 2
-    
+    analyse_workers: 2
+
     #cache clips that have more than this amount of frames, null is never cache
     cache_clips_bigger_than: 2160
     # classify option allows you to turn off the classifier for test purposes if the classifier is not set up
@@ -31,11 +31,12 @@ thermal:
     # used to clear existing docker iamge
     stop_docker: "docker stop {container_name} && docker rm {container_name}"
     # used to run a docker image
-    start_docker: "docker run -v {temp_dir}:{temp_dir} --name {container_name} -d {classify_image} /usr/bin/supervisord"
+    # not this will download the latest classifier model
+    start_docker: 'docker run -v {temp_dir}:{temp_dir} --name {container_name} -d {classify_image} /bin/bash -c "python3 latestmodel.py && /usr/bin/supervisord"'
     # to run custom model can addd
     #--mount type=bind,source=\"$(pwd)\"/<classifier config.yaml>,target=/etc/cacophony/classifier.yaml -v <model path>:/etc/cacophony/models/<model>
     # dokcer hub classify image to use
-    classify_image: "cacophonyproject/classifier:0.1"
+    classify_image: "cacophonyproject/classifier:latest"
     classify_cmd: "docker exec {container_name} python3 classifyjob.py -o {source} --cache {cache}"
     track_cmd: "docker exec {container_name} python3 extract.py -o {source} --cache {cache}"
     # Can be used to run multiple models, this will save a track tag per model
@@ -74,4 +75,4 @@ audio:
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
     analysis_command: 'docker run --rm -v {folder}:/io cacophonyproject/audio-analysis:{tag} /io/"{basename}"'
 
-    analysis_tag: v1.21.1
+    analysis_tag: latest
