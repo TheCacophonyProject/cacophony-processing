@@ -100,6 +100,7 @@ trailcam:
 ### Docker
 The workers use docker image to run their jobs, by default they will be set up to use latest image, but you can specify the exact image to run and commands to run on them
 inside `/etc/cacophony/processing.yaml`
+
 thermal/ir images https://hub.docker.com/repository/docker/cacophonyproject/classifier
 audio images https://hub.docker.com/repository/docker/cacophonyproject/audio-analysis
 trailcam images https://hub.docker.com/r/zaandahl/megadetector
