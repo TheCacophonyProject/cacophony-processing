@@ -67,24 +67,31 @@ Or you can run it manually
 
 ### Specifying number of workers
 You can configure how many workers and of which type in the config under
+
 For IR:
+
 ```
 ir:
   tracking_workers: 0
   analyse_workers: 0
 ```
-	For Thermal:
+For Thermal:
+
 ```
 thermal:
     thermal_workers: 2
-    tracking_workers: 2
+    tracking_workers: 2  
 ```
-	For Audio:
+
+For Audio:
+
 ```
 audio:
     analysis_workers: 2
 ```
-For trailcam:
+
+For Trail Camera:
+
 ```
 trailcam:
   trail_workers: 1
