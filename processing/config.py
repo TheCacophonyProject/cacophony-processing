@@ -32,9 +32,7 @@ configTuple = namedtuple(
     [
         "restart_after",
         "temp_dir",
-        "user",
-        "password",
-        "api_url",
+        "api_credentials",
         "no_recordings_wait_secs",
         "start_docker",
         "stop_docker",
@@ -66,6 +64,18 @@ configTuple = namedtuple(
 
 
 class Config(configTuple):
+    @property
+    def api_url(self):
+        return self.api_credentials.api_url
+
+    @property
+    def user(self):
+        return self.api_credentials.user
+
+    @property
+    def password(self):
+        return self.api_credentials.password
+
     @classmethod
     def load(cls, filename=None):
         if filename is None:
@@ -87,9 +97,11 @@ class Config(configTuple):
             return cls(
                 restart_after=restart_after,
                 temp_dir=y["temp_dir"],
-                user=y["api_user"],
-                password=y["api_password"],
-                api_url=y["api_url"],
+                api_credentials=APICredentials(
+                    api_url=y["api_url"],
+                    user=y["api_user"],
+                    password=y["api_password"],
+                ),
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
                 stop_docker=thermal["stop_docker"],
                 start_docker=thermal["start_docker"],
@@ -155,3 +167,10 @@ class ModelConfig:
             submodel=raw.get("submodel", False),
         )
         return model
+
+
+class APICredentials:
+    def __init__(self, api_url, user, password):
+        self.api_url = api_url
+        self.user = user
+        self.password = password

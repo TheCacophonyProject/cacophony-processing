@@ -14,7 +14,7 @@ restart_after: 10
 
 trailcam:
   trail_workers: 1
-  run_cmd: docker run --env CUDA_VISIBLE_DEVICES=0 --rm     --volume {folder}:/images --env IMG_FILE={basename} --env MD_FILE={outfile}  zaandahl/megadetector:5.0
+  run_cmd: docker run --env CUDA_VISIBLE_DEVICES=0 --rm     --volume {folder}:/images --env IMG_FILE={basename} --env MD_FILE={outfile}   zaandahl/mewc-detect
 ir:
   tracking_workers: 0
   analyse_workers: 0

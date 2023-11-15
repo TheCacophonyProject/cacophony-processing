@@ -117,15 +117,13 @@ def main():
     start_time = time.time()
     args = parse_args()
     conf = processing.Config.load(args.config_file)
-    api = conf.api_url
-    user = conf.user
-    password = conf.password
+
     if args.api is not None:
-        api = args.api
+        conf.api_credentials.api_url = args.api
     if args.user is not None:
-        user = args.user
+        conf.api_credentials.user = args.user
     if args.password is not None:
-        password = args.password
+        conf.api_credentials.password = args.password
     requires_docker = (
         conf.thermal_analyse_workers > 0
         or conf.thermal_tracking_workers > 0
@@ -136,7 +134,7 @@ def main():
         run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
-    Processor.api = API(api, user, password, logger)
+    Processor.api = API(conf.api_url, conf.user, conf.password, logger)
 
     processors = Processors()
     processors.add(
