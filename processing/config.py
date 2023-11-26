@@ -30,17 +30,15 @@ CONFIG_DIRS = [Path(__file__).parent.parent, Path("/etc/cacophony")]
 configTuple = namedtuple(
     "Config",
     [
+        "restart_after",
         "temp_dir",
-        "user",
-        "password",
-        "api_url",
+        "api_credentials",
         "no_recordings_wait_secs",
         "start_docker",
         "stop_docker",
         "classify_image",
         "classify_cmd",
         "track_cmd",
-        "do_classify",
         "min_confidence",
         "min_tag_confidence",
         "max_tag_novelty",
@@ -49,17 +47,35 @@ configTuple = namedtuple(
         "audio_analysis_cmd",
         "audio_analysis_tag",
         "audio_analysis_workers",
-        "thermal_workers",
-        "tracking_workers",
+        "thermal_analyse_workers",
+        "thermal_tracking_workers",
         "ignore_tags",
         "wallaby_devices",
         "master_tag",
         "cache_clips_bigger_than",
+        "classify_trail_cmd",
+        "trail_workers",
+        "ir_tracking_workers",
+        "ir_analyse_workers",
+        "do_retrack",
+        "container_name",
     ],
 )
 
 
 class Config(configTuple):
+    @property
+    def api_url(self):
+        return self.api_credentials.api_url
+
+    @property
+    def user(self):
+        return self.api_credentials.user
+
+    @property
+    def password(self):
+        return self.api_credentials.password
+
     @classmethod
     def load(cls, filename=None):
         if filename is None:
@@ -72,18 +88,27 @@ class Config(configTuple):
             y = yaml.load(stream, Loader=yaml.FullLoader)
             thermal = y["thermal"]
             audio = y["audio"]
+            trail = y["trailcam"]
+            ir = y["ir"]
+            restart_after = y.get("restart_after")
+            if restart_after is not None:
+                # convert to seconds
+                restart_after = restart_after * 60 * 60
             return cls(
+                restart_after=restart_after,
                 temp_dir=y["temp_dir"],
-                user=y["api_user"],
-                password=y["api_password"],
-                api_url=y["api_url"],
+                api_credentials=APICredentials(
+                    api_url=y["api_url"],
+                    user=y["api_user"],
+                    password=y["api_password"],
+                ),
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
                 stop_docker=thermal["stop_docker"],
                 start_docker=thermal["start_docker"],
+                container_name=thermal["container_name"],
                 classify_image=thermal["classify_image"],
                 classify_cmd=thermal["classify_cmd"],
                 track_cmd=thermal["track_cmd"],
-                do_classify=thermal.get("classify", True),
                 master_tag=thermal.get("master_tag", "Master"),
                 wallaby_devices=thermal["wallaby_devices"],
                 min_confidence=thermal["tagging"]["min_confidence"],
@@ -96,10 +121,15 @@ class Config(configTuple):
                 audio_analysis_cmd=audio["analysis_command"],
                 audio_analysis_tag=audio["analysis_tag"],
                 audio_analysis_workers=audio.get("analysis_workers", 1),
-                thermal_workers=thermal.get("thermal_workers", 1),
-                tracking_workers=thermal.get("tracking_workers", 1),
+                thermal_analyse_workers=thermal.get("analyse_workers", 1),
+                thermal_tracking_workers=thermal.get("tracking_workers", 1),
                 ignore_tags=thermal["tagging"].get("ignore_tags", None),
                 cache_clips_bigger_than=thermal.get("cache_clips_bigger_than"),
+                classify_trail_cmd=trail["run_cmd"],
+                trail_workers=trail.get("trail_workers", 1),
+                ir_tracking_workers=ir.get("tracking_workers", 0),
+                ir_analyse_workers=ir.get("analyse_workers", 0),
+                do_retrack=thermal.get("do_retrack", False),
             )
 
 
@@ -137,3 +167,10 @@ class ModelConfig:
             submodel=raw.get("submodel", False),
         )
         return model
+
+
+class APICredentials:
+    def __init__(self, api_url, user, password):
+        self.api_url = api_url
+        self.user = user
+        self.password = password

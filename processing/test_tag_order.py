@@ -53,17 +53,19 @@ def test_models():
 
 def test_config():
     return config.Config(
+        restart_after=None,
         stop_docker="",
         start_docker="",
         temp_dir="/",
-        api_url="http://127.0.0.1:2008/api/fileProcessing",
-        user="test",
-        password="testpass",
+        api_credentials=config.APICredentials(
+            api_url="http://127.0.0.1:2008/api/fileProcessing",
+            user="test",
+            password="testpass",
+        ),
         no_recordings_wait_secs=30,
         classify_image="",
         classify_cmd="",
         track_cmd="",
-        do_classify=True,
         wallaby_devices=[1, 2],
         master_tag="Master",
         min_confidence=0.4,
@@ -74,10 +76,16 @@ def test_config():
         audio_analysis_cmd="",
         audio_analysis_tag="v1.1.0",
         audio_analysis_workers=1,
-        thermal_workers=1,
+        thermal_analyse_workers=1,
         ignore_tags=["not"],
         cache_clips_bigger_than=0,
-        tracking_workers=1,
+        thermal_tracking_workers=1,
+        trail_workers=1,
+        classify_trail_cmd="",
+        do_retrack=False,
+        ir_tracking_workers=0,
+        ir_analyse_workers=0,
+        container_name="test",
     )
 
 

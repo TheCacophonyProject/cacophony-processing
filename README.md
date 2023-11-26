@@ -40,3 +40,69 @@ the same directory as the code.
 * Push the tag to Github, e.g.: `git push origin v1.2.3`
 * TravisCI will run the tests, create a release package and create a
   [Github Release](https://github.com/TheCacophonyProject/cacophony-processing/releases)
+
+
+## Running on a server
+
+### Install Processing
+
+Install latest package from https://github.com/TheCacophonyProject/cacophony-processing/releases
+`sudo dpkg -i cacophony-processing_<version>_amd64.deb`
+
+### Update the config at ``/etc/cacophony/processing.yaml`
+
+You will need a super user account to the browse platform at api_url endpoint in which the processing results will be uploaded under.
+
+```
+api_url: "https://api.cacophony.org.nz"
+api_user: test-user
+api_password: test-password
+```
+
+After configuring the config you can restart the service
+`systemctl restart cacophony-processing`
+
+Or you can run it manually
+`/usr/bin/cacophony-processing.pex -m main`
+
+### Specifying number of workers
+You can configure how many workers and of which type in the config under
+
+For IR:
+
+```
+ir:
+  tracking_workers: 0
+  analyse_workers: 0
+```
+For Thermal:
+
+```
+thermal:
+    tracking_workers: 2  
+    analyse_workers: 2
+```
+
+For Audio:
+
+```
+audio:
+    analysis_workers: 2
+```
+
+For Trail Camera:
+
+```
+trailcam:
+  trail_workers: 1
+```
+
+### Docker
+The workers use docker image to run their jobs, by default they will be set up to use latest image, but you can specify the exact image to run and commands to run on them
+inside `/etc/cacophony/processing.yaml`
+
+thermal/ir images https://hub.docker.com/repository/docker/cacophonyproject/classifier
+
+audio images https://hub.docker.com/repository/docker/cacophonyproject/audio-analysis
+
+trailcam images https://hub.docker.com/r/zaandahl/megadetector

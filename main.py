@@ -27,7 +27,7 @@ import requests
 from pebble import ProcessPool
 from pathlib import Path
 import processing
-from processing import API, logs, audio_convert, audio_analysis, thermal
+from processing import API, logs, audio_convert, audio_analysis, thermal, trail_analysis
 from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
@@ -40,10 +40,31 @@ logger = logs.master_logger()
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", help="Path to config file to use")
-    return parser.parse_args()
+    parser.add_argument(
+        "--user", help="API server emai. This will override whats in the config file"
+    )
+    parser.add_argument(
+        "--password",
+        help="API server password. This will ocerride whats in the config file",
+    )
+    parser.add_argument(
+        "--api",
+        default=None,
+        help='API server URL can be absolute URL or ("prod" for api.cacophony.org.nz or "test" for api-test.cacophony.org.nz or "ir" for api-ir.cacophony.org.nz) This will over ride whats in the config',
+    )
+
+    args = parser.parse_args()
+    if args.api == "prod":
+        args.api = "https://api.cacophony.org.nz"
+    elif args.api == "test":
+        args.api = "https://api-test.cacophony.org.nz"
+    elif args.api == "ir":
+        args.api = "https://api-ir.cacophony.org.nz"
+
+    return args
 
 
-def run_command(cmd):
+def run_command(cmd, timeout=None):
     with HandleCalledProcessError():
         proc = subprocess.run(
             cmd,
@@ -52,13 +73,26 @@ def run_command(cmd):
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            timeout=timeout,
         )
         return proc.stdout
 
 
+def is_docker_running(config):
+    try:
+        output = run_command(
+            f"docker inspect --format '{{{{.State.Status}}}}' {config.container_name}",
+            timeout=30,
+        )
+    except:
+        logger.error("Could not check if docker is running ", exc_info=True)
+        return None
+    return output.strip() == "running"
+
+
 # We do this so that the container can load the model needed, and classify faster
 def run_thermal_docker(config):
-    stop_cmd = config.stop_docker
+    stop_cmd = config.stop_docker.format(container_name=config.container_name)
     if stop_cmd is not None:
         try:
             logger.info("Removing classifier container")
@@ -70,7 +104,9 @@ def run_thermal_docker(config):
                 exc_info=True,
             )
     start_cmd = config.start_docker.format(
-        temp_dir=config.temp_dir, classify_image=config.classify_image
+        temp_dir=config.temp_dir,
+        classify_image=config.classify_image,
+        container_name=config.container_name,
     )
     output = run_command(start_cmd)
 
@@ -78,9 +114,24 @@ def run_thermal_docker(config):
 
 
 def main():
+    start_time = time.time()
     args = parse_args()
     conf = processing.Config.load(args.config_file)
-    run_thermal_docker(conf)
+
+    if args.api is not None:
+        conf.api_credentials.api_url = args.api
+    if args.user is not None:
+        conf.api_credentials.user = args.user
+    if args.password is not None:
+        conf.api_credentials.password = args.password
+    requires_docker = (
+        conf.thermal_analyse_workers > 0
+        or conf.thermal_tracking_workers > 0
+        or conf.ir_tracking_workers > 0
+        or conf.ir_analyse_workers > 0
+    )
+    if requires_docker:
+        run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
@@ -92,35 +143,54 @@ def main():
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
-
-    processors.add(
-        "irRaw",
-        ["tracking", "retrack"],
-        thermal.tracking_job,
-        conf.tracking_workers,
-    )
-    processors.add(
-        "thermalRaw",
-        ["tracking", "retrack"],
-        thermal.tracking_job,
-        conf.tracking_workers,
-    )
-    if conf.do_classify:
+    if conf.ir_tracking_workers > 0:
         processors.add(
-            "thermalRaw",
-            ["analyse", "reprocess"],
-            thermal.classify_job,
-            conf.thermal_workers,
+            "irRaw",
+            ["tracking", "retrack"],
+            thermal.tracking_job,
+            conf.ir_tracking_workers,
         )
+    tracking_states = ["tracking"]
+
+    # just for if api isn't updated to use retrack state
+    if conf.do_retrack:
+        tracking_states.append("retrack")
+    if conf.ir_analyse_workers > 0:
         processors.add(
             "irRaw",
             ["analyse", "reprocess"],
             thermal.classify_job,
-            conf.tracking_workers,
+            conf.ir_analyse_workers,
+        )
+    if conf.thermal_tracking_workers > 0:
+        processors.add(
+            "thermalRaw",
+            tracking_states,
+            thermal.tracking_job,
+            conf.thermal_tracking_workers,
+        )
+    if conf.thermal_analyse_workers > 0:
+        processors.add(
+            "thermalRaw",
+            ["analyse", "reprocess"],
+            thermal.classify_job,
+            conf.thermal_analyse_workers,
+        )
+
+    if conf.trail_workers > 0:
+        processors.add(
+            "trailcam-image",
+            ["analyse"],
+            trail_analysis.analyse_image,
+            conf.trail_workers,
         )
     logger.info("checking for recordings")
     while True:
         try:
+            if requires_docker and is_docker_running(conf) == False:
+                logger.warning("Docker container not running, restarting")
+                run_thermal_docker(conf)
+
             for processor in processors:
                 processor.poll()
         except requests.exceptions.RequestException as e:
@@ -139,6 +209,16 @@ def main():
             logger.info("Processing %s , short sleep", procesing_ids)
             time.sleep(SLEEP_SECS)
         elif all(processor.has_no_work() for processor in processors):
+            if (
+                conf.restart_after is not None
+                and (time.time() - start_time) > conf.restart_after
+            ):
+                logger.info(
+                    "Restarting as have been running for %s hours",
+                    round((time.time() - start_time) / 3600, 1),
+                )
+                time.sleep(1)
+                return
             logger.info("Nothing to process - extending wait time")
             time.sleep(conf.no_recordings_wait_secs)
 
@@ -179,7 +259,6 @@ class Processor:
         self.reap_completed()
         if self.full():
             return True
-
         working = False
         for state in self.processing_states:
             response = self.api.next_job(self.recording_type, state)
@@ -219,8 +298,22 @@ class Processor:
     def reap_completed(self):
         for recording_id, job in list(self.in_progress.items()):
             future = job[1]
-            if future.done():
-                err = future.exception()
+            err = None
+            try:
+                err = future.exception(timeout=0)
+            except:
+                pass
+            # for debugging
+            if err is not None and not future.done():
+                logger.error("Have exception %s while future is not done", err)
+            if future.done() or err is not None:
+                if err is None:
+                    try:
+                        err = future.exception(timeout=0)
+                    except:
+                        pass
+                if future.cancelled():
+                    logger.info("Job %s was cancelled", recording_id)
                 if err:
                     msg = f"{self.recording_type}.{self.processing_states} processing of {recording_id} failed: {err}"
                     tb = getattr(err, "traceback", None)

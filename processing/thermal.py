@@ -80,7 +80,10 @@ def track(conf, recording, api, duration, retrack, logger):
         and duration > conf.cache_clips_bigger_than
     )
     command = conf.track_cmd.format(
-        source=recording["filename"], cache=cache, retrack=retrack
+        source=recording["filename"],
+        cache=cache,
+        retrack=retrack,
+        container_name=conf.container_name,
     )
     logger.info("tracking %s", recording["filename"])
     tracking_info = run_command(command)
@@ -91,8 +94,6 @@ def track(conf, recording, api, duration, retrack, logger):
     )
     for track in tracking_result.tracks:
         if retrack:
-            # if "thumbnail" in track:
-            # del track["thumbnail"]
             if len(track["positions"]) == 0:
                 api.archive_track(recording, track)
             else:
@@ -146,7 +147,9 @@ def classify_file(api, file, conf, duration, logger):
     ):
         cache = True
 
-    command = conf.classify_cmd.format(source=file, cache=cache)
+    command = conf.classify_cmd.format(
+        source=file, cache=cache, container_name=conf.container_name
+    )
     logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command)
 

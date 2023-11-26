@@ -16,8 +16,7 @@ before_deploy:
 - PATH=/tmp/x:$PATH _release/build ${TRAVIS_TAG}
 deploy:
   provider: releases
-  api_key:
-    secure: akYQvmopJlIou34+0W64lqGhLN3aEX9MPe5VKkVzQ78a85dESQG8JoWnK2u6RebSQAtl4dGPXlfnZ9kk7R34oMmuxwpKXUXS+0e+mK5ekQeyaFsdI2UDfsPbZJcD4FmG7u45LzjsMy3o476XpgUvQAH58GUEeCVhr7dc6ts17MsK1ftqSwKg1d0hEpwRYKffpehYr3Yi5DO/QPus9uPH7JssHddXXMf41bJLUrn8mVDeGXT43F5NVYmq5Wocp7ZpQ7EETMu7CplHas+rl5F10f/9Yj92sj8rUkmw/kyKbCb9WxumcUajW6WzpsIJi1S59fODy7wZuXKxoPX2cpcfwETjn+WFlWMzZcbj/gQbqCz0l9iVvnuwCOeP1hXm3pNTS7YcN05KZdj6wnCBYVB8Ye1o3/tyCIxA7/cn1ObErKT+eYqX//8bRhgWIDigrFH1jC9hJJgpyiokew6RvsZu/zEYvPNyG11dur6z0gMtAE/IbI6un/0tzpkBXIHeU9AZ7PZ57GqkORzb/Q64oKjZRPhtXdgAvxtl0UT9FdmA+Q3P/xapHa8y08u30iWJg2qIJhKY5fC449Vr1EkVavcKUVnslYeVPNszCURjv1W2d1G543qAN0RjWlL5cxTaRIL5nYHB6jR07kpXmzoK8qa1jqszcRcyjL1oCiEuI21zFZk=
+  api_key: $GITHUB_TOKEN
   skip_cleanup: true
   file_glob: true
   file: "build/*.deb"
