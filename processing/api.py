@@ -213,12 +213,15 @@ class API:
         r.raise_for_status()
 
     def get_rat_threshold(self, deviceId, atTime=None):
-        url = f"/ratthresh/{deviceId}"
-        if atTime is not None:
-            url = f"{url}?at-time={atTime}"
+        try:
+            url = f"/ratthresh/{deviceId}"
+            if atTime is not None:
+                url = f"{url}?at-time={atTime}"
 
-        r = self.get(self.file_url + url)
-        return r.json().get("deviceHistoryEntry")
+            r = self.get(self.file_url + url)
+            return r.json().get("deviceHistoryEntry")
+        except:
+            return None
 
     def get_algorithm_id(self, algorithm):
         url = self.file_url + "/algorithm"
