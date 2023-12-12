@@ -348,14 +348,6 @@ def is_rat(track, rat_thresh):
     return rat_count > mouse_count
 
 
-def overlap(first, second):
-    return (
-        (first[1] - first[0])
-        + (second[1] - second[0])
-        - (max(first[1], second[1]) - min(first[0], second[0]))
-    )
-
-
 def default_tag(track_id):
     prediction = {}
     prediction[TAG] = UNIDENTIFIED
