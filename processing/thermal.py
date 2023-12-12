@@ -21,7 +21,9 @@ import json
 import subprocess
 import tempfile
 import socket
+import math
 from pathlib import Path
+import numpy as np
 
 from . import API
 from . import logs
@@ -263,6 +265,10 @@ def replace_ext(filename, ext):
 
 
 def upload_tags(api, recording, classify_result, wallaby_device, master_name, logger):
+    rat_thresh = api.get_rat_threshold(
+        recording["DeviceId"], recording["recordingDateTime"]
+    )
+    rat_thresh = rat_thresh.get("settings") if rat_thresh is not None else None
     for track in classify_result.tracks:
         model_predictions = []
         for model_prediction in track.get("predictions", []):
@@ -277,11 +283,26 @@ def upload_tags(api, recording, classify_result, wallaby_device, master_name, lo
             )
             if added:
                 model_predictions.append((model, model_prediction))
+
+        rat_version = None
         master_model, master_prediction = get_master_tag(
             model_predictions, wallaby_device
         )
+        rat_thresh_version = None
         if master_prediction is None:
             master_prediction = default_tag(track["id"])
+
+        if (
+            rat_thresh is not None
+            and rat_thresh.get("ratThresh") is not None
+            and master_prediction.get("tag") == "rodent"
+        ):
+            rat = is_rat(track, rat_thresh["ratThresh"])
+            if rat:
+                master_prediction["tag"] = "rat"
+            else:
+                master_prediction["tag"] = "mouse"
+            rat_thresh_version = rat_thresh["ratThresh"]["version"]
         add_track_tag(
             api,
             recording,
@@ -290,8 +311,41 @@ def upload_tags(api, recording, classify_result, wallaby_device, master_name, lo
             logger,
             model_name=master_name,
             model_used=master_model.name if master_model is not None else None,
+            rat_thresh_version=rat_thresh_version,
         )
         track[MASTER_TAG] = master_prediction
+
+
+WIDTH = 160
+HEIGHT = 120
+
+
+def is_rat(track, rat_thresh):
+    box_dim = rat_thresh["gridSize"]
+    thresholds = rat_thresh["thresholds"]
+    rows = math.ceil(HEIGHT / box_dim)
+    columns = math.ceil(WIDTH / box_dim)
+    track_dims = np.empty((rows, columns), dtype="O")
+    rat_count = 0
+    mouse_count = 0
+    for p in track["positions"]:
+        if p["blank"] or p["mass"] == 0:
+            continue
+
+        box_x_start = p["x"] // box_dim
+        box_x_end = (p["x"] + p["width"]) // box_dim
+        box_y_start = p["y"] // box_dim
+        box_y_end = (p["y"] + p["height"]) // box_dim
+
+        for y in range(box_y_start, box_y_end + 1):
+            for x in range(box_x_start, box_x_end + 1):
+                if thresholds[y][x] is None:
+                    continue
+                if p["mass"] > thresholds[y][x]:
+                    rat_count += 1
+                else:
+                    mouse_count += 1
+    return rat_count > mouse_count
 
 
 def default_tag(track_id):
@@ -361,13 +415,19 @@ def model_rank(tag, tag_scores):
 
 
 def add_track_tag(
-    api, recording, track, prediction, logger, model_name=None, model_used=None
+    api,
+    recording,
+    track,
+    prediction,
+    logger,
+    model_name=None,
+    model_used=None,
+    rat_thresh_version=None,
 ):
     if not track or TAG not in prediction:
         return False, None
-    track_data = {
-        "name": model_name,
-    }
+
+    track_data = {"name": model_name}
     if model_used is not None:
         # specifically for master tag to see which model was chosen
         track_data["model_used"] = model_used
@@ -385,6 +445,9 @@ def add_track_tag(
         track_data[MESSAGE] = prediction[MESSAGE]
     if prediction.get(LABEL) is not None:
         track_data["raw_tag"] = prediction[LABEL]
+
+    if rat_thresh_version is not None:
+        track_data["rat_thresh_version"] = rat_thresh_version
     logger.debug(
         "adding %s track tag %s for track %s",
         track_data["name"],
