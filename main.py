@@ -25,9 +25,8 @@ import traceback
 import requests
 
 from pebble import ProcessPool
-from pathlib import Path
 import processing
-from processing import API, logs, audio_convert, audio_analysis, thermal, trail_analysis
+from processing import API, logs, audio_analysis, thermal, trail_analysis
 from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
@@ -101,14 +100,7 @@ def main():
         conf.api_credentials.user = args.user
     if args.password is not None:
         conf.api_credentials.password = args.password
-    # requires_docker = (
-    #     conf.thermal_analyse_workers > 0
-    #     or conf.thermal_tracking_workers > 0
-    #     or conf.ir_tracking_workers > 0
-    #     or conf.ir_analyse_workers > 0
-    # )
-    # if requires_docker:
-    # run_thermal_docker(conf)
+
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
@@ -164,10 +156,6 @@ def main():
     logger.info("checking for recordings")
     while True:
         try:
-            # if requires_docker and is_docker_running(conf) == False:
-            #     logger.warning("Docker container not running, restarting")
-            #     run_thermal_docker(conf)
-
             for processor in processors:
                 processor.poll()
         except requests.exceptions.RequestException as e:
