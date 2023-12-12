@@ -90,29 +90,6 @@ def is_docker_running(config):
     return output.strip() == "running"
 
 
-# We do this so that the container can load the model needed, and classify faster
-def run_thermal_docker(config):
-    stop_cmd = config.stop_docker.format(container_name=config.container_name)
-    if stop_cmd is not None:
-        try:
-            logger.info("Removing classifier container")
-            output = run_command(stop_cmd)
-
-        except:
-            logger.error(
-                "Error removing classifier container (May just be it was never running so no error at all)",
-                exc_info=True,
-            )
-    start_cmd = config.start_docker.format(
-        temp_dir=config.temp_dir,
-        classify_image=config.classify_image,
-        container_name=config.container_name,
-    )
-    output = run_command(start_cmd)
-
-    logger.info("Started docker container %s", config.classify_image)
-
-
 def main():
     start_time = time.time()
     args = parse_args()
@@ -124,14 +101,14 @@ def main():
         conf.api_credentials.user = args.user
     if args.password is not None:
         conf.api_credentials.password = args.password
-    requires_docker = (
-        conf.thermal_analyse_workers > 0
-        or conf.thermal_tracking_workers > 0
-        or conf.ir_tracking_workers > 0
-        or conf.ir_analyse_workers > 0
-    )
-    if requires_docker:
-        run_thermal_docker(conf)
+    # requires_docker = (
+    #     conf.thermal_analyse_workers > 0
+    #     or conf.thermal_tracking_workers > 0
+    #     or conf.ir_tracking_workers > 0
+    #     or conf.ir_analyse_workers > 0
+    # )
+    # if requires_docker:
+    # run_thermal_docker(conf)
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
@@ -187,9 +164,9 @@ def main():
     logger.info("checking for recordings")
     while True:
         try:
-            if requires_docker and is_docker_running(conf) == False:
-                logger.warning("Docker container not running, restarting")
-                run_thermal_docker(conf)
+            # if requires_docker and is_docker_running(conf) == False:
+            #     logger.warning("Docker container not running, restarting")
+            #     run_thermal_docker(conf)
 
             for processor in processors:
                 processor.poll()

@@ -54,8 +54,6 @@ def test_models():
 def test_config():
     return config.Config(
         restart_after=None,
-        stop_docker="",
-        start_docker="",
         temp_dir="/",
         api_credentials=config.APICredentials(
             api_url="http://127.0.0.1:2008/api/fileProcessing",
@@ -85,7 +83,6 @@ def test_config():
         do_retrack=False,
         ir_tracking_workers=0,
         ir_analyse_workers=0,
-        container_name="test",
     )
 
 
