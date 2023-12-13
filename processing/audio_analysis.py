@@ -45,6 +45,10 @@ def process(recording, jwtKey, conf):
     Returns:
         The API response.
     """
+
+    # this used to work by default then  just stopped, so will explicitly add it
+    mimetypes.add_type("audio/mp4", ".m4a")
+
     logger = logs.worker_logger("audio.analysis", recording["id"])
 
     api = API(conf.api_url, conf.user, conf.password, logger)
