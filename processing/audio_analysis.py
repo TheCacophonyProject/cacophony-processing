@@ -53,7 +53,9 @@ def process(recording, jwtKey, conf):
 
     if not input_extension:
         # Unsupported mimetype. If needed more mimetypes can be added above.
-        logger.error("unsupported mimetype. Not processing")
+        logger.error(
+            "unsupported mimetype. Not processing %s", recording["rawMimeType"]
+        )
         api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
 
