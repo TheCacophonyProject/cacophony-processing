@@ -34,8 +34,6 @@ configTuple = namedtuple(
         "temp_dir",
         "api_credentials",
         "no_recordings_wait_secs",
-        "start_docker",
-        "stop_docker",
         "classify_image",
         "classify_cmd",
         "track_cmd",
@@ -58,7 +56,6 @@ configTuple = namedtuple(
         "ir_tracking_workers",
         "ir_analyse_workers",
         "do_retrack",
-        "container_name",
     ],
 )
 
@@ -103,9 +100,6 @@ class Config(configTuple):
                     password=y["api_password"],
                 ),
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
-                stop_docker=thermal["stop_docker"],
-                start_docker=thermal["start_docker"],
-                container_name=thermal["container_name"],
                 classify_image=thermal["classify_image"],
                 classify_cmd=thermal["classify_cmd"],
                 track_cmd=thermal["track_cmd"],

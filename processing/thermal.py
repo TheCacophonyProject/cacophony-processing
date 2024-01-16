@@ -85,7 +85,8 @@ def track(conf, recording, api, duration, retrack, logger):
         source=recording["filename"],
         cache=cache,
         retrack=retrack,
-        container_name=conf.container_name,
+        classify_image=conf.classify_image,
+        temp_dir=conf.temp_dir,
     )
     logger.info("tracking %s", recording["filename"])
     tracking_info = run_command(command)
@@ -150,7 +151,10 @@ def classify_file(api, file, conf, duration, logger):
         cache = True
 
     command = conf.classify_cmd.format(
-        source=file, cache=cache, container_name=conf.container_name
+        source=file,
+        cache=cache,
+        classify_image=conf.classify_image,
+        temp_dir=conf.temp_dir,
     )
     logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command)
