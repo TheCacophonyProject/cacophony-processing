@@ -18,6 +18,9 @@ def analyse_image(recording, jwtKey, conf):
         r_id = recording["id"]
         input_filename = temp_path / (f"recording-{r_id}" + input_extension)
         logger.debug("downloading trail image to %s", input_filename)
+
+        # use file jwt as is smaller
+        jwtKey = api.get_rec(r_id)["downloadFileJWT"]
         api.download_file(jwtKey, str(input_filename))
         json_out = analyse(input_filename, conf, logger)
         detections = json_out["images"][0].get("detections", [])
