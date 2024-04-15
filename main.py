@@ -108,10 +108,17 @@ def main():
     processors = Processors()
     processors.add(
         "audio",
-        ["analyse", "reprocess"],
+        ["FINISHED"],
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
+    # processors.add(
+    #     "audio",
+    #     ["finished"],
+    #     audio_analysis.process,
+    #     conf.audio_analysis_workers,
+    # )
+
     if conf.ir_tracking_workers > 0:
         processors.add(
             "irRaw",
