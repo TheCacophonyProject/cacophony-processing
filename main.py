@@ -114,7 +114,7 @@ def main():
     )
     processors.add(
         "audio",
-        ["analyse"],
+        ["analyse", "reprocess"],
         audio_analysis.process,
         conf.audio_analysis_workers,
     )

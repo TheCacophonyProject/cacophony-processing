@@ -13,14 +13,14 @@ no_recordings_wait_secs : 30
 restart_after: 10
 
 trailcam:
-  trail_workers: 0
+  trail_workers: 1
   run_cmd: docker run --env CUDA_VISIBLE_DEVICES=0 --rm     --volume {folder}:/images --env IMG_FILE={basename} --env MD_FILE={outfile}   zaandahl/mewc-detect
 ir:
   tracking_workers: 0
   analyse_workers: 0
 thermal:
-    tracking_workers: 0
-    analyse_workers: 0
+    tracking_workers: 2
+    analyse_workers: 2
 
     #cache clips that have more than this amount of frames, null is never cache
     cache_clips_bigger_than: 2160
