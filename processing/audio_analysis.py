@@ -32,7 +32,7 @@ MAX_FRQUENCY = 48000 / 2
 
 
 
-def track_analys(recording, jwtKey, conf):
+def track_analyse(recording, jwtKey, conf):
     """Process the audio file.
 
     Downloads the file, runs the AI models & cacophony index algorithm,
@@ -71,13 +71,13 @@ def track_analys(recording, jwtKey, conf):
 
         api.download_file(jwtKey, str(input_filename))
 
-        track_info = api.get_track_info(recording["id"]).get("tracks")
-
-        recording["tracks"] = track_info
         filename = input_filename.with_suffix(".txt")
         with filename.open("w") as f:
             json.dump(recording, f)
-
+        test_file = Path("./test.json")
+        with test_file.open("w") as f:
+            json.dump(recording, f)
+        
         analysis = analyse(input_filename, conf,analyse_tracks=True)
         if analysis["species_identify"]:
             species_identify = analysis.pop("species_identify")
@@ -106,20 +106,15 @@ def track_analys(recording, jwtKey, conf):
                             api.add_track_tag(recording, analysis_result["track_id"], prediction, data)
                         data["name"] = prediction["model"]
                         api.add_track_tag(recording, analysis_result["track_id"], prediction, data)
-                # for t in recording["tracks"]:
-                    # if t["id"]== analysis_result["track_id"]]:
-                        # t["classify"]= False
-                        # api.update_track(recording, t)
+                for t in recording["Tracks"]:
+                    if t["id"]== analysis_result["track_id"]:
+                        t["classify"]= False
+                        api.classified_track(recording, t)
+                        break
 
-        new_metadata = {}
+    api.report_done(recording, metadata=new_metadata)
+    logger.info("Completed classifying for file: %s", recording["id"])
 
-def analyse(filename, conf,analyse_tracks=False):
-    command = conf.audio_analysis_cmd.format(
-        folder=filename.parent, basename=filename.name, tag=conf.audio_analysis_tag,analyse_tracks=analyse_tracks
-    )
-    with HandleCalledProcessError():
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.PIPE)
-    return json.loads(output.decode("utf-8"))
 
 
 def process(recording, jwtKey, conf):
@@ -236,9 +231,9 @@ def process(recording, jwtKey, conf):
     logger.info("Completed processing for file: %s", recording["id"])
 
 
-def analyse(filename, conf):
+def analyse(filename, conf,analyse_tracks=False):
     command = conf.audio_analysis_cmd.format(
-        folder=filename.parent, basename=filename.name, tag=conf.audio_analysis_tag
+        folder=filename.parent, basename=filename.name, tag=conf.audio_analysis_tag,analyse_tracks=analyse_tracks
     )
     with HandleCalledProcessError():
         output = subprocess.check_output(command, shell=True, stderr=subprocess.PIPE)

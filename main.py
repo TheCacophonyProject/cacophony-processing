@@ -109,15 +109,15 @@ def main():
     processors.add(
         "audio",
         ["FINISHED"],
+        audio_analysis.track_analyse,
+        conf.audio_analysis_workers,
+    )
+    processors.add(
+        "audio",
+        ["analyse"],
         audio_analysis.process,
         conf.audio_analysis_workers,
     )
-    # processors.add(
-    #     "audio",
-    #     ["finished"],
-    #     audio_analysis.process,
-    #     conf.audio_analysis_workers,
-    # )
 
     if conf.ir_tracking_workers > 0:
         processors.add(
