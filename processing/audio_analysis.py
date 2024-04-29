@@ -35,7 +35,7 @@ MAX_FRQUENCY = 48000 / 2
 def track_analyse(recording, jwtKey, conf):
     """Reprocess the audio file.
 
-    Downloads the file, runs the AI model on tracks marked for classification
+    Downloads the file, runs the AI model on tracks that don't have AI tags
 
     Args:
         recording: The recording to process.
