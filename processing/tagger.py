@@ -27,14 +27,11 @@ def calculate_tags(tracks, conf):
 
 
 def prediction_is_clear(prediction, conf):
-    if prediction[CONFIDENCE] < conf.min_tag_confidence:
-        prediction[MESSAGE] = "Low confidence - no tag"
+    if prediction.confidence < conf.min_tag_confidence:
+        prediction.message = "Low confidence - no tag"
         return False
-    if prediction[CLARITY] < conf.min_tag_clarity:
-        prediction[MESSAGE] = "Confusion between two classes (similar confidence)"
-        return False
-    if prediction.get("average_novelty", 0) > conf.max_tag_novelty:
-        prediction[MESSAGE] = "High novelty"
+    if prediction.clarity < conf.min_tag_clarity:
+        prediction.message = "Confusion between two classes (similar confidence)"
         return False
     return True
 
@@ -45,18 +42,18 @@ def get_significant_tracks(tracks, conf):
     tags = {}
 
     for track in tracks:
-        track[CONFIDENCE] = 0
+        track.confidence = 0
         has_clear_prediction = False
-        for prediction in track.get(PREDICTIONS, []):
-            if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
+        for prediction in track.predictions:
+            if conf.ignore_tags is not None and prediction.label in conf.ignore_tags:
                 continue
 
-            confidence = prediction.get(CONFIDENCE, 0)
-            track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
+            confidence = prediction.confidence
+            track.confidence = max(track.confidence, confidence)
             if prediction_is_clear(prediction, conf):
                 has_clear_prediction = True
-                tag = prediction[LABEL]
-                prediction[TAG] = tag
+                tag = prediction.label
+                prediction.tag = tag
                 if tag in tags:
                     tags[tag][CONFIDENCE] = max(tags[tag][CONFIDENCE], confidence)
                 else:
@@ -64,7 +61,7 @@ def get_significant_tracks(tracks, conf):
 
             else:
                 tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                prediction[TAG] = UNIDENTIFIED
+                prediction.tag = UNIDENTIFIED
 
         if has_clear_prediction:
             clear_tracks.append(track)

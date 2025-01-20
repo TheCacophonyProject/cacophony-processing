@@ -92,17 +92,21 @@ def track(conf, recording, api, duration, retrack, logger):
     tracking_info = run_command(command)
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
+    tracks = []
+    for t in tracking_info["tracks"]:
+        tracks.append(Track.load(t))
+
     tracking_result = ClassifyResult.load(
-        tracking_info, algorithm_id, tracking_info["tracks"]
+        tracking_info, algorithm_id, tracks
     )
     for track in tracking_result.tracks:
         if retrack:
-            if len(track["positions"]) == 0:
+            if len(track.positions) == 0:
                 api.archive_track(recording, track)
             else:
                 api.update_track(recording, track)
         else:
-            track["id"] = api.add_track(
+            track.id = api.add_track(
                 recording, track, tracking_result.tracking_algorithm
             )
     additionalMetadata = {"algorithm": tracking_result.tracking_algorithm}
@@ -160,9 +164,11 @@ def classify_file(api, file, conf, duration, logger):
     classify_info = run_command(command)
 
     format_track_data(classify_info["tracks"])
-
+    tracks = []
+    for t in classify_info["tracks"]:
+        tracks.append(Track.load(t))
     # Auto tag the video
-    filtered_tracks, tags = calculate_tags(classify_info["tracks"], conf)
+    filtered_tracks, tags = calculate_tags(tracks, conf)
 
     return ClassifyResult.load(
         classify_info, 0, filtered_tracks, tags.get(MULTIPLE, None)
@@ -221,6 +227,10 @@ def classify(conf, recording, api, logger):
         api, recording["filename"], conf, recording.get("duration", 0), logger
     )
 
+    # if conf.filter_false_positive:
+    #     for track in classify_result.tracks:
+    #         for pred in track.get("predictions",[])
+
     upload_tags(
         api,
         recording,
@@ -275,7 +285,7 @@ def upload_tags(api, recording, classify_result, wallaby_device, master_name, lo
     rat_thresh = rat_thresh.get("settings") if rat_thresh is not None else None
     for track in classify_result.tracks:
         model_predictions = []
-        for model_prediction in track.get("predictions", []):
+        for model_prediction in track.predictions:
             model = classify_result.models_by_id[model_prediction["model_id"]]
             added, tag = add_track_tag(
                 api,
@@ -294,18 +304,18 @@ def upload_tags(api, recording, classify_result, wallaby_device, master_name, lo
         )
         rat_thresh_version = None
         if master_prediction is None:
-            master_prediction = default_tag(track["id"])
+            master_prediction = default_tag(track.id)
 
         if (
             rat_thresh is not None
             and rat_thresh.get("ratThresh") is not None
-            and master_prediction.get("tag") == "rodent"
+            and master_prediction.tag == "rodent"
         ):
             rat = is_rat(track, rat_thresh["ratThresh"])
             if rat:
-                master_prediction["tag"] = "rat"
+                master_prediction.tag = "rat"
             else:
-                master_prediction["tag"] = "mouse"
+                master_prediction.tag = "mouse"
             rat_thresh_version = rat_thresh["ratThresh"]["version"]
         add_track_tag(
             api,
@@ -332,7 +342,7 @@ def is_rat(track, rat_thresh):
     track_dims = np.empty((rows, columns), dtype="O")
     rat_count = 0
     mouse_count = 0
-    for p in track["positions"]:
+    for p in track.positions:
         if p["blank"] or p["mass"] == 0:
             continue
 
@@ -353,14 +363,11 @@ def is_rat(track, rat_thresh):
 
 
 def default_tag(track_id):
-    prediction = {}
-    prediction[TAG] = UNIDENTIFIED
-    prediction[CONFIDENCE] = 0
-    return prediction
+   return Prediction(tag = UNIDENTIFIED)
 
 
 def use_tag(model, prediction, wallaby_device):
-    tag = prediction.get(TAG)
+    tag = prediction.tag
     if tag is None:
         return False
     elif tag in model.ignored_tags:
@@ -386,7 +393,7 @@ def get_master_tag(model_results, wallaby_device=False):
         if re_m.reclassify is None:
             valid_models.append((re_m, prediction))
             continue
-        sub_id = re_m.reclassify.get(prediction[TAG])
+        sub_id = re_m.reclassify.get(prediction.tag)
         if sub_id is not None:
             # use sub model instead of parent model
             valid_models.append(valid_results[sub_id])
@@ -398,15 +405,15 @@ def get_master_tag(model_results, wallaby_device=False):
     clear_tags = [
         (model, prediction)
         for model, prediction in valid_models
-        if prediction[TAG] != UNIDENTIFIED
-        and model_rank(prediction[TAG], model.tag_scores) is not None
+        if prediction.tag != UNIDENTIFIED
+        and model_rank(prediction.tag, model.tag_scores) is not None
     ]
     if len(clear_tags) == 0:
         return valid_models[0]
 
     ordered = sorted(
         clear_tags,
-        key=lambda model: model_rank(model[1][TAG], model[0].tag_scores),
+        key=lambda model: model_rank(model[1].tag, model[0].tag_scores),
         reverse=True,
     )
     return ordered[0]
@@ -428,41 +435,72 @@ def add_track_tag(
     model_used=None,
     rat_thresh_version=None,
 ):
-    if not track or TAG not in prediction:
+    if not track or prediction.tag is None:
         return False, None
 
     track_data = {"name": model_name}
     if model_used is not None:
         # specifically for master tag to see which model was chosen
         track_data["model_used"] = model_used
-    if "classify_time" in prediction:
-        track_data["classify_time"] = prediction["classify_time"]
-    track_data["clarity"] = prediction.get("clarity")
-    track_data["all_class_confidences"] = prediction.get("all_class_confidences")
-    predictions = prediction.get("predictions")
-    if predictions is not None:
-        track_data["predictions"] = predictions
-    prediction_frames = prediction.get("prediction_frames")
-    if prediction_frames is not None:
-        track_data["prediction_frames"] = prediction_frames
-    if prediction.get(MESSAGE) is not None:
-        track_data[MESSAGE] = prediction[MESSAGE]
-    if prediction.get(LABEL) is not None:
-        track_data["raw_tag"] = prediction[LABEL]
+    if  prediction.classify_time is not None:
+        track_data["classify_time"] = prediction.classify_time
+    track_data["clarity"] = prediction.clarity
+    track_data["all_class_confidences"] = prediction.all_class_confidence
+    if prediction.predictions is not None:
+        track_data["predictions"] = prediction.predictions
+    if prediction.prediction_frames is not None:
+        track_data["prediction_frames"] = prediction.prediction_frames
+    if prediction.message is not None:
+        track_data[MESSAGE] = prediction.message
+    if prediction.label is not None:
+        track_data["raw_tag"] = prediction.label
 
     if rat_thresh_version is not None:
         track_data["rat_thresh_version"] = rat_thresh_version
     logger.debug(
         "adding %s track tag %s for track %s",
         track_data["name"],
-        prediction.get(TAG),
-        track["id"],
+        prediction.tag,
+        track.id,
     )
 
-    api.add_track_tag(recording, track["id"], prediction, data=track_data)
+    api.add_track_tag(recording, track.id, prediction, data=track_data)
     return True, tag
 
 
+@attr.s
+class Track:
+    id = attr.ib()
+    predictions = attr.ib()
+    confidence=attr.ib()
+
+    positions = attr.ib()
+    @classmethod
+    def load(
+        cls, raw_track ):
+        preds = []
+        for p in raw_track.get("predictions"):
+            preds.appen(Prediction.load(p))
+
+        return cls(id = raw_track["id"],predictions = preds,positions = raw_track.get("positions"),confidence = 0)
+    
+@attr.s
+class Prediction:
+    tag = attr.ib()
+    message = attr.ib(default = None)
+    label = attr.ib(default = None)
+    clarity = attr.ib(default = 0)
+    all_class_confidences = attr.ib(default = None)
+    classify_time = attr.ib(default = 0)
+    prediction_frames=attr.ib(default = None)
+    predictions = attr.ib(default = None)
+    confidence=attr.ib(default=0)
+    model_id = attr.ib(default = None)
+    @classmethod
+    def load(cls, raw_pred ):
+        return cls(tag = raw_pred.get("tag"),message=raw_pred.get("message"),label = raw_pred.get("label"),
+            clarity = raw_pred.get("clarity"), all_class_confidences=raw_pred.get("all_class_confidences"),classify_time = raw_pred.get("classify_time"), prediction_frames = raw_pred.get("prediction_frames"),
+            confidence = raw_pred.get("confidence",0),predictions = raw_pred.get("predictions"),model_id = raw_pred.get("model_id"))
 @attr.s
 class ClassifyResult:
     tracking_algorithm = attr.ib()
@@ -476,6 +514,9 @@ class ClassifyResult:
     def load(
         cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals=False
     ):
+        # tracks = []
+        # for t in filtered_tracks:
+        #     tracks.append(Track.load(t))
         model = cls(
             thumbnail_region=classify_json.get("thumbnail_region"),
             tracking_algorithm=tracking_algorithm,
