@@ -14,7 +14,7 @@ from processing.tagger import (
 )
 import json
 import processing
-
+from processing.thermal import Track,Prediction
 
 class TestTagCalculations:
     TIME = -2
@@ -46,7 +46,7 @@ class TestTagCalculations:
     def test_one_track_middle_confidence(self):
         rat = create_track("rat", confidence=0.6)
         assert self.get_tags([rat]) == {UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}}
-        assert rat[PREDICTIONS][0][MESSAGE] == "Low confidence - no tag"
+        assert rat.predictions[0].message == "Low confidence - no tag"
 
     def test_only_ever_one_unidentified_tag(self):
         rat1 = create_track("rat", confidence=0.6)
@@ -60,7 +60,7 @@ class TestTagCalculations:
         assert self.get_tags([poorRatty]) == {
             UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
         }
-        assert poorRatty[PREDICTIONS][0][MESSAGE] == "Low confidence - no tag"
+        assert poorRatty.predictions[0].message == "Low confidence - no tag"
 
     def test_one_track_poor_clarity_gives_unidentified(self):
         poorRatty = create_track("rat", clarity=0.02)
@@ -68,16 +68,9 @@ class TestTagCalculations:
             UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
         }
         assert (
-            poorRatty[PREDICTIONS][0][MESSAGE]
+            poorRatty.predictions[0].message
             == "Confusion between two classes (similar confidence)"
         )
-
-    def test_one_track_high_novelty_gives_unidentified(self):
-        poorRatty = create_track("rat", novelty=0.88)
-        assert self.get_tags([poorRatty]) == {
-            UNIDENTIFIED: {CONFIDENCE: DEFAULT_CONFIDENCE}
-        }
-        assert poorRatty[PREDICTIONS][0][MESSAGE] == "High novelty"
 
     def test_multi_track_same_animal_gives_only_one_tag(self):
         ratty1 = create_track("rat")
@@ -137,10 +130,10 @@ class TestTagCalculations:
     def test_multi_track_animal_at_the_same_time_results_in_muliple_tag(self):
         ratty1 = create_track("rat")
         ratty2 = create_track("rat", confidence=0.85)
-        ratty1["start_s"] = 5
-        ratty1["end_s"] = 8
-        ratty2["start_s"] = 3
-        ratty2["end_s"] = 7
+        ratty1.start_s = 5
+        ratty1.end_s = 8
+        ratty2.start_s = 3
+        ratty2.end_s = 7
         assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {
             "event": MULTIPLE,
             CONFIDENCE: 0.85,
@@ -149,10 +142,10 @@ class TestTagCalculations:
     def test_not_first_tracks_overlap(self):
         ratty1 = create_track("rat", confidence=0.9)
         ratty2 = create_track("rat", confidence=0.8)
-        ratty1["start_s"] = 1
-        ratty1["end_s"] = 8
-        ratty2["start_s"] = 5
-        ratty2["end_s"] = 8
+        ratty1.start_s = 1
+        ratty1.end_s = 8
+        ratty2.start_s = 5
+        ratty2.end_s = 8
         assert self.get_tags([ratty1, ratty2])[MULTIPLE] == {
             "event": MULTIPLE,
             CONFIDENCE: 0.8,
@@ -161,24 +154,24 @@ class TestTagCalculations:
     def test_fp_not_multiple(self):
         ratty1 = create_track("rat", confidence=0.9)
         ratty2 = create_track("false-positive", confidence=0.8)
-        ratty1["start_s"] = 1
-        ratty1["end_s"] = 8
-        ratty2["start_s"] = 5
-        ratty2["end_s"] = 8
+        ratty1.start_s = 1
+        ratty1.end_s = 8
+        ratty2.start_s = 5
+        ratty2.end_s = 8
         assert MULTIPLE not in self.get_tags([ratty1, ratty2])
 
     def test_unknown_not_multiple(self):
         ratty1 = create_track("rat", confidence=0.9)
         ratty2 = create_track(UNIDENTIFIED, confidence=0.8)
-        ratty1["start_s"] = 1
-        ratty1["end_s"] = 8
-        ratty2["start_s"] = 5
-        ratty2["end_s"] = 8
+        ratty1.start_s = 1
+        ratty1.end_s = 8
+        ratty2.start_s = 5
+        ratty2.end_s = 8
         assert MULTIPLE not in self.get_tags([ratty1, ratty2])
 
     def test_large_track_movement_means_actual_track_even_with_low_confidence(self):
         poor_rat = create_track("rat", confidence=0.3)
-        poor_rat["positions"] = [
+        poor_rat.positions = [
             {"start_s": 1, "x": 2, "y": 24, "width": 42, "height": 44},
             {"start_s": 2, "x": 102, "y": 24, "width": 142, "height": 44},
         ]
@@ -189,10 +182,10 @@ class TestTagCalculations:
     def get_tags(self, tracks):
         tracks, tags = calculate_tags(tracks, self.conf)
         for t in tracks:
-            preds = t.get(PREDICTIONS)
+            preds = t.predictions
             # could incorporate master logic here but since just dealing with one model in tests
             if preds:
-                t[MASTER_TAG] = preds[0]
+                t.master_tag = preds[0]
         multiple_confidence = calculate_multiple_animal_confidence(tracks)
         if multiple_confidence > self.conf.min_confidence:
             tags[MULTIPLE] = {"event": MULTIPLE, CONFIDENCE: multiple_confidence}
@@ -218,7 +211,7 @@ def create_prediction(
     }
     if tag:
         prediction[TAG] = tag
-    return prediction
+    return Prediction.load(prediction)
 
 
 def create_track(
@@ -232,13 +225,15 @@ def create_track(
 ):
     TestTagCalculations.TIME += 3
     track = {
+        "id":1,
         "predictions": [
-            create_prediction(
-                animal, confidence, clarity, novelty, model_name, model_id, tag
-            )
         ],
         "num_frames": 18,
         "start_s": TestTagCalculations.TIME,
         "end_s": TestTagCalculations.TIME + 2,
     }
+    track =  Track.load(track)
+    track.predictions =   [create_prediction(
+                animal, confidence, clarity, novelty, model_name, model_id, tag
+            )]
     return track

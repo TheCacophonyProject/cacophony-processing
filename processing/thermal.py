@@ -327,7 +327,7 @@ def upload_tags(api, recording, classify_result, wallaby_device, master_name, lo
             model_used=master_model.name if master_model is not None else None,
             rat_thresh_version=rat_thresh_version,
         )
-        track[MASTER_TAG] = master_prediction
+        track.master_tag = master_prediction
 
 
 WIDTH = 160
@@ -472,17 +472,19 @@ def add_track_tag(
 class Track:
     id = attr.ib()
     predictions = attr.ib()
-    confidence=attr.ib()
-
     positions = attr.ib()
+    start_s = attr.ib()
+    end_s = attr.ib()
+    confidence=attr.ib(default=0)
+    master_tag = attr.ib(default =None)
     @classmethod
     def load(
         cls, raw_track ):
         preds = []
         for p in raw_track.get("predictions"):
-            preds.appen(Prediction.load(p))
+            preds.append(Prediction.load(p))
 
-        return cls(id = raw_track["id"],predictions = preds,positions = raw_track.get("positions"),confidence = 0)
+        return cls(id = raw_track["id"],predictions = preds,positions = raw_track.get("positions"),start_s = raw_track.get("start_s"),end_s=raw_track.get("end_s"))
     
 @attr.s
 class Prediction:
