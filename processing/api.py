@@ -231,9 +231,9 @@ class API:
             return r.json()["algorithmId"]
         raise IOError(r.text)
 
-    def archive_track(self, recording, track):
+    def archive_track(self, recording, track_id):
         url = self.file_url + "/{}/tracks/{}/archive".format(
-            recording["id"], track.id
+            recording["id"], track_id
         )
         r = self.post(url)
         if r.status_code == 200:
@@ -241,7 +241,7 @@ class API:
         raise IOError(r.text)
 
     def update_track(self, recording, track):
-        url = self.file_url + "/{}/tracks/{}".format(recording["id"], track.id)
+        url = self.file_url + "/{}/tracks/{}".format(recording["id"], track["id"])
         post_data = {"data": json.dumps(track)}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
