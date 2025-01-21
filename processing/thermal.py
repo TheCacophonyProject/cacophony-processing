@@ -600,7 +600,3 @@ def load_models(models_json):
         models[model.id] = model
     return models
 
-
-@property
-def tag(self):
-    return self.classification.get(Tagger.LABEL)
