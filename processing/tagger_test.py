@@ -14,7 +14,8 @@ from processing.tagger import (
 )
 import json
 import processing
-from processing.thermal import Track,Prediction
+from processing.thermal import Track, Prediction
+
 
 class TestTagCalculations:
     TIME = -2
@@ -225,15 +226,16 @@ def create_track(
 ):
     TestTagCalculations.TIME += 3
     track = {
-        "id":1,
-        "predictions": [
-        ],
+        "id": 1,
+        "predictions": [],
         "num_frames": 18,
         "start_s": TestTagCalculations.TIME,
         "end_s": TestTagCalculations.TIME + 2,
     }
-    track =  Track.load(track)
-    track.predictions =   [create_prediction(
-                animal, confidence, clarity, novelty, model_name, model_id, tag
-            )]
+    track = Track.load(track)
+    track.predictions = [
+        create_prediction(
+            animal, confidence, clarity, novelty, model_name, model_id, tag
+        )
+    ]
     return track

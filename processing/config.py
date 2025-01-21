@@ -58,7 +58,7 @@ configTuple = namedtuple(
         "do_retrack",
         "filter_false_positive",
         "false_positive_min_confidence",
-        "max_tracks"
+        "max_tracks",
     ],
 )
 
@@ -127,10 +127,11 @@ class Config(configTuple):
                 ir_tracking_workers=ir.get("tracking_workers", 0),
                 ir_analyse_workers=ir.get("analyse_workers", 0),
                 do_retrack=thermal.get("do_retrack", False),
-                filter_false_positive =thermal.get("filter_false_positive", True),
-                false_positive_min_confidence =thermal.get("false_positive_min_confidence",0.7),
-                max_tracks = thermal.get("max_tracks",10)
-
+                filter_false_positive=thermal.get("filter_false_positive", True),
+                false_positive_min_confidence=thermal.get(
+                    "false_positive_min_confidence", 0.7
+                ),
+                max_tracks=thermal.get("max_tracks", 10),
             )
 
 

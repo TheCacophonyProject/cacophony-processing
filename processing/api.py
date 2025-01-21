@@ -232,9 +232,7 @@ class API:
         raise IOError(r.text)
 
     def archive_track(self, recording, track_id):
-        url = self.file_url + "/{}/tracks/{}/archive".format(
-            recording["id"], track_id
-        )
+        url = self.file_url + "/{}/tracks/{}/archive".format(recording["id"], track_id)
         r = self.post(url)
         if r.status_code == 200:
             return

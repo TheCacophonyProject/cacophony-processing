@@ -16,6 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+
 import attr
 import json
 import subprocess
@@ -92,10 +93,9 @@ def track(conf, recording, api, duration, retrack, logger):
     tracking_info = run_command(command)
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
-    # tracks = []
-    # for t in tracking_info["tracks"]:
-    #     tracks.append(Track.load(t))
 
+    # keep tracks as json as this is used for adding a track
+    # at some point would be good to only s
     tracking_result = ClassifyResult.load(
         tracking_info, algorithm_id, tracking_info["tracks"]
     )
@@ -226,6 +226,7 @@ def fp_score(track):
         return -track.master_tag.confidence
     return 0
 
+
 def classify(conf, recording, api, logger):
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
     logger.debug("processing %s ", recording["filename"])
@@ -246,35 +247,43 @@ def classify(conf, recording, api, logger):
         good_tracks = []
         confidence = 100
         for track in classify_result.tracks:
-            fp_pred = next((pred for pred in track.predictions
-                if pred.label == "false-positive" and pred.confidence >= conf.false_positive_min_confidence),None )
+            fp_pred = next(
+                (
+                    pred
+                    for pred in track.predictions
+                    if pred.label == "false-positive"
+                    and pred.confidence >= conf.false_positive_min_confidence
+                ),
+                None,
+            )
             if fp_pred:
-                confidence = min(confidence,fp_pred.confidence)
-                api.archive_track(recording,track.id)
+                confidence = min(confidence, fp_pred.confidence)
+                api.archive_track(recording, track.id)
             else:
                 good_tracks.append(track)
-        if len(good_tracks)==0 and len(classify_result.tracks)>0 :
+        if len(good_tracks) == 0 and len(classify_result.tracks) > 0:
             api.tag_recording(
                 recording,
                 "all tracks filtered",
                 {"event": "all tracks filtered", CONFIDENCE: confidence},
             )
         classify_result.tracks = good_tracks
-        
+
     if len(classify_result.tracks) > conf.max_tracks:
         # sort by score
         ordered = sorted(
             classify_result.tracks,
-            key=lambda track: (fp_score(track)  ,track.score),reverse=True
+            key=lambda track: (fp_score(track), track.score),
+            reverse=True,
         )
         api.tag_recording(
             recording,
             "tracks limited",
             {"event": "tracks limited", "tracks": len(ordered)},
         )
-        for track in ordered[conf.max_tracks:]:
-            api.archive_track(recording,track.id)
-        classify_result.tracks = ordered[:conf.max_tracks]
+        for track in ordered[conf.max_tracks :]:
+            api.archive_track(recording, track.id)
+        classify_result.tracks = ordered[: conf.max_tracks]
 
     multiple_confidence = calculate_multiple_animal_confidence(classify_result.tracks)
     if multiple_confidence > conf.min_confidence:
@@ -399,7 +408,7 @@ def is_rat(track, rat_thresh):
 
 
 def default_tag(track_id):
-   return Prediction(tag = UNIDENTIFIED)
+    return Prediction(tag=UNIDENTIFIED)
 
 
 def use_tag(model, prediction, wallaby_device):
@@ -478,7 +487,7 @@ def add_track_tag(
     if model_used is not None:
         # specifically for master tag to see which model was chosen
         track_data["model_used"] = model_used
-    if  prediction.classify_time is not None:
+    if prediction.classify_time is not None:
         track_data["classify_time"] = prediction.classify_time
     track_data["clarity"] = prediction.clarity
     track_data["all_class_confidences"] = prediction.all_class_confidences
@@ -511,35 +520,55 @@ class Track:
     positions = attr.ib()
     start_s = attr.ib()
     end_s = attr.ib()
-    confidence=attr.ib(default=0)
-    master_tag = attr.ib(default =None)
-    score = attr.ib(default = 0)
+    confidence = attr.ib(default=0)
+    master_tag = attr.ib(default=None)
+    score = attr.ib(default=0)
+
     @classmethod
-    def load(
-        cls, raw_track ):
+    def load(cls, raw_track):
         preds = []
         for p in raw_track.get("predictions"):
             preds.append(Prediction.load(p))
 
-        return cls(id = raw_track["id"],predictions = preds,positions = raw_track.get("positions"),start_s = raw_track.get("start_s"),end_s=raw_track.get("end_s"),score = raw_track.get("tracking_score"))
-    
+        return cls(
+            id=raw_track["id"],
+            predictions=preds,
+            positions=raw_track.get("positions"),
+            start_s=raw_track.get("start_s"),
+            end_s=raw_track.get("end_s"),
+            score=raw_track.get("tracking_score"),
+        )
+
+
 @attr.s
 class Prediction:
     tag = attr.ib()
-    message = attr.ib(default = None)
-    label = attr.ib(default = None)
-    clarity = attr.ib(default = 0)
-    all_class_confidences = attr.ib(default = None)
-    classify_time = attr.ib(default = 0)
-    prediction_frames=attr.ib(default = None)
-    predictions = attr.ib(default = None)
-    confidence=attr.ib(default=0)
-    model_id = attr.ib(default = None)
+    message = attr.ib(default=None)
+    label = attr.ib(default=None)
+    clarity = attr.ib(default=0)
+    all_class_confidences = attr.ib(default=None)
+    classify_time = attr.ib(default=0)
+    prediction_frames = attr.ib(default=None)
+    predictions = attr.ib(default=None)
+    confidence = attr.ib(default=0)
+    model_id = attr.ib(default=None)
+
     @classmethod
-    def load(cls, raw_pred ):
-        return cls(tag = raw_pred.get("tag"),message=raw_pred.get("message"),label = raw_pred.get("label"),
-            clarity = raw_pred.get("clarity"), all_class_confidences=raw_pred.get("all_class_confidences"),classify_time = raw_pred.get("classify_time"), prediction_frames = raw_pred.get("prediction_frames"),
-            confidence = raw_pred.get("confidence",0),predictions = raw_pred.get("predictions"),model_id = raw_pred.get("model_id"))
+    def load(cls, raw_pred):
+        return cls(
+            tag=raw_pred.get("tag"),
+            message=raw_pred.get("message"),
+            label=raw_pred.get("label"),
+            clarity=raw_pred.get("clarity"),
+            all_class_confidences=raw_pred.get("all_class_confidences"),
+            classify_time=raw_pred.get("classify_time"),
+            prediction_frames=raw_pred.get("prediction_frames"),
+            confidence=raw_pred.get("confidence", 0),
+            predictions=raw_pred.get("predictions"),
+            model_id=raw_pred.get("model_id"),
+        )
+
+
 @attr.s
 class ClassifyResult:
     tracking_algorithm = attr.ib()
@@ -553,9 +582,6 @@ class ClassifyResult:
     def load(
         cls, classify_json, tracking_algorithm, filtered_tracks, multiple_animals=False
     ):
-        # tracks = []
-        # for t in filtered_tracks:
-        #     tracks.append(Track.load(t))
         model = cls(
             thumbnail_region=classify_json.get("thumbnail_region"),
             tracking_algorithm=tracking_algorithm,
