@@ -15,7 +15,8 @@ fi
 
 # Strip leading "v" (if present)
 version=${version/#v/}
-
+echo "Version is "
+echo $version
 src=`pwd`
 rm -rf build
 mkdir build
