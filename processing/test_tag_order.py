@@ -83,6 +83,9 @@ def test_config():
         do_retrack=False,
         ir_tracking_workers=0,
         ir_analyse_workers=0,
+        filter_false_positive=True,
+        false_positive_min_confidence=0.7,
+        max_tracks=10
     )
 
 
