@@ -1,5 +1,5 @@
 name: Processing Release
-run-name: Build classProcessingifier
+run-name: Build Processing
 on: [push]
 jobs:
   tests:
@@ -30,7 +30,9 @@ jobs:
      
 
       - name: Run tests
-        run: pytest -s
+        run: |
+            pip install pytest
+            pytest -s
 
   pex-build:
     name: Build distribution 📦
