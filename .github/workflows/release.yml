@@ -57,7 +57,7 @@ jobs:
         pip install -r requirements.txt
    
     - name: Install NFPM
-    - run: |
+      run: |
         echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
         sudo apt update
         sudo apt install nfpm
@@ -65,3 +65,9 @@ jobs:
     - name: Install pypa/build
       run: _release/build ${{ github.ref }}
 
+    - name: Upload release assets
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: 'build/*.deb'
+        allowUpdates: true
