@@ -510,7 +510,7 @@ def add_track_tag(
     )
 
     api.add_track_tag(recording, track.id, prediction, data=track_data)
-    return True, tag
+    return True, prediction.tag
 
 
 @attr.s
