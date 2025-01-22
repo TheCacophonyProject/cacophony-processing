@@ -279,7 +279,7 @@ def classify(conf, recording, api, logger):
         api.tag_recording(
             recording,
             "tracks limited",
-            {"event": "tracks limited", "tracks": len(ordered)},
+            {"event": "tracks limited",CONFIDENCE: 1},
         )
         for track in ordered[conf.max_tracks :]:
             api.archive_track(recording, track.id)
