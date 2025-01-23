@@ -250,11 +250,11 @@ def classify(conf, recording, api, logger):
             fp_pred = None
             # if one model says fp and one says animal use the master tag logic to decide which tag to use
             if (
-                track.master_tag == "false-positive"
+                track.master_tag.tag == "false-positive"
                 and track.master_tag.confidence >= conf.false_positive_min_confidence
             ):
                 fp_pred = track.master_tag
-            elif track.master_tag == UNIDENTIFIED:
+            elif track.master_tag.tag == UNIDENTIFIED:
                 # since we may have varying thresholds if master tag is unidentified this means low confidence
                 # so double check we have no other tags matching the criteria
                 fp_pred = next(
