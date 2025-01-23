@@ -247,15 +247,25 @@ def classify(conf, recording, api, logger):
         good_tracks = []
         confidence = 100
         for track in classify_result.tracks:
-            fp_pred = next(
-                (
-                    pred
-                    for pred in track.predictions
-                    if pred.label == "false-positive"
-                    and pred.confidence >= conf.false_positive_min_confidence
-                ),
-                None,
-            )
+            fp_pred = None
+            # if one model says fp and one says animal use the master tag logic to decide which tag to use
+            if (
+                track.master_tag == "false-positive"
+                and track.master_tag.confidence >= conf.false_positive_min_confidence
+            ):
+                fp_pred = track.master_tag
+            elif track.master_tag == UNIDENTIFIED:
+                # since we may have varying thresholds if master tag is unidentified this means low confidence
+                # so double check we have no other tags matching the criteria
+                fp_pred = next(
+                    (
+                        pred
+                        for pred in track.predictions
+                        if pred.label == "false-positive"
+                        and pred.confidence >= conf.false_positive_min_confidence
+                    ),
+                    None,
+                )
             if fp_pred:
                 confidence = min(confidence, fp_pred.confidence)
                 api.archive_track(recording, track.id)
