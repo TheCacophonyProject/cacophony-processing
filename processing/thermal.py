@@ -279,7 +279,7 @@ def classify(conf, recording, api, logger):
         api.tag_recording(
             recording,
             "tracks limited",
-            {"event": "tracks limited",CONFIDENCE: 1},
+            {"event": "tracks limited", CONFIDENCE: 1},
         )
         for track in ordered[conf.max_tracks :]:
             api.archive_track(recording, track.id)
@@ -599,4 +599,3 @@ def load_models(models_json):
         model = ModelConfig.load(model_json)
         models[model.id] = model
     return models
-
