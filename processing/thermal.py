@@ -90,7 +90,7 @@ def track(conf, recording, api, duration, retrack, logger):
         temp_dir=conf.temp_dir,
     )
     logger.info("tracking %s", recording["filename"])
-    tracking_info = run_command(command,logger)
+    tracking_info = run_command(command,logger,recording["filename"])
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
 
@@ -161,7 +161,7 @@ def classify_file(api, file, conf, duration, logger):
         temp_dir=conf.temp_dir,
     )
     logger.info("Classifying %s with command %s", file, command)
-    classify_info = run_command(command,logger)
+    classify_info = run_command(command,logger,file)
 
     format_track_data(classify_info["tracks"])
     tracks = []
@@ -188,7 +188,7 @@ def read_all(socket):
     return data
 
 
-def run_command(command,logger):
+def run_command(command,logger,filename):
     with HandleCalledProcessError():
         proc = subprocess.Popen(
             command,
@@ -202,11 +202,14 @@ def run_command(command,logger):
         for stdout_line in iter(proc.stderr.readline, ""):
             logger.info("stderr %s",stdout_line)
         # removes any prints that shouldn't be there
-        output = proc.stdout.read()
-        sub_start = output.index("{")
-        sub_end = output.rindex("}")
-        output = output[sub_start : sub_end + 1]
-        classify_info = json.loads(output)
+        meta_f=Path(filename).with_suffix(".txt")
+        with meta_f.open("r") as f:
+            classify_info = json.load(f)
+        # output = proc.stdout.read()
+        # sub_start = output.index("{")
+        # sub_end = output.rindex("}")
+        # output = output[sub_start : sub_end + 1]
+        # classify_info = json.loads(output)
     except json.decoder.JSONDecodeError as err:
         raise ValueError(
             "failed to JSON decode classifier output:\n{}".format(proc.stdout)
