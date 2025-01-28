@@ -86,6 +86,8 @@ def test_config():
         filter_false_positive=True,
         false_positive_min_confidence=0.7,
         max_tracks=10,
+        no_job_sleep_seconds=30,
+        subprocess_timeout=1200,
     )
 
 

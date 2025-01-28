@@ -90,7 +90,9 @@ def track(conf, recording, api, duration, retrack, logger):
         temp_dir=conf.temp_dir,
     )
     logger.info("tracking %s", recording["filename"])
-    tracking_info = run_command(command,logger,recording["filename"])
+    tracking_info = run_command(
+        command, logger, recording["filename"], conf.subprocess_timeout
+    )
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
 
@@ -161,7 +163,7 @@ def classify_file(api, file, conf, duration, logger):
         temp_dir=conf.temp_dir,
     )
     logger.info("Classifying %s with command %s", file, command)
-    classify_info = run_command(command,logger,file)
+    classify_info = run_command(command, logger, file, conf.subprocess_timeout)
 
     format_track_data(classify_info["tracks"])
     tracks = []
@@ -188,22 +190,19 @@ def read_all(socket):
     return data
 
 
-def run_command(command,logger,filename):
+def run_command(command, logger, filename, timeout=None):
     with HandleCalledProcessError():
-        proc = subprocess.Popen(
+        proc = subprocess.run(
             command,
             shell=True,
             encoding="ascii",
-            # check=True,
+            check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            timeout=timeout,
         )
     try:
-        # Using to debug issues
-        # for stdout_line in iter(proc.stderr.readline, ""):
-        #     logger.info("stderr %s",stdout_line)
-        # removes any prints that shouldn't be there
-        meta_f=Path(filename).with_suffix(".txt")
+        meta_f = Path(filename).with_suffix(".txt")
         with meta_f.open("r") as f:
             classify_info = json.load(f)
     except json.decoder.JSONDecodeError as err:

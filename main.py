@@ -111,12 +111,14 @@ def main():
         ["FINISHED"],
         audio_analysis.track_analyse,
         conf.audio_analysis_workers,
+        conf.no_job_sleep_seconds,
     )
     processors.add(
         "audio",
         ["analyse", "reprocess"],
         audio_analysis.process,
         conf.audio_analysis_workers,
+        conf.no_job_sleep_seconds,
     )
 
     if conf.ir_tracking_workers > 0:
@@ -125,33 +127,44 @@ def main():
             ["tracking", "retrack"],
             thermal.tracking_job,
             conf.ir_tracking_workers,
+            conf.no_job_sleep_seconds,
         )
     tracking_states = ["tracking"]
 
     # just for if api isn't updated to use retrack state
     if conf.do_retrack:
         tracking_states.append("retrack")
+
+    pre_jobs = {}
+
     if conf.ir_analyse_workers > 0:
         processors.add(
             "irRaw",
             ["analyse", "reprocess"],
             thermal.classify_job,
             conf.ir_analyse_workers,
+            conf.no_job_sleep_seconds,
         )
+    thermal_tracking = None
     if conf.thermal_tracking_workers > 0:
         processors.add(
             "thermalRaw",
             tracking_states,
             thermal.tracking_job,
             conf.thermal_tracking_workers,
+            conf.no_job_sleep_seconds,
         )
+        thermal_tracking = processors[-1]
     if conf.thermal_analyse_workers > 0:
         processors.add(
             "thermalRaw",
             ["analyse", "reprocess"],
             thermal.classify_job,
             conf.thermal_analyse_workers,
+            conf.no_job_sleep_seconds,
         )
+        if thermal_tracking is not None:
+            pre_jobs[processors[-1].id] = thermal_tracking
 
     if conf.trail_workers > 0:
         processors.add(
@@ -159,11 +172,26 @@ def main():
             ["analyse"],
             trail_analysis.analyse_image,
             conf.trail_workers,
+            conf.no_job_sleep_seconds,
         )
     logger.info("checking for recordings")
+
     while True:
         try:
             for processor in processors:
+                pre_job = pre_jobs.get(processor.id)
+                if pre_job is not None:
+                    if (
+                        processor.last_poll is not None
+                        and pre_job.last_success is not None
+                        and pre_job.last_success > processor.last_poll
+                    ):
+                        logger.info(
+                            "Forcing poll as a previous job finished %s %s",
+                            processor.recording_type,
+                            processor.processing_states,
+                        )
+                        processor.force_poll()
                 processor.poll()
         except requests.exceptions.RequestException as e:
             logger.error(
@@ -176,11 +204,8 @@ def main():
         procesing_ids = []
         [procesing_ids.extend(processor.in_progress.keys()) for processor in processors]
 
-        # To avoid hitting the server repetitively wait longer if nothing to process
-        if any(processor.has_work() for processor in processors):
-            logger.info("Processing %s , short sleep", procesing_ids)
-            time.sleep(SLEEP_SECS)
-        elif all(processor.has_no_work() for processor in processors):
+        done_sleep = False
+        if all(processor.has_no_work() for processor in processors):
             if (
                 conf.restart_after is not None
                 and (time.time() - start_time) > conf.restart_after
@@ -191,16 +216,37 @@ def main():
                 )
                 time.sleep(1)
                 return
-            logger.info("Nothing to process - extending wait time")
-            time.sleep(conf.no_recordings_wait_secs)
+
+            if all(not processor.should_poll() for processor in processors):
+                logger.info("Nothing to process - extending wait time")
+                time.sleep(conf.no_recordings_wait_secs)
+                done_sleep = True
+        if not done_sleep:
+            time.sleep(SLEEP_SECS)
 
 
 class Processors(list):
-    def add(self, recording_type, processing_states, process_func, num_workers):
+    def add(
+        self,
+        recording_type,
+        processing_states,
+        process_func,
+        num_workers,
+        no_job_sleep_seconds,
+    ):
         if num_workers < 1:
             return
-        p = Processor(recording_type, processing_states, process_func, num_workers)
+        p = Processor(
+            recording_type,
+            processing_states,
+            process_func,
+            num_workers,
+            no_job_sleep_seconds,
+        )
         self.append(p)
+
+
+PROCESS_ID = 1
 
 
 class Processor:
@@ -208,15 +254,30 @@ class Processor:
     api = None
     log_q = None
 
-    def __init__(self, recording_type, processing_states, process_func, num_workers):
+    def __init__(
+        self,
+        recording_type,
+        processing_states,
+        process_func,
+        num_workers,
+        no_job_sleep_seconds,
+    ):
+        global PROCESS_ID
+        self.id = PROCESS_ID
+        PROCESS_ID += 1
         self.recording_type = recording_type
         self.processing_states = processing_states
         self.process_func = process_func
         self.num_workers = num_workers
+        self.no_job_sleep_seconds = no_job_sleep_seconds
         self.pool = ProcessPool(
             num_workers, initializer=logs.init_worker, initargs=(self.log_q,)
         )
         self.in_progress = {}
+
+        self.last_poll = None
+        self.last_poll_success = None
+        self.last_success = None
 
     def full(self):
         return len(self.in_progress) >= self.num_workers
@@ -227,13 +288,32 @@ class Processor:
     def has_work(self):
         return len(self.in_progress) > 0
 
+    def should_poll(self):
+        return not self.full() and (
+            self.last_poll_success
+            or self.last_poll is None
+            or (time.time() - self.last_poll) > self.no_job_sleep_seconds
+        )
+
+    # running for a few minutes on full jobs
+    # both finish should we poll???
+    # success
+    # not full
+    # last poll false
+
+    def force_poll(self):
+        self.last_poll_success = True
+
     def poll(self):
         self.reap_completed()
-        if self.full():
+        if not self.should_poll():
             return True
         working = False
+        self.last_poll_success = False
         for state in self.processing_states:
             response = self.api.next_job(self.recording_type, state)
+            self.last_poll = time.time()
+            self.last_poll_success = self.last_poll_success or response is not None
             if not response:
                 continue
             recording = response["recording"]
@@ -282,8 +362,10 @@ class Processor:
                 if err is None:
                     try:
                         err = future.exception(timeout=0)
+                        self.last_success = time.time()
                     except:
                         pass
+
                 if future.cancelled():
                     logger.info("Job %s was cancelled", recording_id)
                 if err:

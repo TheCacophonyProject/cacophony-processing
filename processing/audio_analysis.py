@@ -236,6 +236,7 @@ def analyse(filename, conf, analyse_tracks=False):
         tag=conf.audio_analysis_tag,
         analyse_tracks=analyse_tracks,
     )
+    # Should change this to read from a file
     with HandleCalledProcessError():
         output = subprocess.check_output(command, shell=True, stderr=subprocess.PIPE)
     return json.loads(output.decode("utf-8"))
