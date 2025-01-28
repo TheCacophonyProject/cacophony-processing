@@ -199,17 +199,13 @@ def run_command(command,logger,filename):
             stderr=subprocess.PIPE,
         )
     try:
-        for stdout_line in iter(proc.stderr.readline, ""):
-            logger.info("stderr %s",stdout_line)
+        # Using to debug issues
+        # for stdout_line in iter(proc.stderr.readline, ""):
+        #     logger.info("stderr %s",stdout_line)
         # removes any prints that shouldn't be there
         meta_f=Path(filename).with_suffix(".txt")
         with meta_f.open("r") as f:
             classify_info = json.load(f)
-        # output = proc.stdout.read()
-        # sub_start = output.index("{")
-        # sub_end = output.rindex("}")
-        # output = output[sub_start : sub_end + 1]
-        # classify_info = json.loads(output)
     except json.decoder.JSONDecodeError as err:
         raise ValueError(
             "failed to JSON decode classifier output:\n{}".format(proc.stdout)

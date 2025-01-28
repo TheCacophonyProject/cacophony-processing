@@ -26,8 +26,8 @@ thermal:
     cache_clips_bigger_than: 2160
 
     classify_image: "cacophonyproject/classifier:latest"
-    classify_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 classify.py -o {source} --cache {cache}"
-    track_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 extract.py -o {source} --cache {cache}"
+    classify_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 classify.py {source} --cache {cache}"
+    track_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 extract.py {source} --cache {cache}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
     master_tag: "Master"
