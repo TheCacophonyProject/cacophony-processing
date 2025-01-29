@@ -187,7 +187,7 @@ def main():
                         and pre_job.last_success > processor.last_poll
                     ):
                         logger.info(
-                            "Forcing poll as a previous job finished %s %s",
+                            "Forcing poll as a prerequisite state finished %s %s",
                             processor.recording_type,
                             processor.processing_states,
                         )
