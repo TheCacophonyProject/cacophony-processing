@@ -7,7 +7,7 @@ api_user: test-user
 api_password: test-password
 temp_dir: /tmp/cacophony
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
-# no_recordings_wait_secs : 30
+no_recordings_wait_secs : 30
 
 # restart after x hours
 restart_after: 10

@@ -295,12 +295,6 @@ class Processor:
             or (time.time() - self.last_poll) > self.no_job_sleep_seconds
         )
 
-    # running for a few minutes on full jobs
-    # both finish should we poll???
-    # success
-    # not full
-    # last poll false
-
     def force_poll(self):
         self.last_poll_success = True
 
