@@ -26,7 +26,7 @@ from urllib.parse import urljoin
 import hashlib
 import jwt
 import time
-
+from pathlib import Path
 from datetime import datetime
 
 DL_TIMEOUT = 60 * 5
@@ -231,10 +231,8 @@ class API:
             return r.json()["algorithmId"]
         raise IOError(r.text)
 
-    def archive_track(self, recording, track):
-        url = self.file_url + "/{}/tracks/{}/archive".format(
-            recording["id"], track["id"]
-        )
+    def archive_track(self, recording, track_id):
+        url = self.file_url + "/{}/tracks/{}/archive".format(recording["id"], track_id)
         r = self.post(url)
         if r.status_code == 200:
             return
@@ -260,8 +258,8 @@ class API:
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
 
         post_data = {
-            "what": prediction["tag"],
-            "confidence": prediction["confidence"],
+            "what": prediction.tag,
+            "confidence": prediction.confidence,
             "data": json.dumps(data),
         }
         r = self.post(url, data=post_data)

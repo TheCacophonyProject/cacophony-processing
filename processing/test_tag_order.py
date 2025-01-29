@@ -83,6 +83,9 @@ def test_config():
         do_retrack=False,
         ir_tracking_workers=0,
         ir_analyse_workers=0,
+        filter_false_positive=True,
+        false_positive_min_confidence=0.7,
+        max_tracks=10,
     )
 
 
@@ -129,24 +132,24 @@ def test_model_heirechy_wallabies():
         results, wallaby_device=True
     )
     assert master_model.name == "wallaby-old"
-    assert master_prediction["tag"] == "wallaby"
+    assert master_prediction.tag == "wallaby"
 
     # new wallaby tag is chosen over old
-    wallaby_result[1]["tag"] = "wallaby"
+    wallaby_result[1].tag = "wallaby"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=True
     )
     assert master_model.name == "wallaby"
-    assert master_prediction["tag"] == "wallaby"
+    assert master_prediction.tag == "wallaby"
 
-    wallaby_result[1]["tag"] = "bird"
-    wallaby_old_result[1]["tag"] = "possum"
+    wallaby_result[1].tag = "bird"
+    wallaby_old_result[1].tag = "possum"
 
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=True
     )
     assert master_model.name == "resnet"
-    assert master_prediction["tag"] == "wallaby"
+    assert master_prediction.tag == "wallaby"
 
 
 def test_model_heirechy():
@@ -186,64 +189,64 @@ def test_model_heirechy():
         results, wallaby_device=False
     )
     assert master_model.name == "original"
-    assert master_prediction["tag"] == "bird"
+    assert master_prediction.tag == "bird"
 
     # if the original model isn't a bird, resnet is the next best
-    original_result[1]["tag"] = "cat"
+    original_result[1].tag = "cat"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
     assert master_model.name == "resnet"
-    assert master_prediction["tag"] == "possum"
+    assert master_prediction.tag == "possum"
 
     # if resent doens't know, use retrained
-    resnet_result[1]["tag"] = None
+    resnet_result[1].tag = None
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
     assert master_model.name == "retrained"
-    assert master_prediction["tag"] == "cat"
+    assert master_prediction.tag == "cat"
 
     # if resent is unidentified use retrained
-    resnet_result[1]["tag"] = "unidentified"
+    resnet_result[1].tag = "unidentified"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
     assert master_model.name == "retrained"
-    assert master_prediction["tag"] == "cat"
+    assert master_prediction.tag == "cat"
 
     # if all models are unidentified use unidentified
-    retrained_result[1]["tag"] = "unidentified"
-    original_result[1]["tag"] = "unidentified"
+    retrained_result[1].tag = "unidentified"
+    original_result[1].tag = "unidentified"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
-    assert master_prediction["tag"] == "unidentified"
+    assert master_prediction.tag == "unidentified"
 
     # if none make a tag then no tag is used
-    retrained_result[1]["tag"] = None
-    original_result[1]["tag"] = None
-    resnet_result[1]["tag"] = None
+    retrained_result[1].tag = None
+    original_result[1].tag = None
+    resnet_result[1].tag = None
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
     assert master_prediction is None
 
-    original_result[1]["tag"] = "unidentified"
+    original_result[1].tag = "unidentified"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
-    assert master_prediction["tag"] == "unidentified"
+    assert master_prediction.tag == "unidentified"
 
     # original model should ignore mustelid
-    original_result[1]["tag"] = "mustelid"
+    original_result[1].tag = "mustelid"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
     assert master_prediction is None
 
-    original_result[1]["tag"] = "cat"
+    original_result[1].tag = "cat"
     master_model, master_prediction = thermal.get_master_tag(
         results, wallaby_device=False
     )
-    assert master_prediction["tag"] == "cat"
+    assert master_prediction.tag == "cat"

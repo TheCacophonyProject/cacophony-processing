@@ -27,14 +27,11 @@ def calculate_tags(tracks, conf):
 
 
 def prediction_is_clear(prediction, conf):
-    if prediction[CONFIDENCE] < conf.min_tag_confidence:
-        prediction[MESSAGE] = "Low confidence - no tag"
+    if prediction.confidence < conf.min_tag_confidence:
+        prediction.message = "Low confidence - no tag"
         return False
-    if prediction[CLARITY] < conf.min_tag_clarity:
-        prediction[MESSAGE] = "Confusion between two classes (similar confidence)"
-        return False
-    if prediction.get("average_novelty", 0) > conf.max_tag_novelty:
-        prediction[MESSAGE] = "High novelty"
+    if prediction.clarity < conf.min_tag_clarity:
+        prediction.message = "Confusion between two classes (similar confidence)"
         return False
     return True
 
@@ -45,18 +42,18 @@ def get_significant_tracks(tracks, conf):
     tags = {}
 
     for track in tracks:
-        track[CONFIDENCE] = 0
+        track.confidence = 0
         has_clear_prediction = False
-        for prediction in track.get(PREDICTIONS, []):
-            if conf.ignore_tags is not None and prediction[LABEL] in conf.ignore_tags:
+        for prediction in track.predictions:
+            if conf.ignore_tags is not None and prediction.label in conf.ignore_tags:
                 continue
 
-            confidence = prediction.get(CONFIDENCE, 0)
-            track[CONFIDENCE] = max(track.get(CONFIDENCE, 0), confidence)
+            confidence = prediction.confidence
+            track.confidence = max(track.confidence, confidence)
             if prediction_is_clear(prediction, conf):
                 has_clear_prediction = True
-                tag = prediction[LABEL]
-                prediction[TAG] = tag
+                tag = prediction.label
+                prediction.tag = tag
                 if tag in tags:
                     tags[tag][CONFIDENCE] = max(tags[tag][CONFIDENCE], confidence)
                 else:
@@ -64,7 +61,7 @@ def get_significant_tracks(tracks, conf):
 
             else:
                 tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                prediction[TAG] = UNIDENTIFIED
+                prediction.tag = UNIDENTIFIED
 
         if has_clear_prediction:
             clear_tracks.append(track)
@@ -74,7 +71,7 @@ def get_significant_tracks(tracks, conf):
 
 
 def by_start_time(elem):
-    return elem["start_s"]
+    return elem.start_s
 
 
 def calculate_multiple_animal_confidence(all_tracks):
@@ -82,19 +79,19 @@ def calculate_multiple_animal_confidence(all_tracks):
     confidence = 0
     animal_tracks = []
     for t in all_tracks:
-        tag = t.get(MASTER_TAG)
+        tag = t.master_tag
         if tag is None:
             continue
-        tag = tag.get(TAG)
+        tag = tag.tag
         if tag is not None and tag not in [FALSE_POSITIVE, UNIDENTIFIED]:
             animal_tracks.append(t)
     animal_tracks.sort(key=by_start_time)
 
     for i in range(0, len(animal_tracks) - 1):
         for j in range(i + 1, len(animal_tracks)):
-            if animal_tracks[j]["start_s"] + 1 < animal_tracks[i]["end_s"]:
+            if animal_tracks[j].start_s + 1 < animal_tracks[i].end_s:
                 this_conf = min(
-                    animal_tracks[i][CONFIDENCE], animal_tracks[j][CONFIDENCE]
+                    animal_tracks[i].confidence, animal_tracks[j].confidence
                 )
                 confidence = max(confidence, this_conf)
     return confidence

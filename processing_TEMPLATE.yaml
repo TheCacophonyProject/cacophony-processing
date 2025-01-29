@@ -33,6 +33,10 @@ thermal:
     master_tag: "Master"
     wallaby_devices: []
 
+    false_positive_min_confidence: 0.7
+    filter_false_positive: true
+    max_tracks: 10
+
     tagging:
       ignore_tags: ["not"]
 

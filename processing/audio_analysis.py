@@ -27,9 +27,9 @@ from . import API
 from . import logs
 from .processutils import HandleCalledProcessError
 from .tagger import UNIDENTIFIED
+from .thermal import Prediction
 
 MAX_FRQUENCY = 48000 / 2
-
 
 
 def track_analyse(recording, jwtKey, conf):
@@ -70,14 +70,17 @@ def track_analyse(recording, jwtKey, conf):
 
         api.download_file(jwtKey, str(input_filename))
         track_info = api.get_track_info(recording["id"]).get("tracks")
-        track_info = [ t for t in track_info if not any(tag for tag in t["tags"] if tag["automatic"])]
+        track_info = [
+            t
+            for t in track_info
+            if not any(tag for tag in t["tags"] if tag["automatic"])
+        ]
         recording["Tracks"] = track_info
         filename = input_filename.with_suffix(".txt")
         with filename.open("w") as f:
             json.dump(recording, f)
-            
-        
-        analysis = analyse(input_filename, conf,analyse_tracks=True)
+
+        analysis = analyse(input_filename, conf, analyse_tracks=True)
         if analysis["species_identify"]:
             species_identify = analysis.pop("species_identify")
             for analysis_result in species_identify:
@@ -94,21 +97,23 @@ def track_analyse(recording, jwtKey, conf):
                         confidences = [prediction["raw_confidence"]]
 
                     for confidence, s in zip(confidences, species):
-                        prediction["confidence"] = confidence
-                        prediction["tag"] = s
+                        pred = Prediction(confidence=confidence, tag=s)
                         data = {"name": "Master"}
                         if raw_tag is not None:
                             data["raw_tag"] = raw_tag
 
                         if i == 0:
                             # just add master tag for first prediction
-                            api.add_track_tag(recording, analysis_result["track_id"], prediction, data)
+                            api.add_track_tag(
+                                recording, analysis_result["track_id"], pred, data
+                            )
                         data["name"] = prediction["model"]
-                        api.add_track_tag(recording, analysis_result["track_id"], prediction, data)
+                        api.add_track_tag(
+                            recording, analysis_result["track_id"], pred, data
+                        )
 
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
-
 
 
 def process(recording, jwtKey, conf):
@@ -202,17 +207,16 @@ def process(recording, jwtKey, conf):
                         confidences = [prediction["raw_confidence"]]
 
                     for confidence, s in zip(confidences, species):
-                        prediction["confidence"] = confidence
-                        prediction["tag"] = s
+                        pred = Prediction(confidence=confidence, tag=s)
                         data = {"name": "Master"}
                         if raw_tag is not None:
                             data["raw_tag"] = raw_tag
 
                         if i == 0:
                             # just add master tag for first prediction
-                            api.add_track_tag(recording, id, prediction, data)
+                            api.add_track_tag(recording, id, pred, data)
                         data["name"] = prediction["model"]
-                        api.add_track_tag(recording, id, prediction, data)
+                        api.add_track_tag(recording, id, pred, data)
 
         if analysis["cacophony_index"]:
             cacophony_index = analysis.pop("cacophony_index")
@@ -225,9 +229,12 @@ def process(recording, jwtKey, conf):
     logger.info("Completed processing for file: %s", recording["id"])
 
 
-def analyse(filename, conf,analyse_tracks=False):
+def analyse(filename, conf, analyse_tracks=False):
     command = conf.audio_analysis_cmd.format(
-        folder=filename.parent, basename=filename.name, tag=conf.audio_analysis_tag,analyse_tracks=analyse_tracks
+        folder=filename.parent,
+        basename=filename.name,
+        tag=conf.audio_analysis_tag,
+        analyse_tracks=analyse_tracks,
     )
     with HandleCalledProcessError():
         output = subprocess.check_output(command, shell=True, stderr=subprocess.PIPE)
