@@ -160,7 +160,7 @@ def process(recording, jwtKey, conf):
         analysis = metadata.get("analysis_result")
         duration = analysis.get("duration")
         if duration is not None:
-            new_metadata["duration"] =duration
+            new_metadata["duration"] = duration
         else:
             duration = metadata.get("duration")
         if analysis["species_identify"]:
@@ -242,8 +242,11 @@ def analyse(filename, conf, analyse_tracks=False):
         tag=conf.audio_analysis_tag,
         analyse_tracks=analyse_tracks,
     )
+    # Should change this to read from a file
     with HandleCalledProcessError():
-        subprocess.run(command, shell=True, stderr=subprocess.PIPE,timeout=conf.subprocess_timeout)
+        subprocess.run(
+            command, shell=True, stderr=subprocess.PIPE, timeout=conf.subprocess_timeout
+        )
     meta_f = Path(filename).with_suffix(".txt")
     with meta_f.open("r") as f:
         classify_info = json.load(f)
