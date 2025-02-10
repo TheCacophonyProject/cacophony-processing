@@ -80,7 +80,8 @@ def track_analyse(recording, jwtKey, conf):
         with filename.open("w") as f:
             json.dump(recording, f)
 
-        analysis = analyse(input_filename, conf, analyse_tracks=True)
+        metadata = analyse(input_filename, conf, analyse_tracks=True)
+        analysis = metadata.get("analysis_result")
         if analysis["species_identify"]:
             species_identify = analysis.pop("species_identify")
             for analysis_result in species_identify:
