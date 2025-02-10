@@ -90,9 +90,7 @@ def track(conf, recording, api, duration, retrack, logger):
         temp_dir=conf.temp_dir,
     )
     logger.info("tracking %s", recording["filename"])
-    tracking_info = run_command(
-        command, logger, recording["filename"], conf.subprocess_timeout
-    )
+    tracking_info = run_command(command, recording["filename"], conf.subprocess_timeout)
     format_track_data(tracking_info["tracks"])
     algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
 
@@ -163,7 +161,7 @@ def classify_file(api, file, conf, duration, logger):
         temp_dir=conf.temp_dir,
     )
     logger.info("Classifying %s with command %s", file, command)
-    classify_info = run_command(command, logger, file, conf.subprocess_timeout)
+    classify_info = run_command(command, file, conf.subprocess_timeout)
 
     format_track_data(classify_info["tracks"])
     tracks = []
@@ -190,7 +188,7 @@ def read_all(socket):
     return data
 
 
-def run_command(command, logger, filename, timeout=None):
+def run_command(command, filename, timeout=None):
     with HandleCalledProcessError():
         proc = subprocess.run(
             command,
