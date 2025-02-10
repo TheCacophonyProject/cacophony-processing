@@ -59,6 +59,8 @@ configTuple = namedtuple(
         "filter_false_positive",
         "false_positive_min_confidence",
         "max_tracks",
+        "no_job_sleep_seconds",
+        "subprocess_timeout",
     ],
 )
 
@@ -132,6 +134,8 @@ class Config(configTuple):
                     "false_positive_min_confidence", 0.7
                 ),
                 max_tracks=thermal.get("max_tracks", 10),
+                no_job_sleep_seconds=y.get("no_job_sleep_seconds", 30),
+                subprocess_timeout=y.get("subprocess_timeout", 60 * 20),
             )
 
 
