@@ -80,7 +80,8 @@ def track_analyse(recording, jwtKey, conf):
         with filename.open("w") as f:
             json.dump(recording, f)
 
-        analysis = analyse(input_filename, conf, analyse_tracks=True)
+        metadata = analyse(input_filename, conf, analyse_tracks=True)
+        analysis = metadata.get("analysis_result")
         if analysis["species_identify"]:
             species_identify = analysis.pop("species_identify")
             for analysis_result in species_identify:
@@ -154,17 +155,22 @@ def process(recording, jwtKey, conf):
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
         api.download_file(jwtKey, str(input_filename))
-        analysis = analyse(input_filename, conf)
+        metadata = analyse(input_filename, conf)
         new_metadata = {}
-
+        analysis = metadata.get("analysis_result")
+        duration = analysis.get("duration")
+        if duration is not None:
+            new_metadata["duration"] = duration
+        else:
+            duration = metadata.get("duration")
         if analysis["species_identify"]:
             species_identify = analysis.pop("species_identify")
             for analysis_result in species_identify:
                 model_name = analysis_result.get("model", "Unnamed")
                 start_s = analysis_result["begin_s"]
                 end_s = analysis_result["end_s"]
-                x = start_s / recording["duration"]
-                width = end_s / recording["duration"] - x
+                x = start_s / duration
+                width = end_s / duration - x
                 y = 0
                 height = 1
                 position = {}
@@ -238,5 +244,10 @@ def analyse(filename, conf, analyse_tracks=False):
     )
     # Should change this to read from a file
     with HandleCalledProcessError():
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.PIPE)
-    return json.loads(output.decode("utf-8"))
+        subprocess.run(
+            command, shell=True, stderr=subprocess.PIPE, timeout=conf.subprocess_timeout
+        )
+    meta_f = Path(filename).with_suffix(".txt")
+    with meta_f.open("r") as f:
+        classify_info = json.load(f)
+    return classify_info
