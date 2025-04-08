@@ -104,7 +104,7 @@ def track(conf, recording, api, duration, retrack, logger):
             if len(track["positions"]) == 0:
                 api.archive_track(recording, track["id"])
             else:
-                api.update_track(recording, track["id"])
+                api.update_track(recording, track)
         else:
             track["id"] = api.add_track(
                 recording, track, tracking_result.tracking_algorithm
