@@ -24,6 +24,7 @@ ir:
   tracking_workers: 0
   analyse_workers: 0
 thermal:
+    do_retrack: true
     tracking_workers: 2
     analyse_workers: 2
 

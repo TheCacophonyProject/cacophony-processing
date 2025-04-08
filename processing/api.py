@@ -80,7 +80,8 @@ class API:
     def retry_if_auth(self, request, url, args):
         retries = 1
         count = 0
-        while True:
+        while count <= retries:
+            count += 1
             try:
                 r = None
                 r = request(url, **args)
@@ -90,13 +91,13 @@ class API:
                 if r is None or r.status_code != 401 or count >= retries:
                     raise e
                 self.logger.warn(
-                    "Request failed with 401 token should be valid until %s",
+                    "Request failed with 401 token should be valid until %s %s",
                     datetime.fromtimestamp(self._expiry),
+                    "trying to authenticate again" if count <= retries else "",
                 )
                 # hopefully just have failed JWT
                 self.login()
                 self.ensure_valid_auth(args)
-            count += 1
 
     @property
     def auth_header(self):
