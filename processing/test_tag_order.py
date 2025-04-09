@@ -78,6 +78,7 @@ def test_config():
         ignore_tags=["not"],
         cache_clips_bigger_than=0,
         thermal_tracking_workers=1,
+        thermal_track_analyse_workers=1,
         trail_workers=1,
         classify_trail_cmd="",
         do_retrack=False,
