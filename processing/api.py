@@ -240,8 +240,8 @@ class API:
         raise IOError(r.text)
 
     def update_track(self, recording, track):
-        url = self.file_url + "/{}/tracks/{}".format(recording["id"], track["id"])
-        post_data = {"data": json.dumps(track)}
+        url = self.file_url + "/{}/tracks/{}".format(recording["id"], track.id)
+        post_data = {"data": json.dumps(track.post_data())}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
             return
@@ -249,7 +249,7 @@ class API:
 
     def add_track(self, recording, track, algorithm_id):
         url = self.file_url + "/{}/tracks".format(recording["id"])
-        post_data = {"data": json.dumps(track), "algorithmId": algorithm_id}
+        post_data = {"data": json.dumps(track.post_data()), "algorithmId": algorithm_id}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
             return r.json()["trackId"]
