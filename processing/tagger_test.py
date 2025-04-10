@@ -203,7 +203,7 @@ def create_prediction(
     tag=None,
 ):
     prediction = {
-        "id": model_id,
+        "model_id": model_id,
         "name": model_name,
         LABEL: animal,
         CONFIDENCE: confidence,

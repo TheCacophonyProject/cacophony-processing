@@ -46,6 +46,7 @@ configTuple = namedtuple(
         "audio_analysis_tag",
         "audio_analysis_workers",
         "thermal_analyse_workers",
+        "thermal_track_analyse_workers",
         "thermal_tracking_workers",
         "ignore_tags",
         "wallaby_devices",
@@ -122,6 +123,9 @@ class Config(configTuple):
                 audio_analysis_workers=audio.get("analysis_workers", 1),
                 thermal_analyse_workers=thermal.get("analyse_workers", 1),
                 thermal_tracking_workers=thermal.get("tracking_workers", 1),
+                thermal_track_analyse_workers=thermal.get(
+                    "thermal_track_analyse_workers", 1
+                ),
                 ignore_tags=thermal["tagging"].get("ignore_tags", None),
                 cache_clips_bigger_than=thermal.get("cache_clips_bigger_than"),
                 classify_trail_cmd=trail["run_cmd"],
