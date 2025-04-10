@@ -105,7 +105,7 @@ def track(conf, recording, api, duration, retrack, logger):
             else:
                 api.update_track(recording, track)
         else:
-            track["id"] = api.add_track(
+            track.id = api.add_track(
                 recording, track, tracking_result.tracking_algorithm
             )
     additionalMetadata = {"algorithm": tracking_result.tracking_algorithm}
