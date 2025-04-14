@@ -239,15 +239,16 @@ class API:
             return
         raise IOError(r.text)
 
-
     def update_track_thumbnail(self, recording, track):
-        url = self.file_url + "/{}/tracks/{}/thumbnailInfo".format(recording["id"], track.id)
+        url = self.file_url + "/{}/tracks/{}/thumbnailInfo".format(
+            recording["id"], track.id
+        )
         post_data = {"data": json.dumps(track.thumbnail_info)}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
             return
         raise IOError(r.text)
-    
+
     def update_track(self, recording, track):
         url = self.file_url + "/{}/tracks/{}".format(recording["id"], track.id)
         post_data = {"data": json.dumps(track.post_data())}

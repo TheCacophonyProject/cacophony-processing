@@ -164,7 +164,9 @@ def classify_job(recording, rawJWT, conf):
         classify(conf, recording, api, logger)
 
 
-def classify_file(api, file, conf, duration, logger, do_tracking=False,calculate_thumbnails = False):
+def classify_file(
+    api, file, conf, duration, logger, do_tracking=False, calculate_thumbnails=False
+):
     cache = False
     if (
         duration is not None
@@ -260,7 +262,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
         recording.get("duration", 0),
         logger,
         do_tracking=do_tracking,
-        calculate_thumbnails = calculate_thumbnails
+        calculate_thumbnails=calculate_thumbnails,
     )
 
     generate_master_tags(
@@ -296,7 +298,6 @@ def classify(conf, recording, api, logger, do_tracking=False):
                 rat_thresh_version=track.master_tag.rat_thresh_version,
             )
 
-
     if conf.filter_false_positive:
         good_tracks = []
         confidence = 100
@@ -326,7 +327,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
             else:
                 if calculate_thumbnails:
                     print("Updating thumbnail info ", track.thumbnail_info)
-                    api.update_track_thumbnail(recording,track)
+                    api.update_track_thumbnail(recording, track)
                 good_tracks.append(track)
         if len(good_tracks) == 0 and len(classify_result.tracks) > 0:
             api.tag_recording(
@@ -604,7 +605,7 @@ class Track:
     positions = attr.ib()
     start_s = attr.ib()
     end_s = attr.ib()
-    thumbnail_info = attr.ib(default = None)
+    thumbnail_info = attr.ib(default=None)
     confidence = attr.ib(default=0)
     master_tag = attr.ib(default=None)
     score = attr.ib(default=0)
@@ -622,19 +623,19 @@ class Track:
             start_s=raw_track.get("start_s"),
             end_s=raw_track.get("end_s"),
             score=raw_track.get("tracking_score"),
-            thumbnail_info = track.get("thumbnail")
+            thumbnail_info=raw_track.get("thumbnail"),
         )
 
     def post_data(self):
-        data =  {
+        data = {
             "id": self.id,
             "positions": self.positions,
             "start_s": self.start_s,
             "end_s": self.end_s,
             "tracking_score": self.score,
         }
-        if   self.thumbnail_info is not None:
-            data[                   "thumbnail_info"] =self.thumbnail_info
+        if self.thumbnail_info is not None:
+            data["thumbnail"] = self.thumbnail_info
 
         return data
 
