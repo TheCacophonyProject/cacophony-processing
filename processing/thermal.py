@@ -164,7 +164,7 @@ def classify_job(recording, rawJWT, conf):
         classify(conf, recording, api, logger)
 
 
-def classify_file(api, file, conf, duration, logger, do_tracking=False):
+def classify_file(api, file, conf, duration, logger, do_tracking=False,calculate_thumbnails = False):
     cache = False
     if (
         duration is not None
@@ -181,6 +181,8 @@ def classify_file(api, file, conf, duration, logger, do_tracking=False):
     )
     if do_tracking:
         command = f"{command} --track"
+    if calculate_thumbnails:
+        command = f"{command} --calculate-thumbnails"
     logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command, file, conf.subprocess_timeout)
     tracks = []
@@ -249,6 +251,8 @@ def fp_score(track):
 def classify(conf, recording, api, logger, do_tracking=False):
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
     logger.debug("processing %s ", recording["filename"])
+    calculate_thumbnails = recording.get("metadataSource") == "PI"
+
     classify_result = classify_file(
         api,
         recording["filename"],
@@ -256,6 +260,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
         recording.get("duration", 0),
         logger,
         do_tracking=do_tracking,
+        calculate_thumbnails = calculate_thumbnails
     )
 
     generate_master_tags(
@@ -291,6 +296,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
                 rat_thresh_version=track.master_tag.rat_thresh_version,
             )
 
+
     if conf.filter_false_positive:
         good_tracks = []
         confidence = 100
@@ -318,6 +324,9 @@ def classify(conf, recording, api, logger, do_tracking=False):
                 confidence = min(confidence, fp_pred.confidence)
                 api.archive_track(recording, track.id)
             else:
+                if calculate_thumbnails:
+                    print("Updating thumbnail info ", track.thumbnail_info)
+                    api.update_track_thumbnail(recording,track)
                 good_tracks.append(track)
         if len(good_tracks) == 0 and len(classify_result.tracks) > 0:
             api.tag_recording(
@@ -383,8 +392,6 @@ def classify(conf, recording, api, logger, do_tracking=False):
     additionalMetadata = {"algorithm": classify_result.tracking_algorithm}
     if classify_result.tracking_time is not None:
         additionalMetadata["tracking_time"] = classify_result.tracking_time
-    if classify_result.thumbnail_region is not None:
-        additionalMetadata["thumbnail_region"] = classify_result.thumbnail_region
     if classify_result.thumbnail_region is not None:
         additionalMetadata["thumbnail_region"] = classify_result.thumbnail_region
     model_info = {}
@@ -597,6 +604,7 @@ class Track:
     positions = attr.ib()
     start_s = attr.ib()
     end_s = attr.ib()
+    thumbnail_info = attr.ib(default = None)
     confidence = attr.ib(default=0)
     master_tag = attr.ib(default=None)
     score = attr.ib(default=0)
@@ -614,16 +622,21 @@ class Track:
             start_s=raw_track.get("start_s"),
             end_s=raw_track.get("end_s"),
             score=raw_track.get("tracking_score"),
+            thumbnail_info = track.get("thumbnail")
         )
 
     def post_data(self):
-        return {
+        data =  {
             "id": self.id,
             "positions": self.positions,
             "start_s": self.start_s,
             "end_s": self.end_s,
             "tracking_score": self.score,
         }
+        if   self.thumbnail_info is not None:
+            data[                   "thumbnail_info"] =self.thumbnail_info
+
+        return data
 
 
 @attr.s
