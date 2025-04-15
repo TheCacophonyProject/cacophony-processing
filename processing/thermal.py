@@ -254,7 +254,6 @@ def classify(conf, recording, api, logger, do_tracking=False):
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
     logger.debug("processing %s ", recording["filename"])
     calculate_thumbnails = recording.get("metadataSource") == "PI"
-
     classify_result = classify_file(
         api,
         recording["filename"],
@@ -325,9 +324,6 @@ def classify(conf, recording, api, logger, do_tracking=False):
                 confidence = min(confidence, fp_pred.confidence)
                 api.archive_track(recording, track.id)
             else:
-                if calculate_thumbnails:
-                    print("Updating thumbnail info ", track.thumbnail_info)
-                    api.update_track_thumbnail(recording, track)
                 good_tracks.append(track)
         if len(good_tracks) == 0 and len(classify_result.tracks) > 0:
             api.tag_recording(
@@ -355,31 +351,34 @@ def classify(conf, recording, api, logger, do_tracking=False):
         classify_result.tracks = ordered[: conf.max_tracks]
 
     # if doing tracking and anlaysis in one step, only create and tag important tracks
-    if do_tracking:
+    if do_tracking or calculate_thumbnails:
         for track in classify_result.tracks:
-            track.id = api.add_track(
-                recording, track, classify_result.tracking_algorithm
-            )
-            for prediction in track.predictions:
+            if calculate_thumbnails:
+                api.update_track_thumbnail(recording, track)
+            elif do_tracking:
+                track.id = api.add_track(
+                    recording, track, classify_result.tracking_algorithm
+                )
+                for prediction in track.predictions:
+                    add_track_tag(
+                        api,
+                        recording,
+                        track,
+                        prediction,
+                        logger,
+                        model_name=prediction.model_name,
+                    )
+
                 add_track_tag(
                     api,
                     recording,
                     track,
-                    prediction,
+                    track.master_tag,
                     logger,
-                    model_name=prediction.model_name,
+                    model_name=conf.master_tag,
+                    model_used=track.master_tag.model_name,
+                    rat_thresh_version=track.master_tag.rat_thresh_version,
                 )
-
-            add_track_tag(
-                api,
-                recording,
-                track,
-                track.master_tag,
-                logger,
-                model_name=conf.master_tag,
-                model_used=track.master_tag.model_name,
-                rat_thresh_version=track.master_tag.rat_thresh_version,
-            )
 
     multiple_confidence = calculate_multiple_animal_confidence(classify_result.tracks)
     if multiple_confidence > conf.min_confidence:
