@@ -275,37 +275,37 @@ class AudioTrack:
                 )
                 preds.append(pred)
 
-            track = cls(
-                id=raw_track.get("track_id"),
-                predictions=preds,
-                start_s=raw_track.get("begin_s"),
-                end_s=raw_track.get("end_s"),
-                min_freq=raw_track.get("freq_start"),
-                max_freq=raw_track.get("freq_end"),
-                scale="linear",
-            )
+        track = cls(
+            id=raw_track.get("track_id"),
+            predictions=preds,
+            start_s=raw_track.get("begin_s"),
+            end_s=raw_track.get("end_s"),
+            min_freq=raw_track.get("freq_start"),
+            max_freq=raw_track.get("freq_end"),
+            scale="linear",
+        )
 
-            # dont think we need this anymore ask JON
-            x = track.start_s / duration
-            width = track.end_s / duration - x
-            y = 0
-            height = 1
-            position = {}
-            if track.max_freq is not None:
-                y = track.min_freq / MAX_FRQUENCY
-                height = (track.max_freq - track.min_freq) / MAX_FRQUENCY
+        # dont think we need this anymore ask JON
+        x = track.start_s / duration
+        width = track.end_s / duration - x
+        y = 0
+        height = 1
+        position = {}
+        if track.max_freq is not None:
+            y = track.min_freq / MAX_FRQUENCY
+            height = (track.max_freq - track.min_freq) / MAX_FRQUENCY
 
-            # convert to 2 decimal places
-            x = round(x, 2)
-            width = round(width, 2)
-            position = {
-                "x": x,
-                "y": y,
-                "width": width,
-                "height": height,
-            }
-            track.positions = [position]
-            return track
+        # convert to 2 decimal places
+        x = round(x, 2)
+        width = round(width, 2)
+        position = {
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+        }
+        track.positions = [position]
+        return track
 
     def post_data(self):
         data = {

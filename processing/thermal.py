@@ -100,7 +100,7 @@ def track(conf, recording, api, duration, retrack, logger):
     tracking_result = ClassifyResult.load(tracking_info, algorithm_id, tracks)
     for track in tracking_result.tracks:
         if retrack:
-            if len(track["positions"]) == 0:
+            if len(track.positions) == 0:
                 api.archive_track(recording, track.id)
             else:
                 api.update_track(recording, track)
@@ -428,7 +428,6 @@ def generate_master_tags(
     )
     rat_thresh = rat_thresh.get("settings") if rat_thresh is not None else None
     for track in classify_result.tracks:
-
         for model_prediction in track.predictions:
             model = classify_result.models_by_id[model_prediction.model_id]
             if track is not None and model_prediction.tag is not None:
@@ -627,12 +626,14 @@ class Track:
 
     def post_data(self):
         data = {
-            "id": self.id,
             "positions": self.positions,
             "start_s": self.start_s,
             "end_s": self.end_s,
             "tracking_score": self.score,
         }
+        if self.id is not None:
+            data["id"] = self.id
+
         if self.thumbnail_info is not None:
             data["thumbnail"] = self.thumbnail_info
 
