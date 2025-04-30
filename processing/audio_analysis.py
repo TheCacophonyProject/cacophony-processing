@@ -184,7 +184,6 @@ def process(recording, jwtKey, conf):
             new_metadata["additionalMetadata"]["regionCode"] = analysis.region_code
         # is there anyhting missing...
         # new_metadata["additionalMetadata"] = analysis
-
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed processing for file: %s", recording["id"])
 
@@ -233,11 +232,11 @@ class AudioResult:
         return cls(
             tracks=tracks,
             duration=duration,
-            cacophony_index=result.get("cacophony_index"),
-            chirp_index=result.get("chirps"),
-            cacophony_index_version=result.get("cacophony_index_version"),
-            region_code=result.get("region_code"),
-            species_identify_version=result.get("species_identify_version"),
+            cacophony_index=analysis.get("cacophony_index"),
+            chirp_index=analysis.get("chirps"),
+            cacophony_index_version=analysis.get("cacophony_index_version"),
+            region_code=analysis.get("region_code"),
+            species_identify_version=analysis.get("species_identify_version"),
         )
 
 
