@@ -166,6 +166,15 @@ def main():
         if thermal_tracking is not None:
             pre_jobs[processors[-1].id] = thermal_tracking
 
+    if conf.thermal_track_analyse_workers > 0:
+        processors.add(
+            "thermalRaw",
+            ["trackAndAnalyse"],
+            thermal.track_classify_job,
+            conf.thermal_track_analyse_workers,
+            conf.no_job_sleep_seconds,
+        )
+
     if conf.trail_workers > 0:
         processors.add(
             "trailcam-image",
