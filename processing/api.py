@@ -45,6 +45,7 @@ class API:
         self.user = user
         self._password = password
         self.logger = logger
+        self._token = None
         self.login()
 
     def ensure_valid_auth(self, args):
@@ -105,8 +106,8 @@ class API:
 
     def login(self):
         request_time = time.time()
-        self._token = self._get_jwt()
         try:
+            self._token = self._get_jwt()
             decoded = jwt.decode(
                 self._token.replace("JWT ", ""),
                 algorithms=["HS256"],
