@@ -203,7 +203,7 @@ def main():
                         )
                         processor.force_poll()
                 processor.poll()
-                success = success or True
+                success = True
         except requests.exceptions.RequestException as e:
             logger.error(
                 "Request Exception, make sure api user is a super user for api\n%s",
