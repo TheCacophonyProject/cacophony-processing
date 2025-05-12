@@ -96,19 +96,40 @@ def track_analyse(recording, jwtKey, conf):
         if analysis.species_identify_version is not None:
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
-        for track in analysis.tracks:
-            for i, prediction in enumerate(track.predictions):
-                data = {"algorithm": algorithm_id}
+        data = {"algorithm": algorithm_id}
 
-                if i == 0:
-                    data["name"] = "Master"
-                    # just add master tag for first prediction
-                    api.add_track_tag(recording, track.id, prediction, data)
+        for track in analysis.tracks:
+            master_tag = get_master_tag(analysis, track)
+            data["name"] = "Master"
+            api.add_track_tag(recording, track.id, master_tag, data)
+            for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
 
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
+
+
+def get_master_tag(analysis, track):
+    if len(track.predictions) == 0:
+        return None
+
+    ordered = sorted(
+        track.predictions,
+        key=lambda prediction: (prediction.confidence),
+        reverse=True,
+    )
+    # choose most specific tag first
+    first_specific = None
+    for p in ordered:
+        if p.tag == "bird":
+            continue
+        first_specific = p
+        break
+
+    if first_specific is None:
+        first_specific = ordered[0]
+    return first_specific
 
 
 def process(recording, jwtKey, conf):
@@ -164,12 +185,13 @@ def process(recording, jwtKey, conf):
 
         for track in analysis.tracks:
             track.id = api.add_track(recording, track, algorithm_id)
+
+            data = {"algorithm": algorithm_id}
+            master_tag = get_master_tag(analysis, track)
+            if master_tag is not None:
+                data["name"] = "Master"
+                api.add_track_tag(recording, track.id, master_tag, data)
             for i, prediction in enumerate(track.predictions):
-                data = {"algorithm": algorithm_id}
-                if i == 0:
-                    data["name"] = "Master"
-                    # just add master tag for first prediction
-                    api.add_track_tag(recording, track.id, prediction, data)
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
 
@@ -211,6 +233,8 @@ def analyse(filename, conf, analyse_tracks=False):
 
 import attr
 
+NON_BIRD = ["human", "noise", "insect"]
+
 
 @attr.s
 class AudioResult:
@@ -221,6 +245,7 @@ class AudioResult:
     chirp_index = attr.ib()
     region_code = attr.ib()
     species_identify_version = attr.ib()
+    non_bird_tags = attr.ib()
 
     @classmethod
     def load(cls, result, duration):
@@ -237,6 +262,7 @@ class AudioResult:
             cacophony_index_version=analysis.get("cacophony_index_version"),
             region_code=analysis.get("region_code"),
             species_identify_version=analysis.get("species_identify_version"),
+            non_bird_tags=analysis.get("non_bird_tags", NON_BIRD),
         )
 
 
