@@ -32,7 +32,7 @@ import subprocess
 import argparse
 
 SLEEP_SECS = 2
-
+POLL_ERROR_SLEEP_SECS = 5
 logger = logs.master_logger()
 
 
@@ -186,6 +186,7 @@ def main():
     logger.info("checking for recordings")
 
     while True:
+        success = False
         try:
             for processor in processors:
                 pre_job = pre_jobs.get(processor.id)
@@ -202,13 +203,24 @@ def main():
                         )
                         processor.force_poll()
                 processor.poll()
+                success = True
         except requests.exceptions.RequestException as e:
             logger.error(
                 "Request Exception, make sure api user is a super user for api\n%s",
                 traceback.format_exc(),
             )
+            success = False
         except:
             logger.error("Error polling", exc_info=True)
+            success = False
+
+        if not success:
+            logger.info(
+                "Waiting %s secs before polling again because of poll error",
+                POLL_ERROR_SLEEP_SECS,
+            )
+            time.sleep(POLL_ERROR_SLEEP_SECS)
+            continue
 
         procesing_ids = []
         [procesing_ids.extend(processor.in_progress.keys()) for processor in processors]
@@ -314,8 +326,8 @@ class Processor:
         working = False
         self.last_poll_success = False
         for state in self.processing_states:
-            response = self.api.next_job(self.recording_type, state)
             self.last_poll = time.time()
+            response = self.api.next_job(self.recording_type, state)
             self.last_poll_success = self.last_poll_success or response is not None
             if not response:
                 continue
