@@ -100,8 +100,9 @@ def track_analyse(recording, jwtKey, conf):
 
         for track in analysis.tracks:
             master_tag = get_master_tag(analysis, track)
-            data["name"] = "Master"
-            api.add_track_tag(recording, track.id, master_tag, data)
+            if master_tag is not None:
+                data["name"] = "Master"
+                api.add_track_tag(recording, track.id, master_tag, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
