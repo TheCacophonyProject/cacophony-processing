@@ -99,7 +99,7 @@ def track_analyse(recording, jwtKey, conf):
         data = {"algorithm": algorithm_id}
 
         for track in analysis.tracks:
-            master_tag = get_master_tag(analysis, track)
+            master_tag = get_master_tag(analysis, track, logger)
             if master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, master_tag, data)
@@ -110,9 +110,11 @@ def track_analyse(recording, jwtKey, conf):
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
 
+
 SPECIFIC_NOISE = ["insect"]
 
-def get_master_tag(analysis, track):
+
+def get_master_tag(analysis, track, logger):
     if len(track.predictions) == 0:
         return None
 
@@ -120,12 +122,14 @@ def get_master_tag(analysis, track):
     other_model = [p for p in track.predictions if not p.pre_model]
 
     # assume for now pre model is just a single label
-    if len(pre_model) >0:
+    if len(pre_model) > 0:
         pre_prediction = pre_model[0]
 
         # always trust pre model noise prediction unless other model has a more specific type of noise i.e. "insect"
         if pre_prediction.tag == "noise":
-            other_model_prediction = next([p for p in other_model if p in SPECIFIC_NOISE ],None)
+            other_model_prediction = next(
+                (p for p in other_model if p in SPECIFIC_NOISE), None
+            )
             if other_model_prediction is not None:
                 return other_model_prediction
             return pre_prediction
@@ -151,7 +155,8 @@ def get_master_tag(analysis, track):
 def process(recording, jwtKey, conf):
     logger = logs.worker_logger("audio.analysis", recording["id"])
     api = API(conf.api_url, conf.user, conf.password, logger)
-    return process(recording,jwtKey,api,conf)
+    return process(recording, jwtKey, api, conf)
+
 
 def process_with_api(recording, jwtKey, api, conf):
     """Process the audio file.
@@ -213,7 +218,6 @@ def process_with_api(recording, jwtKey, api, conf):
             new_metadata["duration"] = duration
         else:
             duration = metadata.get("analysis_result", {}).get("duration")
-        logger.info("Meta is %s ",metadata)
         analysis = AudioResult.load(metadata, duration)
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
@@ -224,7 +228,7 @@ def process_with_api(recording, jwtKey, api, conf):
             track.id = api.add_track(recording, track, algorithm_id)
 
             data = {"algorithm": algorithm_id}
-            master_tag = get_master_tag(analysis, track)
+            master_tag = get_master_tag(analysis, track, logger)
             if master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, master_tag, data)
@@ -322,20 +326,22 @@ class AudioTrack:
             predictions = model_result["predictions"]
             raw_tag = None
             model_name = model_result["model"]
-            pre_model = model_result.get("pre_model",False)
-            if len(predictions) ==0 and "raw_prediction" in model_result:
+            pre_model = model_result.get("pre_model", False)
+            if len(predictions) == 0 and "raw_prediction" in model_result:
                 raw_pred = model_result["raw_prediction"]
                 pred = Prediction(
                     confidence=raw_pred["confidence"],
                     tag=UNIDENTIFIED,
                     label=raw_pred["what"],
                     model_name=model_name,
-                    pre_model = pre_model,
+                    pre_model=pre_model,
                 )
                 preds.append(pred)
             else:
                 for pred in predictions:
-                    preds.append(Prediction.from_audio_meta(pred,model_name,pre_model))
+                    preds.append(
+                        Prediction.from_audio_meta(pred, model_name, pre_model)
+                    )
 
         track = cls(
             id=raw_track.get("track_id"),

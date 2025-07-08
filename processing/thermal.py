@@ -655,16 +655,17 @@ class Prediction:
     model_name = attr.ib(default=None)
     rat_thresh_version = attr.ib(default=None)
     pre_model = attr.ib(default=False)
-    
+
     @classmethod
-    def from_audio_meta(cls,meta,model_name,pre_model):
+    def from_audio_meta(cls, meta, model_name, pre_model):
         return cls(
-            tag = meta["what"],
-            model_name = model_name,
-            label = meta["what"],
-            confidence = meta["confidence"],
-            pre_model = pre_model
+            tag=meta["what"],
+            model_name=model_name,
+            label=meta["what"],
+            confidence=meta["confidence"],
+            pre_model=pre_model,
         )
+
     @classmethod
     def load(cls, raw_pred):
         return cls(
