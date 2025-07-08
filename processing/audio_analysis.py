@@ -100,8 +100,9 @@ def track_analyse(recording, jwtKey, conf):
 
         for track in analysis.tracks:
             master_tag = get_master_tag(analysis, track)
-            data["name"] = "Master"
-            api.add_track_tag(recording, track.id, master_tag, data)
+            if master_tag is not None:
+                data["name"] = "Master"
+                api.add_track_tag(recording, track.id, master_tag, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
@@ -170,6 +171,23 @@ def process(recording, jwtKey, conf):
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
         api.download_file(jwtKey, str(input_filename))
+
+        filename = input_filename.with_suffix(".txt")
+        if "location" in recording:
+            location = recording["location"]
+            if (
+                "lat" not in location
+                and "lng" not in location
+                and "coordinates" in location
+            ):
+                coords = location["coordinates"]
+                location["lng"] = coords[0]
+                location["lat"] = coords[1]
+        if "tracks" in recording:
+            del recording["tracks"]
+        with filename.open("w") as f:
+            json.dump(recording, f)
+
         metadata = analyse(input_filename, conf)
         new_metadata = {"additionalMetadata": {}}
         duration = recording.get("duration")
