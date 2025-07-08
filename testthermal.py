@@ -1,9 +1,11 @@
+
+import shutil
 import argparse
 import json
 import logging
 import sys
 import processing
-from processing import thermal
+from processing import thermal,audio_analysis
 from pathlib import Path
 
 
@@ -38,11 +40,18 @@ def main():
         "filename": args.source,
         "id": "testrecid",
         "jobKey": "test job key",
+        "rawMimeType":"audio/mp4",
     }
     api = TestAPI()
-    thermal.track(conf, recording_meta, api, 10, logging)
+    source = Path(args.source)
+    if source.suffix == ".cptv":
+        logging.info("Doing thermal")
+        thermal.track(conf, recording_meta, api, 10, logging)
 
-    thermal.classify(conf, recording_meta, api, logging)
+        thermal.classify(conf, recording_meta, api, logging)
+    else:
+        logging.info("Doing audio")
+        audio_analysis.process_with_api(recording_meta,args.source,api, conf)
 
 
 class TestAPI:
@@ -118,6 +127,11 @@ class TestAPI:
             str(post_data)[: TestAPI.TRUNCATE_OVER],
         )
         return track_tag_id
+
+    def download_file(self,jwtKey,filename):
+        shutil.copyfile(jwtKey, filename)
+
+        return
 
 
 if __name__ == "__main__":
