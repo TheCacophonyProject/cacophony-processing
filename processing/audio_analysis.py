@@ -120,20 +120,27 @@ def get_master_tag(analysis, track, logger):
 
     pre_model = [p for p in track.predictions if p.pre_model]
     other_model = [p for p in track.predictions if not p.pre_model]
-
+    pre_prediction = None
     # assume for now pre model is just a single label
     if len(pre_model) > 0:
         pre_prediction = pre_model[0]
-
-        # always trust pre model noise prediction unless other model has a more specific type of noise i.e. "insect"
         if pre_prediction.tag == "noise":
+            # always trust pre model noise prediction unless other model has a more specific type of noise i.e. "insect"
             other_model_prediction = next(
-                (p for p in other_model if p in SPECIFIC_NOISE), None
+                (p for p in other_model if p.tag in SPECIFIC_NOISE), None
             )
             if other_model_prediction is not None:
                 return other_model_prediction
             return pre_prediction
-        # may want some other rulse for human also will need to test what works
+        elif pre_prediction.tag == "morepork":
+            return pre_prediction
+
+        # if pre model is not morepork second model can't be, if it is just a bird pre model will say so
+        other_model = [
+            p for p in other_model if p.tag != "morepork" and p.tag != "bird"
+        ]
+
+    # may want some other rulse for human also will need to test what works
     ordered = sorted(
         other_model,
         key=lambda prediction: (prediction.confidence),
@@ -147,8 +154,11 @@ def get_master_tag(analysis, track, logger):
         first_specific = p
         break
 
-    if first_specific is None:
+    if first_specific is None and len(ordered) > 0:
         first_specific = ordered[0]
+
+    if first_specific is None:
+        return pre_prediction
     return first_specific
 
 
