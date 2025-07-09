@@ -202,7 +202,7 @@ def process_with_api(recording, jwtKey, api, conf):
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
-        logger.info("downloading recording to %s", input_filename)
+        logger.debug("downloading recording to %s", input_filename)
         api.download_file(jwtKey, str(input_filename))
 
         filename = input_filename.with_suffix(".txt")
