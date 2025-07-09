@@ -134,7 +134,8 @@ def get_master_tag(analysis, track, logger):
             return pre_prediction
         elif pre_prediction.tag == "morepork":
             return pre_prediction
-
+        elif pre_prediction.tag == "human":
+            return pre_prediction
         # if pre model is not morepork second model can't be, if it is just a bird pre model will say so
         other_model = [
             p for p in other_model if p.tag != "morepork" and p.tag != "bird"
