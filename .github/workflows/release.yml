@@ -55,7 +55,7 @@ jobs:
                 
     - name: Install dependencies
       run: |
-        pip install pex==2.1.90
+        pip install pex
         pip install -r requirements.txt
    
     - name: Install NFPM
