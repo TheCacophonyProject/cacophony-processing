@@ -165,7 +165,7 @@ def get_master_tag(analysis, track, logger):
 def process(recording, jwtKey, conf):
     logger = logs.worker_logger("audio.analysis", recording["id"])
     api = API(conf.api_url, conf.user, conf.password, logger)
-    return process(recording, jwtKey, api, conf)
+    return process_with_api(recording, jwtKey, api, conf)
 
 
 def process_with_api(recording, jwtKey, api, conf):
