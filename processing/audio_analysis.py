@@ -139,6 +139,8 @@ def get_master_tag(analysis, track, logger):
         other_model = [
             p for p in other_model if p.tag != "morepork" and p.tag != "bird"
         ]
+        if pre_prediction.tag == UNIDENTIFIED:
+            pre_prediction = None
 
     # may want some other rulse for human also will need to test what works
     ordered = sorted(
@@ -157,7 +159,9 @@ def get_master_tag(analysis, track, logger):
     if first_specific is None and len(ordered) > 0:
         first_specific = ordered[0]
 
-    if first_specific is None:
+    if (
+        first_specific is None or first_specific.tag == UNIDENTIFIED
+    ) and pre_prediction is not None:
         return pre_prediction
     return first_specific
 
