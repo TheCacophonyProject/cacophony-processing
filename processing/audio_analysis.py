@@ -99,10 +99,10 @@ def track_analyse(recording, jwtKey, conf):
         data = {"algorithm": algorithm_id}
 
         for track in analysis.tracks:
-            master_tag = get_master_tag(analysis, track, logger)
-            if master_tag is not None:
+            # master_tag = get_master_tag(analysis, track, logger)
+            if track.master_tag is not None:
                 data["name"] = "Master"
-                api.add_track_tag(recording, track.id, master_tag, data)
+                api.add_track_tag(recording, track.id, track.master_tag, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
@@ -112,59 +112,6 @@ def track_analyse(recording, jwtKey, conf):
 
 
 SPECIFIC_NOISE = ["insect"]
-
-
-def get_master_tag(analysis, track, logger):
-    if len(track.predictions) == 0:
-        return None
-
-    pre_model = [p for p in track.predictions if p.pre_model]
-    other_model = [p for p in track.predictions if not p.pre_model]
-    pre_prediction = None
-    # assume for now pre model is just a single label
-    if len(pre_model) > 0:
-        pre_prediction = pre_model[0]
-        if pre_prediction.tag == "noise":
-            # always trust pre model noise prediction unless other model has a more specific type of noise i.e. "insect"
-            other_model_prediction = next(
-                (p for p in other_model if p.tag in SPECIFIC_NOISE), None
-            )
-            if other_model_prediction is not None:
-                return other_model_prediction
-            return pre_prediction
-        elif pre_prediction.tag == "morepork":
-            return pre_prediction
-        elif pre_prediction.tag == "human":
-            return pre_prediction
-        # if pre model is not morepork second model can't be, if it is just a bird pre model will say so
-        other_model = [
-            p for p in other_model if p.tag != "morepork" and p.tag != "bird"
-        ]
-        if pre_prediction.tag == UNIDENTIFIED:
-            pre_prediction = None
-
-    # may want some other rulse for human also will need to test what works
-    ordered = sorted(
-        other_model,
-        key=lambda prediction: (prediction.confidence),
-        reverse=True,
-    )
-    # choose most specific tag first
-    first_specific = None
-    for p in ordered:
-        if p.tag == "bird":
-            continue
-        first_specific = p
-        break
-
-    if first_specific is None and len(ordered) > 0:
-        first_specific = ordered[0]
-
-    if (
-        first_specific is None or first_specific.tag == UNIDENTIFIED
-    ) and pre_prediction is not None:
-        return pre_prediction
-    return first_specific
 
 
 def process(recording, jwtKey, conf):
@@ -243,10 +190,9 @@ def process_with_api(recording, jwtKey, api, conf):
             track.id = api.add_track(recording, track, algorithm_id)
 
             data = {"algorithm": algorithm_id}
-            master_tag = get_master_tag(analysis, track, logger)
-            if master_tag is not None:
+            if track.master_tag is not None:
                 data["name"] = "Master"
-                api.add_track_tag(recording, track.id, master_tag, data)
+                api.add_track_tag(recording, track.id, track.master_tag, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
@@ -337,6 +283,11 @@ class AudioTrack:
     @classmethod
     def load(cls, raw_track, duration):
         preds = []
+        master_tag = raw_track.get("master_tag")
+        if master_tag is not None:
+            master_tag = Prediction.from_audio_meta(
+                master_tag["prediction"], master_tag["model"], False
+            )
         for model_result in raw_track.get("model_results"):
             predictions = model_result["predictions"]
             raw_tag = None
@@ -366,6 +317,7 @@ class AudioTrack:
             min_freq=raw_track.get("freq_start"),
             max_freq=raw_track.get("freq_end"),
             scale="linear",
+            master_tag=master_tag,
         )
 
         # dont think we need this anymore ask JON
