@@ -314,8 +314,8 @@ class AudioTrack:
             predictions=preds,
             start_s=raw_track.get("begin_s"),
             end_s=raw_track.get("end_s"),
-            min_freq=raw_track.get("freq_start"),
-            max_freq=raw_track.get("freq_end"),
+            min_freq=int(raw_track.get("freq_start")),
+            max_freq=int(raw_track.get("freq_end")),
             scale="linear",
             master_tag=master_tag,
         )
