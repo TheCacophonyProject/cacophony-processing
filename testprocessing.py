@@ -50,6 +50,11 @@ def main():
         thermal.classify(conf, recording_meta, api, logging)
     else:
         logging.info("Doing audio")
+        meta_file = Path(args.source).with_suffix(".txt")
+        if meta_file.exists():
+            with meta_file.open("r") as f:
+                metadata = json.load(f)
+            recording_meta["location"] = metadata.get("location")
         audio_analysis.process_with_api(recording_meta, args.source, api, conf)
 
 

@@ -172,7 +172,6 @@ def process_with_api(recording, jwtKey, api, conf):
             del recording["tracks"]
         with filename.open("w") as f:
             json.dump(recording, f)
-
         metadata = analyse(input_filename, conf)
         new_metadata = {"additionalMetadata": {}}
         duration = recording.get("duration")
@@ -190,11 +189,14 @@ def process_with_api(recording, jwtKey, api, conf):
             track.id = api.add_track(recording, track, algorithm_id)
 
             data = {"algorithm": algorithm_id}
+
             if track.master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, track.master_tag, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
+                if prediction.filtered:
+                    data["filtered"] = True
                 api.add_track_tag(recording, track.id, prediction, data)
 
         if analysis.cacophony_index is not None:
