@@ -654,6 +654,19 @@ class Prediction:
     model_id = attr.ib(default=None)
     model_name = attr.ib(default=None)
     rat_thresh_version = attr.ib(default=None)
+    pre_model = attr.ib(default=False)
+    filtered = attr.ib(default=False)
+
+    @classmethod
+    def from_audio_meta(cls, meta, model_name, pre_model):
+        return cls(
+            tag=meta["what"],
+            model_name=model_name,
+            label=meta["what"],
+            confidence=meta["confidence"],
+            pre_model=pre_model,
+            filtered=meta.get("filtered", False),
+        )
 
     @classmethod
     def load(cls, raw_pred):
