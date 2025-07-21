@@ -49,7 +49,7 @@ def track_analyse(recording, jwtKey, conf):
     # this used to work by default then  just stopped, so will explicitly add it
     mimetypes.add_type("audio/mp4", ".m4a")
 
-    logger = logs.worker_logger("audio.analysis", recording["id"])
+    logger = logs.worker_logger("audio.track_analysis", recording["id"])
 
     api = API(conf.api_url, conf.user, conf.password, logger)
 
@@ -103,6 +103,10 @@ def track_analyse(recording, jwtKey, conf):
             if track.master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, track.master_tag, data)
+            elif len(track.predictions) == 0:
+                data["name"] = "Master"
+                unid = Prediction(UNIDENTIFIED)
+                api.add_track_tag(recording, track.id, unid, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
@@ -117,10 +121,10 @@ SPECIFIC_NOISE = ["insect"]
 def process(recording, jwtKey, conf):
     logger = logs.worker_logger("audio.analysis", recording["id"])
     api = API(conf.api_url, conf.user, conf.password, logger)
-    return process_with_api(recording, jwtKey, api, conf)
+    return process_with_api(recording, jwtKey, api, conf, logger)
 
 
-def process_with_api(recording, jwtKey, api, conf):
+def process_with_api(recording, jwtKey, api, conf, logger=None):
     """Process the audio file.
 
     Downloads the file, runs the AI models & cacophony index algorithm,
@@ -137,8 +141,8 @@ def process_with_api(recording, jwtKey, api, conf):
 
     # this used to work by default then  just stopped, so will explicitly add it
     mimetypes.add_type("audio/mp4", ".m4a")
-
-    logger = logs.worker_logger("audio.analysis", recording["id"])
+    if logger is None:
+        logger = logs.worker_logger("audio.analysis", recording["id"])
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -161,7 +165,8 @@ def process_with_api(recording, jwtKey, api, conf):
         if "location" in recording:
             location = recording["location"]
             if (
-                "lat" not in location
+                location is not None
+                and "lat" not in location
                 and "lng" not in location
                 and "coordinates" in location
             ):
@@ -193,6 +198,11 @@ def process_with_api(recording, jwtKey, api, conf):
             if track.master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, track.master_tag, data)
+
+            elif len(track.predictions) == 0:
+                data["name"] = "Master"
+                unid = Prediction(UNIDENTIFIED)
+                api.add_track_tag(recording, track.id, unid, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 if prediction.filtered:
