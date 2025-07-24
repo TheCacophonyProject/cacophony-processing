@@ -103,7 +103,7 @@ def track_analyse(recording, jwtKey, conf):
             if track.master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, track.master_tag, data)
-            elif len(track.predictions) == 0:
+            else:
                 data["name"] = "Master"
                 unid = Prediction(UNIDENTIFIED)
                 api.add_track_tag(recording, track.id, unid, data)
@@ -198,8 +198,7 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
             if track.master_tag is not None:
                 data["name"] = "Master"
                 api.add_track_tag(recording, track.id, track.master_tag, data)
-
-            elif len(track.predictions) == 0:
+            else:
                 data["name"] = "Master"
                 unid = Prediction(UNIDENTIFIED)
                 api.add_track_tag(recording, track.id, unid, data)
