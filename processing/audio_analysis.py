@@ -49,7 +49,7 @@ def track_analyse(recording, jwtKey, conf):
     # this used to work by default then  just stopped, so will explicitly add it
     mimetypes.add_type("audio/mp4", ".m4a")
 
-    logger = logs.worker_logger("audio.analysis", recording["id"])
+    logger = logs.worker_logger("audio.track_analysis", recording["id"])
 
     api = API(conf.api_url, conf.user, conf.password, logger)
 
@@ -99,10 +99,14 @@ def track_analyse(recording, jwtKey, conf):
         data = {"algorithm": algorithm_id}
 
         for track in analysis.tracks:
-            master_tag = get_master_tag(analysis, track)
-            if master_tag is not None:
+            # master_tag = get_master_tag(analysis, track, logger)
+            if track.master_tag is not None:
                 data["name"] = "Master"
-                api.add_track_tag(recording, track.id, master_tag, data)
+                api.add_track_tag(recording, track.id, track.master_tag, data)
+            else:
+                data["name"] = "Master"
+                unid = Prediction(UNIDENTIFIED)
+                api.add_track_tag(recording, track.id, unid, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
                 api.add_track_tag(recording, track.id, prediction, data)
@@ -111,29 +115,16 @@ def track_analyse(recording, jwtKey, conf):
     logger.info("Completed classifying for file: %s", recording["id"])
 
 
-def get_master_tag(analysis, track):
-    if len(track.predictions) == 0:
-        return None
-
-    ordered = sorted(
-        track.predictions,
-        key=lambda prediction: (prediction.confidence),
-        reverse=True,
-    )
-    # choose most specific tag first
-    first_specific = None
-    for p in ordered:
-        if p.tag == "bird":
-            continue
-        first_specific = p
-        break
-
-    if first_specific is None:
-        first_specific = ordered[0]
-    return first_specific
+SPECIFIC_NOISE = ["insect"]
 
 
 def process(recording, jwtKey, conf):
+    logger = logs.worker_logger("audio.analysis", recording["id"])
+    api = API(conf.api_url, conf.user, conf.password, logger)
+    return process_with_api(recording, jwtKey, api, conf, logger)
+
+
+def process_with_api(recording, jwtKey, api, conf, logger=None):
     """Process the audio file.
 
     Downloads the file, runs the AI models & cacophony index algorithm,
@@ -150,10 +141,8 @@ def process(recording, jwtKey, conf):
 
     # this used to work by default then  just stopped, so will explicitly add it
     mimetypes.add_type("audio/mp4", ".m4a")
-
-    logger = logs.worker_logger("audio.analysis", recording["id"])
-
-    api = API(conf.api_url, conf.user, conf.password, logger)
+    if logger is None:
+        logger = logs.worker_logger("audio.analysis", recording["id"])
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -176,7 +165,8 @@ def process(recording, jwtKey, conf):
         if "location" in recording:
             location = recording["location"]
             if (
-                "lat" not in location
+                location is not None
+                and "lat" not in location
                 and "lng" not in location
                 and "coordinates" in location
             ):
@@ -187,7 +177,6 @@ def process(recording, jwtKey, conf):
             del recording["tracks"]
         with filename.open("w") as f:
             json.dump(recording, f)
-
         metadata = analyse(input_filename, conf)
         new_metadata = {"additionalMetadata": {}}
         duration = recording.get("duration")
@@ -205,12 +194,18 @@ def process(recording, jwtKey, conf):
             track.id = api.add_track(recording, track, algorithm_id)
 
             data = {"algorithm": algorithm_id}
-            master_tag = get_master_tag(analysis, track)
-            if master_tag is not None:
+
+            if track.master_tag is not None:
                 data["name"] = "Master"
-                api.add_track_tag(recording, track.id, master_tag, data)
+                api.add_track_tag(recording, track.id, track.master_tag, data)
+            else:
+                data["name"] = "Master"
+                unid = Prediction(UNIDENTIFIED)
+                api.add_track_tag(recording, track.id, unid, data)
             for i, prediction in enumerate(track.predictions):
                 data["name"] = prediction.model_name
+                if prediction.filtered:
+                    data["filtered"] = True
                 api.add_track_tag(recording, track.id, prediction, data)
 
         if analysis.cacophony_index is not None:
@@ -299,33 +294,41 @@ class AudioTrack:
     @classmethod
     def load(cls, raw_track, duration):
         preds = []
-        for prediction in raw_track.get("predictions"):
-            species = prediction["species"]
-            confidences = prediction["likelihood"]
-            del prediction["species"]
+        master_tag = raw_track.get("master_tag")
+        if master_tag is not None:
+            master_tag = Prediction.from_audio_meta(
+                master_tag["prediction"], master_tag["model"], False
+            )
+        for model_result in raw_track.get("model_results"):
+            predictions = model_result["predictions"]
             raw_tag = None
-            if len(confidences) == 0 and "raw_tag" in prediction:
-                raw_tag = prediction["raw_tag"]
-                species = [UNIDENTIFIED]
-                confidences = [prediction["raw_confidence"]]
-
-            for confidence, s in zip(confidences, species):
+            model_name = model_result["model"]
+            pre_model = model_result.get("pre_model", False)
+            if len(predictions) == 0 and "raw_prediction" in model_result:
+                raw_pred = model_result["raw_prediction"]
                 pred = Prediction(
-                    confidence=confidence,
-                    tag=s,
-                    label=raw_tag,
-                    model_name=prediction["model"],
+                    confidence=raw_pred["confidence"],
+                    tag=UNIDENTIFIED,
+                    label=raw_pred["what"],
+                    model_name=model_name,
+                    pre_model=pre_model,
                 )
                 preds.append(pred)
+            else:
+                for pred in predictions:
+                    preds.append(
+                        Prediction.from_audio_meta(pred, model_name, pre_model)
+                    )
 
         track = cls(
             id=raw_track.get("track_id"),
             predictions=preds,
             start_s=raw_track.get("begin_s"),
             end_s=raw_track.get("end_s"),
-            min_freq=raw_track.get("freq_start"),
-            max_freq=raw_track.get("freq_end"),
+            min_freq=int(raw_track.get("freq_start")),
+            max_freq=int(raw_track.get("freq_end")),
             scale="linear",
+            master_tag=master_tag,
         )
 
         # dont think we need this anymore ask JON

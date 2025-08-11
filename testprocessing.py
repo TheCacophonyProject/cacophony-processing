@@ -1,9 +1,10 @@
+import shutil
 import argparse
 import json
 import logging
 import sys
 import processing
-from processing import thermal
+from processing import thermal, audio_analysis
 from pathlib import Path
 
 
@@ -38,11 +39,23 @@ def main():
         "filename": args.source,
         "id": "testrecid",
         "jobKey": "test job key",
+        "rawMimeType": "audio/mp4",
     }
     api = TestAPI()
-    thermal.track(conf, recording_meta, api, 10, logging)
+    source = Path(args.source)
+    if source.suffix == ".cptv":
+        logging.info("Doing thermal")
+        thermal.track(conf, recording_meta, api, 10, logging)
 
-    thermal.classify(conf, recording_meta, api, logging)
+        thermal.classify(conf, recording_meta, api, logging)
+    else:
+        logging.info("Doing audio")
+        meta_file = Path(args.source).with_suffix(".txt")
+        if meta_file.exists():
+            with meta_file.open("r") as f:
+                metadata = json.load(f)
+            recording_meta["location"] = metadata.get("location")
+        audio_analysis.process_with_api(recording_meta, args.source, api, conf)
 
 
 class TestAPI:
@@ -93,7 +106,7 @@ class TestAPI:
         return TestAPI.ALGORITHM
 
     def add_track(self, recording, track, algorithm_id):
-        post_data = {"data": json.dumps(track), "algorithmId": algorithm_id}
+        post_data = {"data": json.dumps(track.post_data()), "algorithmId": algorithm_id}
         track_id = self.new_id()
         logging.debug(
             "TestAPI add_track (%s)  %s",
@@ -106,8 +119,8 @@ class TestAPI:
         url = "/{}/tracks/{}/tags".format(recording["id"], track_id)
 
         post_data = {
-            "what": prediction["tag"],
-            "confidence": prediction["confidence"],
+            "what": prediction.tag,
+            "confidence": prediction.confidence,
             "data": json.dumps(data),
         }
         track_tag_id = self.new_id()
@@ -118,6 +131,11 @@ class TestAPI:
             str(post_data)[: TestAPI.TRUNCATE_OVER],
         )
         return track_tag_id
+
+    def download_file(self, jwtKey, filename):
+        shutil.copyfile(jwtKey, filename)
+
+        return
 
 
 if __name__ == "__main__":
