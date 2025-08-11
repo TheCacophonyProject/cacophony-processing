@@ -7,6 +7,6 @@ attrs~=20.3.0
 numpy~=2.2.6
 pyjwt
 argparse
-requests
-urllib3
-requests-toolbelt
+requests~=2.32.4
+urllib3~=2.5.0
+requests-toolbelt~=1.0.0
