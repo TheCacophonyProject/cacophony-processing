@@ -283,7 +283,12 @@ class API:
         r = self.get(self.api_url + "/api/v1/recordings/{}/tracks".format(recording_id))
         r.raise_for_status()
         return r.json()
-
+    
+    def get_rec(self, recording_id):
+        r = self.get(self.api_url + "/api/v1/recordings/{}".format(recording_id))
+        r.raise_for_status()
+        return r.json()
+    
     def download_file(self, token, filename):
         r = requests.get(
             urljoin(self.api_url, "/api/v1/signedUrl"),
