@@ -89,7 +89,7 @@ class API:
                 r.raise_for_status()
                 return r
             except requests.exceptions.RequestException as e:
-                if r is None or r.status_code != 401 or count >= retries:
+                if e.response.status_code != 401 or count >= retries:
                     raise e
                 self.logger.warn(
                     "Request failed with 401 token should be valid until %s %s",
@@ -115,9 +115,8 @@ class API:
             )
             expiry = decoded["exp"]
             iat = decoded["iat"]
-            exp_seconds = expiry - iat
             # give 30 seconds less so we are always valid
-            self._expiry = request_time + exp_seconds - 30
+            self._expiry = expiry - 30
             self.logger.debug(
                 "login expires at %s iat %s JWT expiry %s",
                 datetime.fromtimestamp(self._expiry),
