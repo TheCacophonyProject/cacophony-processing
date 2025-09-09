@@ -335,6 +335,7 @@ class Processor:
         self.reap_completed()
         if not self.should_poll():
             return True
+
         working = False
         self.last_poll_success = False
         for state in self.processing_states:
@@ -372,6 +373,7 @@ class Processor:
             )
             self.in_progress[recording["id"]] = (recording["jobKey"], future)
             working = True
+            break
         return working
 
     def reap_completed(self):
