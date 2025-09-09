@@ -31,7 +31,7 @@ from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
 
-SLEEP_SECS = 2
+SLEEP_SECS = 0.2
 POLL_ERROR_SLEEP_SECS = 5
 logger = logs.master_logger()
 
