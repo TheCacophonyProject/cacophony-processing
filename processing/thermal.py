@@ -219,7 +219,7 @@ def run_command(command, filename, timeout=None):
         proc = subprocess.run(
             command,
             shell=True,
-            encoding="ascii",
+            encoding="utf-8",
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -347,7 +347,8 @@ def classify(conf, recording, api, logger, do_tracking=False):
         )
         # once we remove tracking step can remove this
         if not do_tracking:
-            api.archive_track(recording, track.id)
+            for track in ordered[conf.max_tracks :]:
+                api.archive_track(recording, track.id)
         classify_result.tracks = ordered[: conf.max_tracks]
 
     # if doing tracking and anlaysis in one step, only create and tag important tracks

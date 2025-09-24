@@ -31,7 +31,7 @@ from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
 
-SLEEP_SECS = 2
+SLEEP_SECS = 0.2
 POLL_ERROR_SLEEP_SECS = 5
 logger = logs.master_logger()
 
@@ -52,6 +52,13 @@ def parse_args():
         help='API server URL can be absolute URL or ("prod" for api.cacophony.org.nz or "test" for api-test.cacophony.org.nz or "ir" for api-ir.cacophony.org.nz) This will over ride whats in the config',
     )
 
+    parser.add_argument(
+        "--sleep",
+        default=None,
+        type=float,
+        help='Seconds to sleep in between API requests"',
+    )
+
     args = parser.parse_args()
     if args.api == "prod":
         args.api = "https://api.cacophony.org.nz"
@@ -60,6 +67,9 @@ def parse_args():
     elif args.api == "ir":
         args.api = "https://api-ir.cacophony.org.nz"
 
+    if args.sleep is not None:
+        global SLEEP_SECS
+        SLEEP_SECS = args.sleep
     return args
 
 
@@ -104,6 +114,7 @@ def main():
     Processor.conf = conf
     Processor.log_q = logs.init_master()
     Processor.api = API(conf.api_url, conf.user, conf.password, logger)
+    logger.info("Sleep seconds set to %s", SLEEP_SECS)
 
     processors = Processors()
     processors.add(
@@ -243,7 +254,8 @@ def main():
                 time.sleep(conf.no_recordings_wait_secs)
                 done_sleep = True
         if not done_sleep:
-            time.sleep(SLEEP_SECS)
+            if SLEEP_SECS > 0:
+                time.sleep(SLEEP_SECS)
 
 
 class Processors(list):
@@ -323,6 +335,7 @@ class Processor:
         self.reap_completed()
         if not self.should_poll():
             return True
+
         working = False
         self.last_poll_success = False
         for state in self.processing_states:
@@ -360,6 +373,7 @@ class Processor:
             )
             self.in_progress[recording["id"]] = (recording["jobKey"], future)
             working = True
+            break
         return working
 
     def reap_completed(self):
