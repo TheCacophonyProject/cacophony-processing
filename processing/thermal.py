@@ -219,7 +219,7 @@ def run_command(command, filename, timeout=None):
         proc = subprocess.run(
             command,
             shell=True,
-            encoding="ascii",
+            encoding="utf-8",
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
