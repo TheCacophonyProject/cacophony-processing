@@ -213,7 +213,7 @@ def main():
             processors.add(
                 "audio",
                 ["reprocess"],
-                audio_analysis.process,
+                audio_analysis.track_analyse,
                 conf.audio_analysis_workers,
                 conf.no_job_sleep_seconds,
             )
