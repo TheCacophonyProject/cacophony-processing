@@ -117,20 +117,24 @@ def main():
     logger.info("Sleep seconds set to %s", SLEEP_SECS)
 
     processors = Processors()
-    processors.add(
-        "audio",
-        ["FINISHED"],
-        audio_analysis.track_analyse,
-        conf.audio_analysis_workers,
-        conf.no_job_sleep_seconds,
-    )
-    processors.add(
-        "audio",
-        ["analyse", "reprocess"],
-        audio_analysis.process,
-        conf.audio_analysis_workers,
-        conf.no_job_sleep_seconds,
-    )
+    states = ["analyse"]
+
+    if conf.audio_analysis_workers > 0:
+        processors.add(
+            "audio",
+            ["FINISHED"],
+            audio_analysis.track_analyse,
+            conf.audio_analysis_workers,
+            conf.no_job_sleep_seconds,
+        )
+
+        processors.add(
+            "audio",
+            states,
+            audio_analysis.process,
+            conf.audio_analysis_workers,
+            conf.no_job_sleep_seconds,
+        )
 
     if conf.ir_tracking_workers > 0:
         processors.add(
@@ -151,7 +155,7 @@ def main():
     if conf.ir_analyse_workers > 0:
         processors.add(
             "irRaw",
-            ["analyse", "reprocess"],
+            states,
             thermal.classify_job,
             conf.ir_analyse_workers,
             conf.no_job_sleep_seconds,
@@ -169,7 +173,7 @@ def main():
     if conf.thermal_analyse_workers > 0:
         processors.add(
             "thermalRaw",
-            ["analyse", "reprocess"],
+            states,
             thermal.classify_job,
             conf.thermal_analyse_workers,
             conf.no_job_sleep_seconds,
@@ -194,6 +198,26 @@ def main():
             conf.trail_workers,
             conf.no_job_sleep_seconds,
         )
+
+    if conf.reprocess:
+        logger.info("Running reprocess workers")
+        if conf.thermal_analyse_workers > 0:
+            processors.add(
+                "audio",
+                ["reprocess"],
+                thermal.classify_job,
+                conf.thermal_analyse_workers,
+                conf.no_job_sleep_seconds,
+            )
+        if conf.audio_analysis_workers > 0:
+            processors.add(
+                "thermalRaw",
+                ["reprocess"],
+                audio_analysis.process,
+                conf.audio_analysis_workers,
+                conf.no_job_sleep_seconds,
+            )
+
     logger.info("checking for recordings")
 
     while True:

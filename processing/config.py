@@ -62,6 +62,7 @@ configTuple = namedtuple(
         "max_tracks",
         "no_job_sleep_seconds",
         "subprocess_timeout",
+        "reprocess",
     ],
 )
 
@@ -98,6 +99,7 @@ class Config(configTuple):
                 # convert to seconds
                 restart_after = restart_after * 60 * 60
             return cls(
+                reprocess=y.get("reprocess", False),
                 restart_after=restart_after,
                 temp_dir=y["temp_dir"],
                 api_credentials=APICredentials(
