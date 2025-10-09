@@ -206,7 +206,7 @@ def main():
                 "thermalRaw",
                 ["reprocess"],
                 thermal.classify_job,
-                conf.thermal_analyse_workers,
+                conf.reprocess_thermal_workers,
                 conf.no_job_sleep_seconds,
             )
         if conf.reprocess_audio_workers > 0:
@@ -214,7 +214,7 @@ def main():
                 "audio",
                 ["reprocess"],
                 audio_analysis.track_reprocess,
-                conf.audio_analysis_workers,
+                conf.reprocess_audio_workers,
                 conf.no_job_sleep_seconds,
             )
 
