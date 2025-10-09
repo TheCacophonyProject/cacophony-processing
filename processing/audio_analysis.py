@@ -364,3 +364,130 @@ class AudioTrack:
         if self.id is not None:
             data["id"] = self.id
         return data
+
+
+def track_reprocess(recording, jwtKey, conf):
+    """Reprocess the audio file.
+
+    Downloads the file, runs the AI model on tracks that have been made by users and dont yet have an AI tag
+
+    Args:
+        recording: The recording to process.
+        jwtKey: The JWT key to use for the API.
+        conf: The configuration object.
+
+    Returns:
+        The API response.
+    """
+
+    # this used to work by default then  just stopped, so will explicitly add it
+    mimetypes.add_type("audio/mp4", ".m4a")
+
+    logger = logs.worker_logger("audio.track_reprocess", recording["id"])
+
+    api = API(conf.api_url, conf.user, conf.password, logger)
+
+    input_extension = mimetypes.guess_extension(recording["rawMimeType"])
+
+    if not input_extension:
+        # Unsupported mimetype. If needed more mimetypes can be added above.
+        logger.error(
+            "unsupported mimetype. Not processing %s", recording["rawMimeType"]
+        )
+        api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
+        return
+    new_metadata = {"additionalMetadata": {}}
+    with tempfile.TemporaryDirectory() as temp:
+        temp_path = Path(temp)
+        input_filename = temp_path / ("recording" + input_extension)
+        logger.debug("downloading recording to %s", input_filename)
+
+        api.download_file(jwtKey, str(input_filename))
+        track_info = api.get_track_info(recording["id"]).get("tracks")
+
+        # keep all human tagged tracks
+        human_tracks = [
+            t
+            for t in track_info
+            if not any(tag for tag in t["tags"] if not tag["automatic"])
+        ]
+
+        tracks_to_remove = [
+            t
+            for t in track_info
+            if not any(tag for tag in t["tags"] if tag["automatic"])
+        ]
+        # recording["Tracks"] = track_info
+        filename = input_filename.with_suffix(".txt")
+        if "location" in recording:
+            location = recording["location"]
+            if (
+                "lat" not in location
+                and "lng" not in location
+                and "coordinates" in location
+            ):
+                coords = location["coordinates"]
+                location["lng"] = coords[0]
+                location["lat"] = coords[1]
+        with filename.open("w") as f:
+            json.dump(recording, f)
+
+        metadata = analyse(input_filename, conf, analyse_tracks=True)
+        analysis = AudioResult.load(metadata, metadata.get("duration"))
+        algorithm_meta = {"algorithm": "sliding_window"}
+        if analysis.species_identify_version is not None:
+            algorithm_meta["version"] = analysis.species_identify_version
+        algorithm_id = api.get_algorithm_id(algorithm_meta)
+        data = {"algorithm": algorithm_id}
+
+        for track in analysis.tracks:
+            human_track = match_human_track(track, human_tracks)
+            if human_track is not None:
+                human_tracks.remove(human_track)
+                track.id = human_track["id"]
+                logger.info("Matched track %s to human track %s", track, human_track)
+            else:
+                track.id = api.add_track(recording, track, algorithm_id)
+
+            # master_tag = get_master_tag(analysis, track, logger)
+            if track.master_tag is not None:
+                data["name"] = "Master"
+                api.add_track_tag(recording, track.id, track.master_tag, data)
+            else:
+                data["name"] = "Master"
+                unid = Prediction(UNIDENTIFIED)
+                api.add_track_tag(recording, track.id, unid, data)
+            for i, prediction in enumerate(track.predictions):
+                data["name"] = prediction.model_name
+                api.add_track_tag(recording, track.id, prediction, data)
+
+        logger.info("Archiving old tracks")
+        for track in tracks_to_remove:
+            api.archive_track(recording, track["id"])
+    api.report_done(recording, metadata=new_metadata)
+    logger.info("Completed classifying for file: %s", recording["id"])
+
+
+def match_human_track(new_track, human_tracks):
+    allow_seconds = 0.1
+    matches = [
+        human_track
+        for human_track in human_tracks
+        if abs(new_track.start - human_track["start"]) < allow_seconds
+        and abs(new_track.end - human_track["end"]) < allow_seconds
+    ]
+    if len(matches) == 0:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    # try match freq
+    allow_freq = 100
+    matches = [
+        human_track
+        for human_track in human_tracks
+        if abs(new_track.min_freq - human_track["minFreq"]) < allow_freq
+        and abs(new_track.max_freq - human_track["maxFreq"]) < allow_freq
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return None

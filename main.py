@@ -201,7 +201,7 @@ def main():
 
     if conf.reprocess:
         logger.info("Running reprocess workers")
-        if conf.thermal_analyse_workers > 0:
+        if conf.reprocess_thermal_workers > 0:
             processors.add(
                 "thermalRaw",
                 ["reprocess"],
@@ -209,11 +209,11 @@ def main():
                 conf.thermal_analyse_workers,
                 conf.no_job_sleep_seconds,
             )
-        if conf.audio_analysis_workers > 0:
+        if conf.reprocess_audio_workers > 0:
             processors.add(
                 "audio",
                 ["reprocess"],
-                audio_analysis.track_analyse,
+                audio_analysis.track_reprocess,
                 conf.audio_analysis_workers,
                 conf.no_job_sleep_seconds,
             )
