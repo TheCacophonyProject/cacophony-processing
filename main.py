@@ -117,7 +117,6 @@ def main():
     logger.info("Sleep seconds set to %s", SLEEP_SECS)
 
     processors = Processors()
-    states = ["analyse"]
 
     if conf.audio_analysis_workers > 0:
         processors.add(
@@ -130,7 +129,7 @@ def main():
 
         processors.add(
             "audio",
-            states,
+            ["analyse"],
             audio_analysis.process,
             conf.audio_analysis_workers,
             conf.no_job_sleep_seconds,
@@ -155,7 +154,7 @@ def main():
     if conf.ir_analyse_workers > 0:
         processors.add(
             "irRaw",
-            states,
+            ["analyse"],
             thermal.classify_job,
             conf.ir_analyse_workers,
             conf.no_job_sleep_seconds,
@@ -173,7 +172,7 @@ def main():
     if conf.thermal_analyse_workers > 0:
         processors.add(
             "thermalRaw",
-            states,
+            ["analyse"],
             thermal.classify_job,
             conf.thermal_analyse_workers,
             conf.no_job_sleep_seconds,
