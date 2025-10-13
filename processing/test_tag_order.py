@@ -89,6 +89,9 @@ def test_config():
         max_tracks=10,
         no_job_sleep_seconds=30,
         subprocess_timeout=1200,
+        reprocess=False,
+        reprocess_audio_workers=1,
+        reprocess_thermal_workers=1
     )
 
 
