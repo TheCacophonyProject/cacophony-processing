@@ -91,7 +91,7 @@ def test_config():
         subprocess_timeout=1200,
         reprocess=False,
         reprocess_audio_workers=1,
-        reprocess_thermal_workers=1
+        reprocess_thermal_workers=1,
     )
 
 

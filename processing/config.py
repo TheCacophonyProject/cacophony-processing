@@ -125,8 +125,8 @@ class Config(configTuple):
                 audio_analysis_cmd=audio["analysis_command"],
                 audio_analysis_tag=audio["analysis_tag"],
                 audio_analysis_workers=audio.get("analysis_workers", 1),
-                reprocess_audio_workers=audio.get("reprocess_audio_workers", 1),
-                reprocess_thermal_workers=thermal.get("reprocess_thermal_workers", 1),
+                reprocess_audio_workers=audio.get("reprocess_workers", 1),
+                reprocess_thermal_workers=thermal.get("reprocess_workers", 1),
                 thermal_analyse_workers=thermal.get("analyse_workers", 1),
                 thermal_tracking_workers=thermal.get("tracking_workers", 1),
                 thermal_track_analyse_workers=thermal.get(
