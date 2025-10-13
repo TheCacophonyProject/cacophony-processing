@@ -409,14 +409,10 @@ def track_reprocess(recording, jwtKey, conf):
         human_tracks = [
             t
             for t in track_info
-            if not any(tag for tag in t["tags"] if not tag["automatic"])
+            if any(tag for tag in t["tags"] if not tag["automatic"])
         ]
 
-        tracks_to_remove = [
-            t
-            for t in track_info
-            if not any(tag for tag in t["tags"] if tag["automatic"])
-        ]
+        tracks_to_remove = [t for t in track_info if t not in human_tracks]
         # recording["Tracks"] = track_info
         filename = input_filename.with_suffix(".txt")
         if "location" in recording:
@@ -432,7 +428,7 @@ def track_reprocess(recording, jwtKey, conf):
         with filename.open("w") as f:
             json.dump(recording, f)
 
-        metadata = analyse(input_filename, conf, analyse_tracks=True)
+        metadata = analyse(input_filename, conf)
         analysis = AudioResult.load(metadata, metadata.get("duration"))
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
@@ -473,8 +469,8 @@ def match_human_track(new_track, human_tracks):
     matches = [
         human_track
         for human_track in human_tracks
-        if abs(new_track.start - human_track["start"]) < allow_seconds
-        and abs(new_track.end - human_track["end"]) < allow_seconds
+        if abs(new_track.start_s - human_track["start"]) < allow_seconds
+        and abs(new_track.end_s - human_track["end"]) < allow_seconds
     ]
     if len(matches) == 0:
         return None
