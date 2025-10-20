@@ -296,8 +296,12 @@ class AudioTrack:
         preds = []
         master_tag = raw_track.get("master_tag")
         if master_tag is not None:
+            master_below_thresh = master_tag.get("below_thresh", False)
             master_tag = Prediction.from_audio_meta(
-                master_tag["prediction"], master_tag["model"], False
+                master_tag["prediction"],
+                master_tag["model"],
+                False,
+                master_below_thresh,
             )
         for model_result in raw_track.get("model_results"):
             predictions = model_result["predictions"]

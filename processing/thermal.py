@@ -659,9 +659,13 @@ class Prediction:
     filtered = attr.ib(default=False)
 
     @classmethod
-    def from_audio_meta(cls, meta, model_name, pre_model):
+    def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
+        if below_thresh:
+            tag = UNIDENTIFIED
+        else:
+            tag = meta["what"]
         return cls(
-            tag=meta["what"],
+            tag=tag,
             model_name=model_name,
             label=meta["what"],
             confidence=meta["confidence"],
