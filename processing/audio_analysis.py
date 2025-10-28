@@ -464,6 +464,17 @@ def track_reprocess(recording, jwtKey, conf):
         logger.info("Archiving old tracks")
         for track in tracks_to_remove:
             api.archive_track(recording, track["id"])
+
+        if analysis.cacophony_index is not None:
+            new_metadata["cacophonyIndex"] = analysis.cacophony_index
+            new_metadata["additionalMetadata"][
+                "cacophony_index_version"
+            ] = analysis.cacophony_index_version
+        if analysis.chirp_index is not None:
+            new_metadata["additionalMetadata"]["chirpIndex"] = analysis.chirp_index
+        if analysis.region_code is not None:
+            new_metadata["additionalMetadata"]["regionCode"] = analysis.region_code
+
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
 
