@@ -679,17 +679,28 @@ class Prediction:
 
     @classmethod
     def load(cls, raw_pred):
+
+        # for backwards compatability
+        label = raw_pred.get("label")
+        confident_tag = raw_pred.get("confident_tag")
+        threshold_used = raw_pred.get("threshold_used")
+        confidence = raw_pred.get("confidence", 0)
+        if threshold_used is None:
+            threshold_used = 0.8
+            if confidence >= threshold_used:
+                confident_tag = label
+
         return cls(
             tag=raw_pred.get("tag"),
             message=raw_pred.get("message"),
-            label=raw_pred.get("label"),
+            label=label,
             clarity=raw_pred.get("clarity"),
-            confident_tag=raw_pred.get("confident_tag"),
-            threshold_used=raw_pred.get("threshold_used"),
+            confident_tag=confident_tag,
+            threshold_used=threshold_used,
             all_class_confidences=raw_pred.get("all_class_confidences"),
             classify_time=raw_pred.get("classify_time"),
             prediction_frames=raw_pred.get("prediction_frames"),
-            confidence=raw_pred.get("confidence", 0),
+            confidence=confidence,
             predictions=raw_pred.get("predictions"),
             model_id=raw_pred.get("model_id"),
         )
