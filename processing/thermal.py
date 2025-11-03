@@ -658,7 +658,7 @@ class Prediction:
     pre_model = attr.ib(default=False)
     filtered = attr.ib(default=False)
     threshold_used = attr.ib(default=0.8)
-    confident_tag = attr.ib()
+    confident_tag = attr.ib(default=None)
 
     @classmethod
     def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
