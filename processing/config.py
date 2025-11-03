@@ -62,6 +62,9 @@ configTuple = namedtuple(
         "max_tracks",
         "no_job_sleep_seconds",
         "subprocess_timeout",
+        "reprocess",
+        "reprocess_audio_workers",
+        "reprocess_thermal_workers",
     ],
 )
 
@@ -98,6 +101,7 @@ class Config(configTuple):
                 # convert to seconds
                 restart_after = restart_after * 60 * 60
             return cls(
+                reprocess=y.get("reprocess", False),
                 restart_after=restart_after,
                 temp_dir=y["temp_dir"],
                 api_credentials=APICredentials(
@@ -121,6 +125,8 @@ class Config(configTuple):
                 audio_analysis_cmd=audio["analysis_command"],
                 audio_analysis_tag=audio["analysis_tag"],
                 audio_analysis_workers=audio.get("analysis_workers", 1),
+                reprocess_audio_workers=audio.get("reprocess_workers", 1),
+                reprocess_thermal_workers=thermal.get("reprocess_workers", 1),
                 thermal_analyse_workers=thermal.get("analyse_workers", 1),
                 thermal_tracking_workers=thermal.get("tracking_workers", 1),
                 thermal_track_analyse_workers=thermal.get(

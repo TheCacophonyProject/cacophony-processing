@@ -267,7 +267,8 @@ class API:
 
     def add_track_tag(self, recording, track_id, prediction, data=""):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
-
+        if prediction.label is not None and prediction.tag != prediction.label:
+            data["raw_tag"] = prediction.label
         post_data = {
             "what": prediction.tag,
             "confidence": prediction.confidence,
