@@ -27,7 +27,7 @@ def calculate_tags(tracks, conf):
 
 
 def prediction_is_clear(prediction, conf):
-    if prediction.confidence < conf.min_tag_confidence:
+    if prediction.confident_tag is not None:
         prediction.message = "Low confidence - no tag"
         return False
     if prediction.clarity < conf.min_tag_clarity:
