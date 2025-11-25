@@ -264,7 +264,7 @@ class API:
         if r.status_code == 200:
             return r.json()["trackId"]
         raise IOError(r.text)
-    
+
     def add_track(self, recording, track, algorithm_id):
         url = self.file_url + "/{}/tracks".format(recording["id"])
         post_data = {"data": json.dumps(track.post_data()), "algorithmId": algorithm_id}
