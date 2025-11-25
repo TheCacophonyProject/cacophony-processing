@@ -43,7 +43,7 @@ thermal:
     wallaby_devices: []
 
     false_positive_min_confidence: 0.7
-    filter_false_positive: true
+    filter_false_positive: false
     max_tracks: 10
 
     tagging:

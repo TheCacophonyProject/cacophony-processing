@@ -245,7 +245,7 @@ def is_wallaby_device(wallaby_devices, recording_meta):
 
 # if best tag is false positive weight track based on that confidence
 def fp_score(track):
-    if track.master_tag.label == "false-positive":
+    if track.master_tag.raw_tag == "false-positive":
         return -track.master_tag.confidence
     return 0
 
@@ -274,6 +274,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
     )
 
     # if not doing tracking and analysis step all tracks are already made so tag them and then archive
+    # do this later
     if not do_tracking:
         for track in classify_result.tracks:
             for prediction in track.predictions:
@@ -315,14 +316,16 @@ def classify(conf, recording, api, logger, do_tracking=False):
                     (
                         pred
                         for pred in track.predictions
-                        if pred.label == "false-positive"
+                        if pred.raw_tag == "false-positive"
                         and pred.confidence >= conf.false_positive_min_confidence
                     ),
                     None,
                 )
-            if fp_pred and not do_tracking:
-                confidence = min(confidence, fp_pred.confidence)
-                api.archive_track(recording, track.id)
+            if fp_pred:
+                if not do_tracking:
+                    confidence = min(confidence, fp_pred.confidence)
+                    track.archived = True
+                    api.archive_track(recording, track.id)
             else:
                 good_tracks.append(track)
         if len(good_tracks) == 0 and len(classify_result.tracks) > 0:
@@ -348,38 +351,42 @@ def classify(conf, recording, api, logger, do_tracking=False):
         # once we remove tracking step can remove this
         if not do_tracking:
             for track in ordered[conf.max_tracks :]:
+                api.archive_track = True
                 api.archive_track(recording, track.id)
         classify_result.tracks = ordered[: conf.max_tracks]
 
     # if doing tracking and anlaysis in one step, only create and tag important tracks
-    if do_tracking or calculate_thumbnails:
+    if do_tracking:
+        add_tracks_and_tags(recording,classify_result.tracks,logger)
+                # track.id = api.add_track(
+                #     recording, track, classify_result.tracking_algorithm
+                # )
+                # for prediction in track.predictions:
+                #     add_track_tag(
+                #         api,
+                #         recording,
+                #         track,
+                #         prediction,
+                #         logger,
+                #         model_name=prediction.model_name,
+                #     )
+
+                # add_track_tag(
+                #     api,
+                #     recording,
+                #     track,
+                #     track.master_tag,
+                #     logger,
+                #     model_name=conf.master_tag,
+                #     model_used=track.master_tag.model_name,
+                #     rat_thresh_version=track.master_tag.rat_thresh_version,
+                # )
+        
+    elif calculate_thumbnails:
         for track in classify_result.tracks:
             if calculate_thumbnails:
                 api.update_track_thumbnail(recording, track)
-            elif do_tracking:
-                track.id = api.add_track(
-                    recording, track, classify_result.tracking_algorithm
-                )
-                for prediction in track.predictions:
-                    add_track_tag(
-                        api,
-                        recording,
-                        track,
-                        prediction,
-                        logger,
-                        model_name=prediction.model_name,
-                    )
-
-                add_track_tag(
-                    api,
-                    recording,
-                    track,
-                    track.master_tag,
-                    logger,
-                    model_name=conf.master_tag,
-                    model_used=track.master_tag.model_name,
-                    rat_thresh_version=track.master_tag.rat_thresh_version,
-                )
+           
 
     multiple_confidence = calculate_multiple_animal_confidence(classify_result.tracks)
     if multiple_confidence > conf.min_confidence:
@@ -453,7 +460,8 @@ def generate_master_tags(
                 master_prediction.tag = "mouse"
             master_prediction.rat_thresh_version = rat_thresh["ratThresh"]["version"]
         if master_model is not None:
-            master_prediction.model_name = master_model.name
+            master_prediction.model_name = master_name
+            master_prediction.model_used = master_model.name
 
         track.master_tag = master_prediction
 
@@ -554,7 +562,22 @@ def model_rank(tag, tag_scores):
     return tag_scores["default"]
 
 
-def add_track_tag(
+def add_tracks_and_tags(
+    api,
+    recording,
+    tracks,
+    logger,
+    model_name=None,
+    model_used=None,
+):
+    tracks_data = [track.post_data(predictions = True) for track in tracks]
+    api.add_tracks(recording,tracks_data)
+    
+    
+    
+    
+
+def  add_track_tag(
     api,
     recording,
     track,
@@ -581,8 +604,8 @@ def add_track_tag(
     #     track_data["prediction_frames"] = prediction.prediction_frames
     if prediction.message is not None:
         track_data[MESSAGE] = prediction.message
-    if prediction.label is not None:
-        track_data["raw_tag"] = prediction.label
+    if prediction.raw_tag is not None:
+        track_data["raw_tag"] = prediction.raw_tag
 
     if rat_thresh_version is not None:
         track_data["rat_thresh_version"] = rat_thresh_version
@@ -608,6 +631,7 @@ class Track:
     confidence = attr.ib(default=0)
     master_tag = attr.ib(default=None)
     score = attr.ib(default=0)
+    archived = attr.ib(default=False)
 
     @classmethod
     def load(cls, raw_track):
@@ -625,7 +649,7 @@ class Track:
             thumbnail_info=raw_track.get("thumbnail"),
         )
 
-    def post_data(self):
+    def post_data(self,predictions = False):
         data = {
             "positions": self.positions,
             "start_s": self.start_s,
@@ -638,6 +662,13 @@ class Track:
         if self.thumbnail_info is not None:
             data["thumbnail"] = self.thumbnail_info
 
+        if predictions:
+            predictions = [prediction.post_data() for prediction in self.predictions]
+           
+            if self.master_tag is not None:
+                master_tag = self.master_tag.post_data()
+                predictions.append(master_tag)
+            data["predictions"] = predictions
         return data
 
 
@@ -645,7 +676,7 @@ class Track:
 class Prediction:
     tag = attr.ib()
     message = attr.ib(default=None)
-    label = attr.ib(default=None)
+    raw_tag = attr.ib(default=None)
     clarity = attr.ib(default=0)
     all_class_confidences = attr.ib(default=None)
     classify_time = attr.ib(default=0)
@@ -657,6 +688,8 @@ class Prediction:
     rat_thresh_version = attr.ib(default=None)
     pre_model = attr.ib(default=False)
     filtered = attr.ib(default=False)
+    model_used = attr.ib(default = None)
+    confident = attr.ib(default = False)
 
     @classmethod
     def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
@@ -676,9 +709,8 @@ class Prediction:
     @classmethod
     def load(cls, raw_pred):
         return cls(
-            tag=raw_pred.get("tag"),
             message=raw_pred.get("message"),
-            label=raw_pred.get("label"),
+            tag=raw_pred.get("label"),
             clarity=raw_pred.get("clarity"),
             all_class_confidences=raw_pred.get("all_class_confidences"),
             classify_time=raw_pred.get("classify_time"),
@@ -687,6 +719,20 @@ class Prediction:
             predictions=raw_pred.get("predictions"),
             model_id=raw_pred.get("model_id"),
         )
+    
+    def post_data(self):
+        data = {}
+        data = {"name":self.model_name,"clarity": self.clarity,"all_class_confidences": self.all_class_confidences, "confident": self.confident,"tag":self.tag}
+        if self.classify_time is not None:
+            data["classify_time"] = self.classify_time
+        if self.message is not None:
+            data[MESSAGE] = self.message
+        if self.rat_thresh_version is not None:
+            data["rat_thresh_version"] = self.rat_thresh_version
+        if self.model_used :
+            data["model_used"] = self.model_used
+        return data
+
 
 
 @attr.s
