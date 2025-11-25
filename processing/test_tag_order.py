@@ -67,7 +67,6 @@ def test_config():
         wallaby_devices=[1, 2],
         master_tag="Master",
         min_confidence=0.4,
-        min_tag_confidence=0.8,
         max_tag_novelty=0.7,
         min_tag_clarity=0.2,
         min_tag_clarity_secondary=0.05,
