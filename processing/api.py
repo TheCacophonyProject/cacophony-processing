@@ -262,7 +262,19 @@ class API:
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
-            return r.json()["trackId"]
+            result = r.json()
+            print("Got result ", result)
+            return result["trackIds"]
+        raise IOError(r.text)
+
+    def add_tags(self, recording, tracks, algorithm_id):
+        url = self.file_url + "/{}/tracks{}/tags".format(recording["id"])
+        post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
+        r = self.post(url, data=post_data)
+        if r.status_code == 200:
+            result = r.json()
+            print("Got result ", result)
+            return result["trackIds"]
         raise IOError(r.text)
 
     def add_track(self, recording, track, algorithm_id):
@@ -273,18 +285,11 @@ class API:
             return r.json()["trackId"]
         raise IOError(r.text)
 
-    def add_track_tag(self, recording, track_id, prediction, data=""):
+    def add_track_tags(self, recording, track_id, predictions):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
-        if prediction.raw_tag is not None and prediction.tag != prediction.raw_tag:
-            data["raw_tag"] = prediction.raw_tag
-        post_data = {
-            "what": prediction.tag,
-            "confidence": prediction.confidence,
-            "data": json.dumps(data),
-        }
-        r = self.post(url, data=post_data)
+        r = self.post(url, data=json.dumps([pred.post_data() for pred in predictions]))
         if r.status_code == 200:
-            return r.json()["trackTagId"]
+            return r.json()["trackTagIds"]
         raise IOError(r.text)
 
     def get_track_info(self, recording_id):

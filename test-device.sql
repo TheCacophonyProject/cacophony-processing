@@ -1,7 +1,7 @@
 
 
 
--- docker cp test-device.sql cacophony-web-server:/test-device.sql && docker exec cacophony-api sh -c "sudo -i -u postgres psql cacophonytest -f/test-device.sql"
+-- docker cp test-device.sql cacophony-web:/test-device.sql && docker exec cacophony-web sh -c "sudo -i -u postgres psql cacophonytest -f/test-device.sql"
 --test-groups
 INSERT INTO "Groups" ("id","groupName","createdAt","updatedAt") VALUES (DEFAULT,'test-group','2019-03-14 20:15:23.423 +00:00','2019-03-14 20:15:23.423 +00:00');
 

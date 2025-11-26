@@ -87,29 +87,47 @@ def track_analyse(recording, jwtKey, conf):
                 coords = location["coordinates"]
                 location["lng"] = coords[0]
                 location["lat"] = coords[1]
+
+        # for track in analysis.tracks:
+        #     track.id = api.add_track(recording, track, algorithm_id)
+
+        #     data = {"algorithm": algorithm_id}
+
+        #     if track.master_tag is not None:
+        #         data["name"] = "Master"
+        #         api.add_track_tag(recording, track.id, track.master_tag, data)
+        #     else:
+        #         data["name"] = "Master"
+        #         unid = Prediction(UNIDENTIFIED)
+        #         api.add_track_tag(recording, track.id, unid, data)
+        #     for i, prediction in enumerate(track.predictions):
+        #         data["name"] = prediction.model_name
+        #         if prediction.filtered:
+        #             data["filtered"] = True
+        #         api.add_track_tag(recording, track.id, prediction, data)
         with filename.open("w") as f:
             json.dump(recording, f)
 
         metadata = analyse(input_filename, conf, analyse_tracks=True)
-        analysis = AudioResult.load(metadata, metadata.get("duration"))
+        analysis = AudioResult.load(metadata, metadata.get("duration"), conf.master_tag)
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
-        data = {"algorithm": algorithm_id}
+        add_tracks_and_tags(api, recording, analysis.tracks, algorithm_id, logger)
 
-        for track in analysis.tracks:
-            # master_tag = get_master_tag(analysis, track, logger)
-            if track.master_tag is not None:
-                data["name"] = "Master"
-                api.add_track_tag(recording, track.id, track.master_tag, data)
-            else:
-                data["name"] = "Master"
-                unid = Prediction(UNIDENTIFIED)
-                api.add_track_tag(recording, track.id, unid, data)
-            for i, prediction in enumerate(track.predictions):
-                data["name"] = prediction.model_name
-                api.add_track_tag(recording, track.id, prediction, data)
+        # for track in analysis.tracks:
+        #     # master_tag = get_master_tag(analysis, track, logger)
+        #     if track.master_tag is not None:
+        #         data["name"] = "Master"
+        #         api.add_track_tag(recording, track.id, track.master_tag, data)
+        #     else:
+        #         data["name"] = "Master"
+        #         unid = Prediction(UNIDENTIFIED)
+        #         api.add_track_tag(recording, track.id, unid, data)
+        #     for i, prediction in enumerate(track.predictions):
+        #         data["name"] = prediction.model_name
+        #         api.add_track_tag(recording, track.id, prediction, data)
 
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
@@ -184,29 +202,13 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
             new_metadata["duration"] = duration
         else:
             duration = metadata.get("analysis_result", {}).get("duration")
-        analysis = AudioResult.load(metadata, duration)
+        analysis = AudioResult.load(metadata, duration, conf.master_tag)
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
 
-        for track in analysis.tracks:
-            track.id = api.add_track(recording, track, algorithm_id)
-
-            data = {"algorithm": algorithm_id}
-
-            if track.master_tag is not None:
-                data["name"] = "Master"
-                api.add_track_tag(recording, track.id, track.master_tag, data)
-            else:
-                data["name"] = "Master"
-                unid = Prediction(UNIDENTIFIED)
-                api.add_track_tag(recording, track.id, unid, data)
-            for i, prediction in enumerate(track.predictions):
-                data["name"] = prediction.model_name
-                if prediction.filtered:
-                    data["filtered"] = True
-                api.add_track_tag(recording, track.id, prediction, data)
+        add_tracks_and_tags(api, recording, analysis.tracks, algorithm_id, logger)
 
         if analysis.cacophony_index is not None:
             new_metadata["cacophonyIndex"] = analysis.cacophony_index
@@ -221,6 +223,13 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
         # new_metadata["additionalMetadata"] = analysis
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed processing for file: %s", recording["id"])
+
+
+def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
+    tracks_data = [track.post_data(predictions=True) for track in tracks]
+    track_ids = api.add_tracks(recording, tracks_data, algorithm_id)
+    for track_id, track in zip(track_ids, tracks):
+        track.id = track_id
 
 
 def analyse(filename, conf, analyse_tracks=False):
@@ -261,11 +270,11 @@ class AudioResult:
     non_bird_tags = attr.ib()
 
     @classmethod
-    def load(cls, result, duration):
+    def load(cls, result, duration, master_name):
         tracks = []
         analysis = result.get("analysis_result", {})
         for track in analysis.get("species_identify", []):
-            tracks.append(AudioTrack.load(track, duration))
+            tracks.append(AudioTrack.load(track, duration, master_name))
 
         return cls(
             tracks=tracks,
@@ -292,37 +301,43 @@ class AudioTrack:
     positions = attr.ib(default=None)
 
     @classmethod
-    def load(cls, raw_track, duration):
+    def load(cls, raw_track, duration, master_name):
         preds = []
-        master_tag = raw_track.get("master_tag")
-        if master_tag is not None:
-            master_below_thresh = master_tag.get("below_thresh", False)
-            master_tag = Prediction.from_audio_meta(
-                master_tag["prediction"],
-                master_tag["model"],
-                False,
-                master_below_thresh,
-            )
+        raw_master = raw_track.get("master_tag")
+        if raw_master is not None:
+            # master_below_thresh = master_tag.get("below_thresh", False)
+            raw_pred = raw_master["prediction"]
+            raw_pred["label"] = raw_pred["what"]
+            if "threshold_used" not in raw_pred:
+                raw_pred["threshold_used"] = 0.7
+
+            master_tag = Prediction.load(raw_pred)
+
+            master_tag.model_name = master_name
+            master_tag.model_used = raw_master["model"]
+        else:
+            master_tag = Prediction(UNIDENTIFIED)
+            master_tag.model_name = master_name
+
         for model_result in raw_track.get("model_results"):
             predictions = model_result["predictions"]
-            raw_tag = None
             model_name = model_result["model"]
-            pre_model = model_result.get("pre_model", False)
             if len(predictions) == 0 and "raw_prediction" in model_result:
                 raw_pred = model_result["raw_prediction"]
-                pred = Prediction(
-                    confidence=raw_pred["confidence"],
-                    tag=UNIDENTIFIED,
-                    label=raw_pred["what"],
-                    model_name=model_name,
-                    pre_model=pre_model,
-                )
+                raw_pred["label"] = raw_pred["what"]
+                if "threshold_used" not in raw_pred:
+                    raw_pred["threshold_used"] = 0.7
+                pred = Prediction.load(raw_pred)
+                pred.model_name = model_name
                 preds.append(pred)
             else:
-                for pred in predictions:
-                    preds.append(
-                        Prediction.from_audio_meta(pred, model_name, pre_model)
-                    )
+                for raw_pred in predictions:
+                    raw_pred["label"] = raw_pred["what"]
+                    if "threshold_used" not in raw_pred:
+                        raw_pred["threshold_used"] = 0.7
+                    pred = Prediction.load(raw_pred)
+                    pred.model_name = model_name
+                    preds.append(pred)
 
         track = cls(
             id=raw_track.get("track_id"),
@@ -433,33 +448,23 @@ def track_reprocess(recording, jwtKey, conf):
             json.dump(recording, f)
 
         metadata = analyse(input_filename, conf)
-        analysis = AudioResult.load(metadata, metadata.get("duration"))
+        analysis = AudioResult.load(metadata, metadata.get("duration"), conf.master_tag)
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
-        data = {"algorithm": algorithm_id}
-
+        tracks_to_add = []
         for track in analysis.tracks:
             human_track = match_human_track(track, human_tracks)
             if human_track is not None:
                 human_tracks.remove(human_track)
                 track.id = human_track["id"]
                 logger.info("Matched track %s to human track %s", track, human_track)
+                api.add_track_tags(recording, track.id, track.all_predictions())
             else:
-                track.id = api.add_track(recording, track, algorithm_id)
+                tracks_to_add.append(track)
 
-            # master_tag = get_master_tag(analysis, track, logger)
-            if track.master_tag is not None:
-                data["name"] = "Master"
-                api.add_track_tag(recording, track.id, track.master_tag, data)
-            else:
-                data["name"] = "Master"
-                unid = Prediction(UNIDENTIFIED)
-                api.add_track_tag(recording, track.id, unid, data)
-            for i, prediction in enumerate(track.predictions):
-                data["name"] = prediction.model_name
-                api.add_track_tag(recording, track.id, prediction, data)
+        add_tracks_and_tags(api, recording, tracks_to_add, algorithm_id)
 
         logger.info("Archiving old tracks")
         for track in tracks_to_remove:

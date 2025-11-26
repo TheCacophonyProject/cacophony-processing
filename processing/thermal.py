@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import attrs
 import attr
 import json
 import subprocess
@@ -98,16 +99,21 @@ def track(conf, recording, api, duration, retrack, logger):
         tracks.append(Track.load(t))
 
     tracking_result = ClassifyResult.load(tracking_info, algorithm_id, tracks)
-    for track in tracking_result.tracks:
-        if retrack:
+    if retrack:
+        for track in tracking_result.tracks:
             if len(track.positions) == 0:
                 api.archive_track(recording, track.id)
             else:
                 api.update_track(recording, track)
-        else:
-            track.id = api.add_track(
-                recording, track, tracking_result.tracking_algorithm
-            )
+    else:
+        add_tracks_and_tags(
+            api,
+            recording,
+            tracking_result.tracks,
+            tracking_result.tracking_algorithm,
+            logger,
+        )
+
     additionalMetadata = {"algorithm": tracking_result.tracking_algorithm}
     if tracking_result.tracking_time is not None:
         additionalMetadata["tracking_time"] = tracking_result.tracking_time
@@ -133,9 +139,9 @@ def track_classify_job(recording, rawJWT, conf):
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
         meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
-
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)
+
         classify(conf, recording, api, logger, do_tracking=True)
 
 
@@ -187,6 +193,7 @@ def classify_file(
         command = f"{command} --calculate-thumbnails"
     logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command, file, conf.subprocess_timeout)
+    print("Classify info is ", classify_info)
     tracks = []
     for t in classify_info["tracks"]:
         tracks.append(Track.load(t))
@@ -263,7 +270,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
         do_tracking=do_tracking,
         calculate_thumbnails=calculate_thumbnails,
     )
-
+    print("Classify result is ", classify_result)
     generate_master_tags(
         api,
         recording,
@@ -277,26 +284,9 @@ def classify(conf, recording, api, logger, do_tracking=False):
     # do this later
     if not do_tracking:
         for track in classify_result.tracks:
-            for prediction in track.predictions:
-                add_track_tag(
-                    api,
-                    recording,
-                    track,
-                    prediction,
-                    logger,
-                    model_name=prediction.model_name,
-                )
-
-            add_track_tag(
-                api,
-                recording,
-                track,
-                track.master_tag,
-                logger,
-                model_name=conf.master_tag,
-                model_used=track.master_tag.model_name,
-                rat_thresh_version=track.master_tag.rat_thresh_version,
-            )
+            preds = track.predictions
+            preds.append(track.master_tag)
+            api.add_track_tags(recording, track.id, preds)
 
     if conf.filter_false_positive:
         good_tracks = []
@@ -364,29 +354,6 @@ def classify(conf, recording, api, logger, do_tracking=False):
             classify_result.tracking_algorithm,
             logger,
         )
-        # track.id = api.add_track(
-        #     recording, track, classify_result.tracking_algorithm
-        # )
-        # for prediction in track.predictions:
-        #     add_track_tag(
-        #         api,
-        #         recording,
-        #         track,
-        #         prediction,
-        #         logger,
-        #         model_name=prediction.model_name,
-        #     )
-
-        # add_track_tag(
-        #     api,
-        #     recording,
-        #     track,
-        #     track.master_tag,
-        #     logger,
-        #     model_name=conf.master_tag,
-        #     model_used=track.master_tag.model_name,
-        #     rat_thresh_version=track.master_tag.rat_thresh_version,
-        # )
 
     elif calculate_thumbnails:
         for track in classify_result.tracks:
@@ -445,7 +412,7 @@ def generate_master_tags(
             model = classify_result.models_by_id[model_prediction.model_id]
             if track is not None and model_prediction.tag is not None:
                 model_prediction.model_name = model.name
-        master_model, master_prediction = get_master_tag(
+        master_prediction = get_master_tag(
             track.predictions,
             classify_result.models_by_id,
             wallaby_device,
@@ -464,10 +431,7 @@ def generate_master_tags(
             else:
                 master_prediction.tag = "mouse"
             master_prediction.rat_thresh_version = rat_thresh["ratThresh"]["version"]
-        if master_model is not None:
-            master_prediction.model_name = master_name
-            master_prediction.model_used = master_model.name
-
+        master_prediction.model_name = master_name
         track.master_tag = master_prediction
 
 
@@ -551,14 +515,21 @@ def get_master_tag(model_results, models_by_id, wallaby_device=False):
         and model_rank(prediction.tag, model.tag_scores) is not None
     ]
     if len(clear_tags) == 0:
-        return valid_models[0]
-
+        master_model, master_pred = valid_models[0]
+        master_pred = attrs.evolve(master_pred)
+        master_pred.model_used = master_model.name
+        return master_pred
     ordered = sorted(
         clear_tags,
         key=lambda model: model_rank(model[1].tag, model[0].tag_scores),
         reverse=True,
     )
-    return ordered[0]
+
+    master_model, master_pred = ordered[0]
+    master_pred = attrs.evolve(master_pred)
+    master_pred.model_used = master_model.name
+
+    return master_pred
 
 
 def model_rank(tag, tag_scores):
@@ -569,49 +540,51 @@ def model_rank(tag, tag_scores):
 
 def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
     tracks_data = [track.post_data(predictions=True) for track in tracks]
-    api.add_tracks(recording, tracks_data, algorithm_id)
+    track_ids = api.add_tracks(recording, tracks_data, algorithm_id)
+    for track_id, track in zip(track_ids, tracks):
+        track.id = track_id
 
 
-def add_track_tag(
-    api,
-    recording,
-    track,
-    prediction,
-    logger,
-    model_name=None,
-    model_used=None,
-    rat_thresh_version=None,
-):
-    if not track or prediction.tag is None:
-        return False, None
+# def add_track_tag(
+#     api,
+#     recording,
+#     track,
+#     prediction,
+#     logger,
+#     model_name=None,
+#     model_used=None,in
+#     rat_thresh_version=None,
+# ):
+#     if not track or prediction.tag is None:
+#         return False, None
 
-    track_data = {"name": model_name}
-    if model_used is not None:
-        # specifically for master tag to see which model was chosen
-        track_data["model_used"] = model_used
-    if prediction.classify_time is not None:
-        track_data["classify_time"] = prediction.classify_time
-    track_data["clarity"] = prediction.clarity
-    track_data["all_class_confidences"] = prediction.all_class_confidences
-    # if prediction.predictions is not None:
-    #     track_data["predictions"] = prediction.predictions
-    # if prediction.prediction_frames is not None:
-    #     track_data["prediction_frames"] = prediction.prediction_frames
-    if prediction.message is not None:
-        track_data[MESSAGE] = prediction.message
-    track_data["tag"] = prediction.tag
-    track_data["confident"] = prediction.confident
-    if rat_thresh_version is not None:
-        track_data["rat_thresh_version"] = rat_thresh_version
-    logger.debug(
-        "adding %s track tag %s for track %s",
-        track_data["name"],
-        prediction.tag,
-        track.id,
-    )
+#     track_data = {"name": model_name}
+#     if model_used is not None:
+#         # specifically for master tag to see which model was chosen
+#         track_data["model_used"] = model_used
+#     if prediction.classify_time is not None:
+#         track_data["classify_time"] = prediction.classify_time
+#     track_data["clarity"] = prediction.clarity
+#     track_data["all_class_confidences"] = prediction.all_class_confidences
+#     # if prediction.predictions is not None:
+#     #     track_data["predictions"] = prediction.predictions
+#     # if prediction.prediction_frames is not None:
+#     #     track_data["prediction_frames"] = prediction.prediction_frames
+#     if prediction.message is not None:
+#         track_data[MESSAGE] = prediction.message
+#     track_data["tag"] = prediction.tag
+#     track_data["confident"] = prediction.confident
+#     if rat_thresh_version is not None:
+#         track_data["rat_thresh_version"] = rat_thresh_version
+#     logger.debug(
+#         "adding %s track tag %s for track %s",
+#         track_data["name"],
+#         prediction.tag,
+#         track.id,
+#     )
 
-    api.add_track_tag(recording, track.id, prediction, data=track_data)
-    return True, prediction.tag
+#     api.add_track_tag(recording, track.id, prediction, data=track_data)
+#     return True, prediction.tag
 
 
 @attr.s
@@ -643,6 +616,12 @@ class Track:
             thumbnail_info=raw_track.get("thumbnail"),
         )
 
+    def all_predictions(self):
+        preds = self.predictions
+        if self.master_tag is not None:
+            preds.append(self.master_tag)
+        return preds
+
     def post_data(self, predictions=False):
         data = {
             "positions": self.positions,
@@ -655,7 +634,7 @@ class Track:
 
         if self.thumbnail_info is not None:
             data["thumbnail"] = self.thumbnail_info
-
+        print("Posting track ", data)
         if predictions:
             predictions = [prediction.post_data() for prediction in self.predictions]
 
@@ -688,19 +667,15 @@ class Prediction:
 
     @classmethod
     def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
-        if below_thresh:
-            tag = UNIDENTIFIED
-        else:
-            tag = meta["what"]
+
         return cls(
-            tag=tag,
+            tag=meta["what"],
             model_name=model_name,
-            confident_tag=tag,
-            label=meta["what"],
             confidence=meta["confidence"],
             pre_model=pre_model,
             filtered=meta.get("filtered", False),
             threshold_used=meta.get("threshold_used"),
+            confident=not below_thresh,
         )
 
     @classmethod
@@ -734,6 +709,8 @@ class Prediction:
             confidence=confidence,
             predictions=raw_pred.get("predictions"),
             model_id=raw_pred.get("model_id"),
+            model_name=raw_pred.get("model_name"),
+            filtered=raw_pred.get("filtered", False),
         )
 
     def post_data(self):
@@ -745,6 +722,7 @@ class Prediction:
             "all_class_confidences": self.all_class_confidences,
             "confident": self.confident,
             "tag": self.tag,
+            "confidence": self.confidence,
         }
         if self.classify_time is not None:
             data["classify_time"] = self.classify_time
