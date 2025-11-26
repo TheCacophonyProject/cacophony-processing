@@ -87,24 +87,7 @@ def track_analyse(recording, jwtKey, conf):
                 coords = location["coordinates"]
                 location["lng"] = coords[0]
                 location["lat"] = coords[1]
-
-        # for track in analysis.tracks:
-        #     track.id = api.add_track(recording, track, algorithm_id)
-
-        #     data = {"algorithm": algorithm_id}
-
-        #     if track.master_tag is not None:
-        #         data["name"] = "Master"
-        #         api.add_track_tag(recording, track.id, track.master_tag, data)
-        #     else:
-        #         data["name"] = "Master"
-        #         unid = Prediction(UNIDENTIFIED)
-        #         api.add_track_tag(recording, track.id, unid, data)
-        #     for i, prediction in enumerate(track.predictions):
-        #         data["name"] = prediction.model_name
-        #         if prediction.filtered:
-        #             data["filtered"] = True
-        #         api.add_track_tag(recording, track.id, prediction, data)
+                
         with filename.open("w") as f:
             json.dump(recording, f)
 
@@ -115,19 +98,6 @@ def track_analyse(recording, jwtKey, conf):
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
         add_tracks_and_tags(api, recording, analysis.tracks, algorithm_id, logger)
-
-        # for track in analysis.tracks:
-        #     # master_tag = get_master_tag(analysis, track, logger)
-        #     if track.master_tag is not None:
-        #         data["name"] = "Master"
-        #         api.add_track_tag(recording, track.id, track.master_tag, data)
-        #     else:
-        #         data["name"] = "Master"
-        #         unid = Prediction(UNIDENTIFIED)
-        #         api.add_track_tag(recording, track.id, unid, data)
-        #     for i, prediction in enumerate(track.predictions):
-        #         data["name"] = prediction.model_name
-        #         api.add_track_tag(recording, track.id, prediction, data)
 
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])

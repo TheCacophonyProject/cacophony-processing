@@ -287,6 +287,8 @@ class API:
 
     def add_track_tags(self, recording, track_id, predictions):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
+        json_data =[pred.post_data() for pred in predictions]
+        print("add track tags ",json.dumps(json_data))
         r = self.post(url, data=json.dumps([pred.post_data() for pred in predictions]))
         if r.status_code == 200:
             return r.json()["trackTagIds"]
