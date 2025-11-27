@@ -80,14 +80,15 @@ def track_analyse(recording, jwtKey, conf):
         if "location" in recording:
             location = recording["location"]
             if (
-                "lat" not in location
+                location is not None
+                and "lat" not in location
                 and "lng" not in location
                 and "coordinates" in location
             ):
                 coords = location["coordinates"]
                 location["lng"] = coords[0]
                 location["lat"] = coords[1]
-                
+
         with filename.open("w") as f:
             json.dump(recording, f)
 
@@ -97,7 +98,9 @@ def track_analyse(recording, jwtKey, conf):
         if analysis.species_identify_version is not None:
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
-        add_tracks_and_tags(api, recording, analysis.tracks, algorithm_id, logger)
+        for track in analysis.tracks:
+            api.add_track_tags(recording, track.id, track.all_predictions())
+        # add_tracks_and_tags(api, recording, analysis.tracks, algorithm_id, logger)
 
     api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
@@ -197,6 +200,7 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
 
 def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
     tracks_data = [track.post_data(predictions=True) for track in tracks]
+    print("Tracks data is ", tracks_data)
     track_ids = api.add_tracks(recording, tracks_data, algorithm_id)
     for track_id, track in zip(track_ids, tracks):
         track.id = track_id
@@ -270,6 +274,12 @@ class AudioTrack:
     master_tag = attr.ib(default=None)
     positions = attr.ib(default=None)
 
+    def all_predictions(self):
+        preds = self.predictions
+        if self.master_tag is not None:
+            preds.append(self.master_tag)
+        return preds
+
     @classmethod
     def load(cls, raw_track, duration, master_name):
         preds = []
@@ -277,7 +287,8 @@ class AudioTrack:
         if raw_master is not None:
             # master_below_thresh = master_tag.get("below_thresh", False)
             raw_pred = raw_master["prediction"]
-            raw_pred["label"] = raw_pred["what"]
+            if "label" not in raw_pred:
+                raw_pred["label"] = raw_pred["what"]
             if "threshold_used" not in raw_pred:
                 raw_pred["threshold_used"] = 0.7
 
@@ -294,7 +305,8 @@ class AudioTrack:
             model_name = model_result["model"]
             if len(predictions) == 0 and "raw_prediction" in model_result:
                 raw_pred = model_result["raw_prediction"]
-                raw_pred["label"] = raw_pred["what"]
+                if "label" not in raw_pred:
+                    raw_pred["label"] = raw_pred["what"]
                 if "threshold_used" not in raw_pred:
                     raw_pred["threshold_used"] = 0.7
                 pred = Prediction.load(raw_pred)
@@ -302,7 +314,8 @@ class AudioTrack:
                 preds.append(pred)
             else:
                 for raw_pred in predictions:
-                    raw_pred["label"] = raw_pred["what"]
+                    if "label" not in raw_pred:
+                        raw_pred["label"] = raw_pred["what"]
                     if "threshold_used" not in raw_pred:
                         raw_pred["threshold_used"] = 0.7
                     pred = Prediction.load(raw_pred)
@@ -342,7 +355,7 @@ class AudioTrack:
         track.positions = [position]
         return track
 
-    def post_data(self):
+    def post_data(self, predictions=True):
         data = {
             "positions": self.positions,
             "start_s": self.start_s,
@@ -352,6 +365,12 @@ class AudioTrack:
         }
         if self.id is not None:
             data["id"] = self.id
+
+        if predictions:
+            predictions = [
+                prediction.post_data() for prediction in self.all_predictions()
+            ]
+            data["predictions"] = predictions
         return data
 
 
@@ -407,7 +426,8 @@ def track_reprocess(recording, jwtKey, conf):
         if "location" in recording:
             location = recording["location"]
             if (
-                "lat" not in location
+                location is not None
+                and "lat" not in location
                 and "lng" not in location
                 and "coordinates" in location
             ):
@@ -424,6 +444,8 @@ def track_reprocess(recording, jwtKey, conf):
             algorithm_meta["version"] = analysis.species_identify_version
         algorithm_id = api.get_algorithm_id(algorithm_meta)
         tracks_to_add = []
+
+        # TO DO NEED TO KEEP tracks that were created by user can be found by algortihm being "{'status': 'User added.'}"
         for track in analysis.tracks:
             human_track = match_human_track(track, human_tracks)
             if human_track is not None:
@@ -434,7 +456,7 @@ def track_reprocess(recording, jwtKey, conf):
             else:
                 tracks_to_add.append(track)
 
-        add_tracks_and_tags(api, recording, tracks_to_add, algorithm_id)
+        add_tracks_and_tags(api, recording, tracks_to_add, algorithm_id, logger)
 
         logger.info("Archiving old tracks")
         for track in tracks_to_remove:
@@ -455,6 +477,12 @@ def track_reprocess(recording, jwtKey, conf):
 
 
 def match_human_track(new_track, human_tracks):
+    print(
+        "Trackikng to match ",
+        new_track.start_s,
+        " to old tracks ",
+        [h["start"] for h in human_tracks],
+    )
     allow_seconds = 0.1
     matches = [
         human_track

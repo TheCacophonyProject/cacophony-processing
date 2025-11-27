@@ -193,7 +193,6 @@ def classify_file(
         command = f"{command} --calculate-thumbnails"
     logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command, file, conf.subprocess_timeout)
-    print("Classify info is ", classify_info)
     tracks = []
     for t in classify_info["tracks"]:
         tracks.append(Track.load(t))
@@ -636,11 +635,9 @@ class Track:
             data["thumbnail"] = self.thumbnail_info
         print("Posting track ", data)
         if predictions:
-            predictions = [prediction.post_data() for prediction in self.predictions]
-
-            if self.master_tag is not None:
-                master_tag = self.master_tag.post_data()
-                predictions.append(master_tag)
+            predictions = [
+                prediction.post_data() for prediction in self.all_predictions()
+            ]
             data["predictions"] = predictions
         return data
 
@@ -665,18 +662,18 @@ class Prediction:
     confident = attr.ib(default=False)
     threshold_used = attr.ib(default=0.8)
 
-    @classmethod
-    def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
+    # @classmethod
+    # def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
 
-        return cls(
-            tag=meta["what"],
-            model_name=model_name,
-            confidence=meta["confidence"],
-            pre_model=pre_model,
-            filtered=meta.get("filtered", False),
-            threshold_used=meta.get("threshold_used"),
-            confident=not below_thresh,
-        )
+    #     return cls(
+    #         tag=meta["what"],
+    #         model_name=model_name,
+    #         confidence=meta["confidence"],
+    #         pre_model=pre_model,
+    #         filtered=meta.get("filtered", False),
+    #         threshold_used=meta.get("threshold_used"),
+    #         confident=not below_thresh,
+    #     )
 
     @classmethod
     def load(cls, raw_pred):
@@ -688,19 +685,20 @@ class Prediction:
         confident_tag = raw_pred.get("confident_tag")
         threshold_used = raw_pred.get("threshold_used")
         confidence = raw_pred.get("confidence", 0)
+        if confidence > 1:
+            confidence = confidence / 100
         # for backwards compatability
         if threshold_used is None:
             threshold_used = 0.8
-            if confidence >= threshold_used:
-                confident_tag = label
-
-        if confident_tag is not None:
+        if confidence >= threshold_used:
             confident = True
 
+        if confident_tag is not None:
+            label = confident_tag
         return cls(
             message=raw_pred.get("message"),
             clarity=raw_pred.get("clarity"),
-            tag=confident_tag,
+            tag=label,
             confident=confident,
             threshold_used=threshold_used,
             all_class_confidences=raw_pred.get("all_class_confidences"),
@@ -717,13 +715,15 @@ class Prediction:
         data = {}
         data = {
             "name": self.model_name,
-            "clarity": self.clarity,
             "threshold_used": self.threshold_used,
             "all_class_confidences": self.all_class_confidences,
             "confident": self.confident,
             "tag": self.tag,
             "confidence": self.confidence,
         }
+        if self.clarity is not None:
+            data["clarity"] = (self.clarity,)
+
         if self.classify_time is not None:
             data["classify_time"] = self.classify_time
         if self.message is not None:

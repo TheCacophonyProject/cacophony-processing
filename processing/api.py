@@ -262,9 +262,7 @@ class API:
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
-            result = r.json()
-            print("Got result ", result)
-            return result["trackIds"]
+            return r.json()["trackIds"]
         raise IOError(r.text)
 
     def add_tags(self, recording, tracks, algorithm_id):
@@ -272,9 +270,7 @@ class API:
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
-            result = r.json()
-            print("Got result ", result)
-            return result["trackIds"]
+            return r.json()["trackIds"]
         raise IOError(r.text)
 
     def add_track(self, recording, track, algorithm_id):
@@ -287,10 +283,10 @@ class API:
 
     def add_track_tags(self, recording, track_id, predictions):
         url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
-        json_data =[pred.post_data() for pred in predictions]
-        print("add track tags ",json.dumps(json_data))
-        r = self.post(url, data=json.dumps([pred.post_data() for pred in predictions]))
+        json_data = json.dumps([pred.post_data() for pred in predictions])
+        r = self.post(url, data={"data": json_data})
         if r.status_code == 200:
+            res = r.json()
             return r.json()["trackTagIds"]
         raise IOError(r.text)
 
