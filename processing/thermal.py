@@ -665,7 +665,11 @@ class Prediction:
         if below_thresh:
             tag = UNIDENTIFIED
         else:
-            tag = meta["what"]
+            if "what" in meta:
+                tag = meta["what"]
+            else:
+                tag = meta["label"]
+
         return cls(
             tag=tag,
             model_name=model_name,
