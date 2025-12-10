@@ -674,7 +674,7 @@ class Prediction:
             tag=tag,
             model_name=model_name,
             confident_tag=tag,
-            label=meta["what"],
+            label=meta["what"] if "what" in meta else meta["label"],
             confidence=meta["confidence"],
             pre_model=pre_model,
             filtered=meta.get("filtered", False),
