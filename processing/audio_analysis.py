@@ -313,7 +313,7 @@ class AudioTrack:
                 pred = Prediction(
                     confidence=raw_pred["confidence"],
                     tag=UNIDENTIFIED,
-                    label=raw_pred["what"],
+                    label=raw_pred["what"] if "what" in raw_pred else raw_pred["label"],
                     model_name=model_name,
                     pre_model=pre_model,
                 )
