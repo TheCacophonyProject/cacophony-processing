@@ -269,7 +269,6 @@ def classify(conf, recording, api, logger, do_tracking=False):
         do_tracking=do_tracking,
         calculate_thumbnails=calculate_thumbnails,
     )
-    print("Classify result is ", classify_result)
     generate_master_tags(
         api,
         recording,
