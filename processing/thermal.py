@@ -722,7 +722,7 @@ class Prediction:
             "confidence": self.confidence,
         }
         if self.clarity is not None:
-            data["clarity"] = (self.clarity,)
+            data["clarity"] = self.clarity
 
         if self.classify_time is not None:
             data["classify_time"] = self.classify_time
