@@ -721,7 +721,7 @@ class Prediction:
             "confidence": round(100 * self.confidence),
         }
         if self.clarity is not None:
-            data["clarity"] = self.clarity
+            data["clarity"] = round(100 *self.clarity)
 
         if self.classify_time is not None:
             data["classify_time"] = self.classify_time
