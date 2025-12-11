@@ -718,7 +718,7 @@ class Prediction:
             "all_class_confidences": self.all_class_confidences,
             "confident": self.confident,
             "tag": self.tag,
-            "confidence": self.confidence,
+            "confidence": round(100 * self.confidence),
         }
         if self.clarity is not None:
             data["clarity"] = self.clarity
