@@ -200,7 +200,6 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
 
 def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
     tracks_data = [track.post_data(predictions=True) for track in tracks]
-    print("Tracks data is ", tracks_data)
     track_ids = api.add_tracks(recording, tracks_data, algorithm_id)
     for track_id, track in zip(track_ids, tracks):
         track.id = track_id
