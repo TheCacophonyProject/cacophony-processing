@@ -251,7 +251,7 @@ def is_wallaby_device(wallaby_devices, recording_meta):
 
 # if best tag is false positive weight track based on that confidence
 def fp_score(track):
-    if track.master_tag.raw_tag == "false-positive":
+    if track.master_tag.label == "false-positive":
         return -track.master_tag.confidence
     return 0
 
@@ -304,7 +304,7 @@ def classify(conf, recording, api, logger, do_tracking=False):
                     (
                         pred
                         for pred in track.predictions
-                        if pred.raw_tag == "false-positive"
+                        if pred.label == "false-positive"
                         and pred.confidence >= conf.false_positive_min_confidence
                     ),
                     None,
