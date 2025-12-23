@@ -7,7 +7,6 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 TAG = "tag"
 CLARITY = "clarity"
-LABEL = "label"
 PREDICTIONS = "predictions"
 
 MESSAGE = "message"

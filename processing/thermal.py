@@ -680,7 +680,12 @@ class Prediction:
         # TODO Change classifier to just pass tag in tag and boolean if confident
 
         confident = False
-        label = raw_pred.get("label")
+        if "tag" in raw_pred:
+            label = raw_pred.get("tag")
+        elif "label" in raw_pred:
+            # this is deprecated and can be removed eventually
+            label = raw_pred.get("label")
+
         confident_tag = raw_pred.get("confident_tag")
         threshold_used = raw_pred.get("threshold_used")
         confidence = raw_pred.get("confidence", 0)

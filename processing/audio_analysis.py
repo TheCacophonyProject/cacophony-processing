@@ -286,8 +286,8 @@ class AudioTrack:
         if raw_master is not None:
             # master_below_thresh = master_tag.get("below_thresh", False)
             raw_pred = raw_master["prediction"]
-            if "label" not in raw_pred:
-                raw_pred["label"] = raw_pred["what"]
+            if "tag" not in raw_pred:
+                raw_pred["tag"] = raw_pred["what"]
             if "threshold_used" not in raw_pred:
                 raw_pred["threshold_used"] = 0.7
 
@@ -304,8 +304,8 @@ class AudioTrack:
             model_name = model_result["model"]
             if len(predictions) == 0 and "raw_prediction" in model_result:
                 raw_pred = model_result["raw_prediction"]
-                if "label" not in raw_pred:
-                    raw_pred["label"] = raw_pred["what"]
+                if "tag" not in raw_pred:
+                    raw_pred["tag"] = raw_pred["what"]
                 if "threshold_used" not in raw_pred:
                     raw_pred["threshold_used"] = 0.7
                 pred = Prediction.load(raw_pred)
@@ -313,8 +313,8 @@ class AudioTrack:
                 preds.append(pred)
             else:
                 for raw_pred in predictions:
-                    if "label" not in raw_pred:
-                        raw_pred["label"] = raw_pred["what"]
+                    if "tag" not in raw_pred:
+                        raw_pred["tag"] = raw_pred["what"]
                     if "threshold_used" not in raw_pred:
                         raw_pred["threshold_used"] = 0.7
                     pred = Prediction.load(raw_pred)
