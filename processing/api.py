@@ -258,7 +258,7 @@ class API:
         raise IOError(r.text)
 
     def add_tracks(self, recording, tracks, algorithm_id):
-        url = self.file_url + "/{}/tracksAndTags".format(recording["id"])
+        url = self.file_url + "/{}/tracks-and-tags".format(recording["id"])
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
         r = self.post(url, data=post_data)
         if r.status_code == 200:
@@ -282,7 +282,9 @@ class API:
         raise IOError(r.text)
 
     def add_track_tags(self, recording, track_id, predictions):
-        url = self.file_url + "/{}/tracks/{}/tagsBulk".format(recording["id"], track_id)
+        url = self.file_url + "/{}/tracks/{}/tags-bulk".format(
+            recording["id"], track_id
+        )
         json_data = json.dumps([pred.post_data() for pred in predictions])
         r = self.post(url, data={"data": json_data})
         if r.status_code == 200:

@@ -711,7 +711,6 @@ class Prediction:
         )
 
     def post_data(self):
-        data = {}
         data = {
             "name": self.model_name,
             "threshold_used": self.threshold_used,

@@ -52,9 +52,6 @@ thermal:
       # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
       min_confidence: .4
 
-      # Classifications with a novelty above this value will be ignored for tagging.
-      max_tag_novelty: .7
-
       # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
       min_tag_clarity: .2
 

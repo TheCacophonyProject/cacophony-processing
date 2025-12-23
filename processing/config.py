@@ -38,7 +38,6 @@ configTuple = namedtuple(
         "classify_cmd",
         "track_cmd",
         "min_confidence",
-        "max_tag_novelty",
         "min_tag_clarity",
         "min_tag_clarity_secondary",
         "audio_analysis_cmd",
@@ -115,7 +114,6 @@ class Config(configTuple):
                 master_tag=thermal.get("master_tag", "Master"),
                 wallaby_devices=thermal["wallaby_devices"],
                 min_confidence=thermal["tagging"]["min_confidence"],
-                max_tag_novelty=thermal["tagging"]["max_tag_novelty"],
                 min_tag_clarity=thermal["tagging"]["min_tag_clarity"],
                 min_tag_clarity_secondary=thermal["tagging"][
                     "min_tag_clarity_secondary"
