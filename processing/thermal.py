@@ -34,14 +34,9 @@ from .tagger import (
     calculate_tags,
     calculate_multiple_animal_confidence,
     MESSAGE,
-    TAG,
     CONFIDENCE,
-    FALSE_POSITIVE,
     UNIDENTIFIED,
     MULTIPLE,
-    LABEL,
-    MASTER_TAG,
-    PREDICTIONS,
 )
 from .config import ModelConfig
 
