@@ -627,7 +627,6 @@ class Track:
 
         if self.thumbnail_info is not None:
             data["thumbnail"] = self.thumbnail_info
-        print("Posting track ", data)
         if predictions:
             predictions = [
                 prediction.post_data() for prediction in self.all_predictions()
