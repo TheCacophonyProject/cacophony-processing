@@ -8,7 +8,6 @@ from processing.tagger import (
     CONFIDENCE,
     DEFAULT_CONFIDENCE,
     PREDICTIONS,
-    LABEL,
     TAG,
     MASTER_TAG,
 )
@@ -203,12 +202,10 @@ def create_prediction(
     prediction = {
         "model_id": model_id,
         "name": model_name,
-        LABEL: animal,
+        "tag": animal,
         CONFIDENCE: confidence,
         "clarity": clarity,
     }
-    if tag:
-        prediction[TAG] = tag
     return Prediction.load(prediction)
 
 

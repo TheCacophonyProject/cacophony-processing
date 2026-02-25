@@ -466,7 +466,7 @@ def default_tag(track_id):
 
 def use_tag(model, prediction, wallaby_device):
     tag = prediction.tag
-    if tag is None:
+    if tag is None or not prediction.confident:
         return False
     elif tag in model.ignored_tags:
         return False
@@ -500,7 +500,7 @@ def get_master_tag(model_results, models_by_id, wallaby_device=False):
             # use parent model
             valid_models.append((re_m, prediction))
     if len(valid_models) == 0:
-        return None, None
+        return None
     clear_tags = [
         (model, prediction)
         for model, prediction in valid_models
