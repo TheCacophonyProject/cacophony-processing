@@ -121,13 +121,15 @@ class TestAPI:
 
     def add_tracks(self, recording, tracks, algorithm_id):
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
-        track_id = self.new_id()
+        track_ids =[]
+        for track in tracks:
+            track_ids.append(self.new_id())
         logging.debug(
             "TestAPI add_tracks (%s)  %s",
-            track_id,
+            track_ids,
             str(post_data)[: TestAPI.TRUNCATE_OVER],
         )
-        return track_id
+        return track_ids
 
     def add_track_tag(self, recording, track_id, prediction, data=""):
         url = "/{}/tracks/{}/tags".format(recording["id"], track_id)
