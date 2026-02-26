@@ -532,6 +532,8 @@ def model_rank(tag, tag_scores):
 
 
 def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
+    if len(tracks) == 0:
+        return
     tracks_data = [track.post_data(predictions=True) for track in tracks]
     track_ids = api.add_tracks(recording, tracks_data, algorithm_id)
     for track_id, track in zip(track_ids, tracks):

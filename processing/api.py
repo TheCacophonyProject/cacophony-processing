@@ -282,6 +282,8 @@ class API:
         raise IOError(r.text)
 
     def add_track_tags(self, recording, track_id, predictions):
+        if len(predictions) == 0:
+            return []
         url = self.file_url + "/{}/tracks/{}/tags-bulk".format(
             recording["id"], track_id
         )

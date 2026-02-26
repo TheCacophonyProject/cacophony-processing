@@ -121,7 +121,7 @@ class TestAPI:
 
     def add_tracks(self, recording, tracks, algorithm_id):
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
-        track_ids =[]
+        track_ids = []
         for track in tracks:
             track_ids.append(self.new_id())
         logging.debug(
