@@ -258,6 +258,8 @@ class API:
         raise IOError(r.text)
 
     def add_tracks(self, recording, tracks, algorithm_id):
+        if len(tracks) == 0:
+            return []
         url = self.file_url + "/{}/tracks-and-tags".format(recording["id"])
         post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
         r = self.post(url, data=post_data)
