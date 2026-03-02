@@ -197,7 +197,8 @@ def test_model_heirechy():
     assert master_prediction.tag == "cat"
 
     # if resent is unidentified use retrained
-    resnet_result.tag = "unidentified"
+    # resnet_result.tag = "unidentified"
+    resnet_result.confident = False
     master_prediction = thermal.get_master_tag(
         results, models_by_id, wallaby_device=False
     )
@@ -205,12 +206,15 @@ def test_model_heirechy():
     assert master_prediction.tag == "cat"
 
     # if all models are unidentified use unidentified
-    retrained_result.tag = "unidentified"
-    original_result.tag = "unidentified"
+    # retrained_result.tag = "unidentified"
+    retrained_result.confident = False
+    # original_result.tag = "unidentified"
+    original_result.confident = False
+
     master_prediction = thermal.get_master_tag(
         results, models_by_id, wallaby_device=False
     )
-    assert master_prediction.tag == "unidentified"
+    assert not master_prediction.confident
 
     # if none make a tag then no tag is used
     retrained_result.tag = None
@@ -221,12 +225,13 @@ def test_model_heirechy():
     )
     assert master_prediction is None
 
-    original_result.tag = "unidentified"
+    original_result.tag = "cat"
+    original_result.confident = False
     master_prediction = thermal.get_master_tag(
         results, models_by_id, wallaby_device=False
     )
-    assert master_prediction.tag == "unidentified"
-
+    assert not master_prediction.confident
+    assert master_prediction.confidence == original_result.confidence
     # original model should ignore mustelid
     original_result.tag = "mustelid"
     master_prediction = thermal.get_master_tag(
