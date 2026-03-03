@@ -302,14 +302,15 @@ class API:
         return r.json()
 
     def download_file(self, token, filename):
-        r = requests.get(
+        with requests.get(
             urljoin(self.api_url, "/api/v1/signedUrl"),
             params={"jwt": token},
             stream=True,
             timeout=DL_TIMEOUT,
-        )
-        r.raise_for_status()
-        return iter_to_file(filename, r.iter_content(chunk_size=4096))
+        ) as r:
+            r.raise_for_status()
+            return iter_to_file(filename, r.iter_content(chunk_size=4096))
+        return
 
 
 def iter_to_file(filename, source, overwrite=True):
