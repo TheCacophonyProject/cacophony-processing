@@ -7,7 +7,6 @@ UNIDENTIFIED = "unidentified"
 MULTIPLE = "multiple animals"
 TAG = "tag"
 CLARITY = "clarity"
-LABEL = "label"
 PREDICTIONS = "predictions"
 
 MESSAGE = "message"
@@ -27,7 +26,7 @@ def calculate_tags(tracks, conf):
 
 
 def prediction_is_clear(prediction, conf):
-    if prediction.confident_tag is None:
+    if not prediction.confident:
         prediction.message = "Low confidence - no tag"
         return False
     if prediction.clarity < conf.min_tag_clarity:
@@ -45,15 +44,14 @@ def get_significant_tracks(tracks, conf):
         track.confidence = 0
         has_clear_prediction = False
         for prediction in track.predictions:
-            if conf.ignore_tags is not None and prediction.label in conf.ignore_tags:
+            if conf.ignore_tags is not None and prediction.tag in conf.ignore_tags:
                 continue
 
             confidence = prediction.confidence
             track.confidence = max(track.confidence, confidence)
             if prediction_is_clear(prediction, conf):
                 has_clear_prediction = True
-                tag = prediction.label
-                prediction.tag = tag
+                tag = prediction.tag
                 if tag in tags:
                     tags[tag][CONFIDENCE] = max(tags[tag][CONFIDENCE], confidence)
                 else:
@@ -61,7 +59,7 @@ def get_significant_tracks(tracks, conf):
 
             else:
                 tags[UNIDENTIFIED] = {CONFIDENCE: DEFAULT_CONFIDENCE}
-                prediction.tag = UNIDENTIFIED
+                prediction.confident = False
 
         if has_clear_prediction:
             clear_tracks.append(track)

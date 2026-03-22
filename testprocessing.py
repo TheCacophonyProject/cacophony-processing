@@ -7,6 +7,8 @@ import processing
 from processing import thermal, audio_analysis
 from pathlib import Path
 
+import datetime
+
 
 def init_logging():
     """Set up logging for use by various classifier pipeline scripts.
@@ -40,14 +42,16 @@ def main():
         "id": "testrecid",
         "jobKey": "test job key",
         "rawMimeType": "audio/mp4",
+        "DeviceId": 1,
+        "recordingDateTime": datetime.datetime.now(),
     }
     api = TestAPI()
     source = Path(args.source)
     if source.suffix == ".cptv":
         logging.info("Doing thermal")
-        thermal.track(conf, recording_meta, api, 10, logging)
+        thermal.track(conf, recording_meta, api, 10, False, logging)
 
-        thermal.classify(conf, recording_meta, api, logging)
+        thermal.classify(conf, recording_meta, api, logging, do_tracking=True)
     else:
         logging.info("Doing audio")
         meta_file = Path(args.source).with_suffix(".txt")
@@ -115,6 +119,18 @@ class TestAPI:
         )
         return track_id
 
+    def add_tracks(self, recording, tracks, algorithm_id):
+        post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
+        track_ids = []
+        for track in tracks:
+            track_ids.append(self.new_id())
+        logging.debug(
+            "TestAPI add_tracks (%s)  %s",
+            track_ids,
+            str(post_data)[: TestAPI.TRUNCATE_OVER],
+        )
+        return track_ids
+
     def add_track_tag(self, recording, track_id, prediction, data=""):
         url = "/{}/tracks/{}/tags".format(recording["id"], track_id)
 
@@ -131,6 +147,18 @@ class TestAPI:
             str(post_data)[: TestAPI.TRUNCATE_OVER],
         )
         return track_tag_id
+
+    def get_rat_threshold(self, deviceId, atTime=None):
+        url = f"/ratthresh/{deviceId}"
+        if atTime is not None:
+            url = f"{url}?at-time={atTime}"
+
+        logging.debug(
+            "TestAPI get_rat_threshold (%s) %s",
+            deviceId,
+            url,
+        )
+        return None
 
     def download_file(self, jwtKey, filename):
         shutil.copyfile(jwtKey, filename)

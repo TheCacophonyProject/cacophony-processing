@@ -8,7 +8,6 @@ from processing.tagger import (
     CONFIDENCE,
     DEFAULT_CONFIDENCE,
     PREDICTIONS,
-    LABEL,
     TAG,
     MASTER_TAG,
 )
@@ -23,7 +22,6 @@ class TestTagCalculations:
     conf = processing.Config
     conf.min_confidence = 0.4
     conf.min_tag_confidence = 0.8
-    conf.max_tag_novelty = 0.6
     conf.min_tag_clarity = 0.1
     conf.min_tag_clarity_secondary = 0.05
     conf.ignore_tags = None
@@ -197,7 +195,6 @@ def create_prediction(
     animal,
     confidence=0.9,
     clarity=0.2,
-    novelty=0.5,
     model_name="Test AI",
     model_id=1,
     tag=None,
@@ -205,13 +202,10 @@ def create_prediction(
     prediction = {
         "model_id": model_id,
         "name": model_name,
-        LABEL: animal,
+        "tag": animal,
         CONFIDENCE: confidence,
         "clarity": clarity,
-        "average_novelty": novelty,
     }
-    if tag:
-        prediction[TAG] = tag
     return Prediction.load(prediction)
 
 
@@ -219,7 +213,6 @@ def create_track(
     animal,
     confidence=0.9,
     clarity=0.2,
-    novelty=0.5,
     model_name="Test AI",
     model_id=1,
     tag=None,
@@ -234,8 +227,6 @@ def create_track(
     }
     track = Track.load(track)
     track.predictions = [
-        create_prediction(
-            animal, confidence, clarity, novelty, model_name, model_id, tag
-        )
+        create_prediction(animal, confidence, clarity, model_name, model_id, tag)
     ]
     return track

@@ -257,6 +257,24 @@ class API:
             return
         raise IOError(r.text)
 
+    def add_tracks(self, recording, tracks, algorithm_id):
+        if len(tracks) == 0:
+            return []
+        url = self.file_url + "/{}/tracks-and-tags".format(recording["id"])
+        post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
+        r = self.post(url, data=post_data)
+        if r.status_code == 200:
+            return r.json()["trackIds"]
+        raise IOError(r.text)
+
+    def add_tags(self, recording, tracks, algorithm_id):
+        url = self.file_url + "/{}/tracks{}/tags".format(recording["id"])
+        post_data = {"data": json.dumps(tracks), "algorithmId": algorithm_id}
+        r = self.post(url, data=post_data)
+        if r.status_code == 200:
+            return r.json()["trackIds"]
+        raise IOError(r.text)
+
     def add_track(self, recording, track, algorithm_id):
         url = self.file_url + "/{}/tracks".format(recording["id"])
         post_data = {"data": json.dumps(track.post_data()), "algorithmId": algorithm_id}
@@ -265,18 +283,17 @@ class API:
             return r.json()["trackId"]
         raise IOError(r.text)
 
-    def add_track_tag(self, recording, track_id, prediction, data=""):
-        url = self.file_url + "/{}/tracks/{}/tags".format(recording["id"], track_id)
-        if prediction.label is not None and prediction.tag != prediction.label:
-            data["raw_tag"] = prediction.label
-        post_data = {
-            "what": prediction.tag,
-            "confidence": prediction.confidence,
-            "data": json.dumps(data),
-        }
-        r = self.post(url, data=post_data)
+    def add_track_tags(self, recording, track_id, predictions):
+        if len(predictions) == 0:
+            return []
+        url = self.file_url + "/{}/tracks/{}/tags-bulk".format(
+            recording["id"], track_id
+        )
+        json_data = json.dumps([pred.post_data() for pred in predictions])
+        r = self.post(url, data={"data": json_data})
         if r.status_code == 200:
-            return r.json()["trackTagId"]
+            res = r.json()
+            return r.json()["trackTagIds"]
         raise IOError(r.text)
 
     def get_track_info(self, recording_id):
@@ -285,14 +302,15 @@ class API:
         return r.json()
 
     def download_file(self, token, filename):
-        r = requests.get(
+        with requests.get(
             urljoin(self.api_url, "/api/v1/signedUrl"),
             params={"jwt": token},
             stream=True,
             timeout=DL_TIMEOUT,
-        )
-        r.raise_for_status()
-        return iter_to_file(filename, r.iter_content(chunk_size=4096))
+        ) as r:
+            r.raise_for_status()
+            return iter_to_file(filename, r.iter_content(chunk_size=4096))
+        return
 
 
 def iter_to_file(filename, source, overwrite=True):

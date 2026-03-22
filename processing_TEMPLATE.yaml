@@ -43,7 +43,7 @@ thermal:
     wallaby_devices: []
 
     false_positive_min_confidence: 0.7
-    filter_false_positive: true
+    filter_false_positive: false
     max_tracks: 10
 
     tagging:
@@ -51,9 +51,6 @@ thermal:
 
       # This is the minimum confidence (for an animal rating) a track should have to be considered a possible animal
       min_confidence: .4
-
-      # Classifications with a novelty above this value will be ignored for tagging.
-      max_tag_novelty: .7
 
       # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
       min_tag_clarity: .2
