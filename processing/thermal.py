@@ -120,7 +120,7 @@ def track(conf, recording, api, duration, retrack, logger):
     logger.info("Finished tracking")
 
 
-def track_classify_job(recording, rawJWT, conf):
+def track_classify_job(docker_instance, recording, rawJWT, conf):
     logger = logs.worker_logger("track_classify_job", recording["id"])
 
     api = API(conf.api_url, conf.user, conf.password, logger)
