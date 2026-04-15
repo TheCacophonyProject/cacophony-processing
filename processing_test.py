@@ -8,58 +8,33 @@ from processing import thermal, audio_analysis
 from pathlib import Path
 
 import datetime
+from main import run_with_api
+import pytest
+import datetime
 
 
-def init_logging():
-    """Set up logging for use by various classifier pipeline scripts.
+def test_duplicate_recordings():
 
-    Logs will go to stderr.
-    """
-
-    fmt = "%(levelname)7s %(message)s"
-    logging.basicConfig(
-        stream=sys.stderr, level=logging.DEBUG, format=fmt, datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "source",
-        help='a CPTV file to process, or a folder name, or "all" for all files within subdirectories of source folder.',
-    )
-    args = parser.parse_args()
-    return args
-
-
-def main():
-    init_logging()
+    # init_logging()
     conf = processing.Config.load()
-    args = parse_args()
-    recording_meta = {
-        "filename": args.source,
-        "id": "testrecid",
-        "jobKey": "test job key",
-        "rawMimeType": "audio/mp4",
-        "DeviceId": 1,
-        "recordingDateTime": datetime.datetime.now(),
+    test_rec = {
+        "recording": {
+            "id": 1,
+            "type": "thermal",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+        },
+        "rawJWT": "./tests/test.cptv",
     }
-    api = TestAPI()
-    source = Path(args.source)
-    if source.suffix == ".cptv":
-        logging.info("Doing thermal")
-        thermal.track(conf, recording_meta, api, 10, False, logging)
-
-        thermal.classify(conf, recording_meta, api, logging, do_tracking=True)
-    else:
-        logging.info("Doing audio")
-        meta_file = Path(args.source).with_suffix(".txt")
-        if meta_file.exists():
-            with meta_file.open("r") as f:
-                metadata = json.load(f)
-            recording_meta["location"] = metadata.get("location")
-        audio_analysis.process_with_api(recording_meta, args.source, api, conf)
+    jobs = {"thermalRaw": {"trackAndAnalyse": [test_rec, test_rec]}}
+    api = TestAPI(jobs)
+    logging.info("Running with jobs %s config %s", jobs, conf)
+    run_with_api(api, conf, exit_on_finished=True)
+    assert (
+        len(api.finished) == 1
+    ), "Finished should have 1 entry (first job cancelled, second job finished)"
+    assert api.finished[0]["success"], "Job should of suceeded"
 
 
 class TestAPI:
@@ -67,12 +42,25 @@ class TestAPI:
     ALGORITHM = 1
     TRUNCATE_OVER = 100
 
+    def __init__(self, jobs):
+        self.jobs = jobs
+        self.finished = []
+
+    def next_job(self, recording_type, state):
+        jobs = self.jobs.get(recording_type)
+        if jobs is None:
+            return None
+        jobs = jobs.get(state)
+        if jobs is None or len(jobs) == 0:
+            return None
+        return jobs.pop()
+
     def new_id(self):
         TestAPI.id_ += 1
         return TestAPI.id_
 
     def report_failed(self, rec_id, job_key):
-        logging.warn("TestAPI Recording %s failed".rec_id)
+        logging.warning("TestAPI Recording %s failed", rec_id)
 
     def report_done(self, recording, newKey=None, newMimeType=None, metadata=None):
         if not metadata:
@@ -90,6 +78,7 @@ class TestAPI:
         if newKey:
             params["newProcessedFileKey"] = newKey
         logging.debug("TestAPI report_done %s", str(params)[: TestAPI.TRUNCATE_OVER])
+        self.finished.append(params)
 
     def tag_recording(self, recording, label, metadata):
         tag = metadata.copy()
@@ -162,9 +151,7 @@ class TestAPI:
 
     def download_file(self, jwtKey, filename):
         shutil.copyfile(jwtKey, filename)
-
         return
 
 
-if __name__ == "__main__":
-    main()
+# test_duplicate_recordings()

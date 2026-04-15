@@ -51,7 +51,7 @@ def track_analyse(recording, jwtKey, conf):
 
     logger = logs.worker_logger("audio.track_analysis", recording["id"])
 
-    api = API(conf.api_url, conf.user, conf.password, logger)
+    api = APwI(conf.api_url, conf.user, conf.password, logger)
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -60,8 +60,8 @@ def track_analyse(recording, jwtKey, conf):
         logger.error(
             "unsupported mimetype. Not processing %s", recording["rawMimeType"]
         )
-        api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
-        return
+        # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
+        return {}
     new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
@@ -102,8 +102,9 @@ def track_analyse(recording, jwtKey, conf):
             api.add_track_tags(recording, track.id, track.all_predictions())
         # add_tracks_and_tags(api, recording, analysis.tracks, algorithm_id, logger)
 
-    api.report_done(recording, metadata=new_metadata)
+    # api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
+    return metadata
 
 
 SPECIFIC_NOISE = ["insect"]
@@ -142,8 +143,8 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
         logger.error(
             "unsupported mimetype. Not processing %s", recording["rawMimeType"]
         )
-        api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
-        return
+        # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
+        return {}
 
     new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
@@ -194,8 +195,9 @@ def process_with_api(recording, jwtKey, api, conf, logger=None):
             new_metadata["additionalMetadata"]["regionCode"] = analysis.region_code
         # is there anyhting missing...
         # new_metadata["additionalMetadata"] = analysis
-    api.report_done(recording, metadata=new_metadata)
+    # api.report_done(recording, metadata=new_metadata)
     logger.info("Completed processing for file: %s", recording["id"])
+    return metadata
 
 
 def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
@@ -401,7 +403,8 @@ def track_reprocess(recording, jwtKey, conf):
         logger.error(
             "unsupported mimetype. Not processing %s", recording["rawMimeType"]
         )
-        api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
+        # return {"fileMimeType":recording["rawMimeType"]}
+        # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return
     new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
@@ -471,8 +474,9 @@ def track_reprocess(recording, jwtKey, conf):
         if analysis.region_code is not None:
             new_metadata["additionalMetadata"]["regionCode"] = analysis.region_code
 
-    api.report_done(recording, metadata=new_metadata)
+    # api.report_done(recording, metadata=new_metadata)
     logger.info("Completed classifying for file: %s", recording["id"])
+    return new_metadata
 
 
 def match_human_track(new_track, human_tracks):

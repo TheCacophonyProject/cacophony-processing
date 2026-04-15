@@ -36,8 +36,8 @@ def init_master():
     ql = QueueListener(q, handler, respect_handler_level=True)
     ql.start()
 
-    logging.getLogger().handlers = []
-    logging.getLogger("botocore").setLevel(logging.ERROR)
+    # logging.getLogger().handlers = []
+    # logging.getLogger("botocore").setLevel(logging.ERROR)
 
     return q
 

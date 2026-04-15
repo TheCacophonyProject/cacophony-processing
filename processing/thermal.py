@@ -69,7 +69,9 @@ def tracking_job(recording, rawJWT, conf):
             filename = filename.with_suffix(".txt")
             with filename.open("w") as f:
                 json.dump(recording, f)
-        track(conf, recording, api, recording.get("duration", 0), retrack, logger)
+        return track(
+            conf, recording, api, recording.get("duration", 0), retrack, logger
+        )
 
 
 def track(conf, recording, api, duration, retrack, logger):
@@ -116,14 +118,15 @@ def track(conf, recording, api, duration, retrack, logger):
         additionalMetadata["thumbnail_region"] = tracking_result.thumbnail_region
 
     metadata = {"additionalMetadata": additionalMetadata}
-    api.report_done(recording, None, None, metadata)
+    # api.report_done(recording, None, None, metadata)
     logger.info("Finished tracking")
+    return metadata
 
 
-def track_classify_job(docker_instance, recording, rawJWT, conf):
+def track_classify_job(api, recording, rawJWT, conf, docker_instance):
     logger = logs.worker_logger("track_classify_job", recording["id"])
 
-    api = API(conf.api_url, conf.user, conf.password, logger)
+    # api = API(conf.api_url, conf.user, conf.password, logger)
     mp4 = recording.get("type") == "irRaw"
     ext = ".mp4" if mp4 else ".cptv"
 
@@ -137,7 +140,7 @@ def track_classify_job(docker_instance, recording, rawJWT, conf):
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)
 
-        classify(conf, recording, api, logger, do_tracking=True)
+        return classify(conf, recording, api, logger, do_tracking=True)
 
 
 def classify_job(recording, rawJWT, conf):
@@ -162,7 +165,7 @@ def classify_job(recording, rawJWT, conf):
         recording["tracks"] = track_info
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)
-        classify(conf, recording, api, logger)
+        return classify(conf, recording, api, logger)
 
 
 def classify_file(
@@ -375,8 +378,9 @@ def classify(conf, recording, api, logger, do_tracking=False):
     additionalMetadata["models"] = model_info
     metadata = {"additionalMetadata": additionalMetadata}
 
-    api.report_done(recording, None, None, metadata)
+    # api.report_done(recording, None, None, metadata)
     logger.info("Finished")
+    return metadata
 
 
 def format_track_data(tracks):
