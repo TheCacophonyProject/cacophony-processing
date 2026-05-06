@@ -469,48 +469,6 @@ def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
         track.id = track_id
 
 
-# def add_track_tag(
-#     api,
-#     recording,
-#     track,
-#     prediction,
-#     logger,
-#     model_name=None,
-#     model_used=None,in
-#     rat_thresh_version=None,
-# ):
-#     if not track or prediction.tag is None:
-#         return False, None
-
-#     track_data = {"name": model_name}
-#     if model_used is not None:
-#         # specifically for master tag to see which model was chosen
-#         track_data["model_used"] = model_used
-#     if prediction.classify_time is not None:
-#         track_data["classify_time"] = prediction.classify_time
-#     track_data["clarity"] = prediction.clarity
-#     track_data["all_class_confidences"] = prediction.all_class_confidences
-#     # if prediction.predictions is not None:
-#     #     track_data["predictions"] = prediction.predictions
-#     # if prediction.prediction_frames is not None:
-#     #     track_data["prediction_frames"] = prediction.prediction_frames
-#     if prediction.message is not None:
-#         track_data[MESSAGE] = prediction.message
-#     track_data["tag"] = prediction.tag
-#     track_data["confident"] = prediction.confident
-#     if rat_thresh_version is not None:
-#         track_data["rat_thresh_version"] = rat_thresh_version
-#     logger.debug(
-#         "adding %s track tag %s for track %s",
-#         track_data["name"],
-#         prediction.tag,
-#         track.id,
-#     )
-
-#     api.add_track_tag(recording, track.id, prediction, data=track_data)
-#     return True, prediction.tag
-
-
 @attr.s
 class Track:
     id = attr.ib()
@@ -585,19 +543,6 @@ class Prediction:
     model_used = attr.ib(default=None)
     confident = attr.ib(default=False)
     threshold_used = attr.ib(default=0.8)
-
-    # @classmethod
-    # def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
-
-    #     return cls(
-    #         tag=meta["what"],
-    #         model_name=model_name,
-    #         confidence=meta["confidence"],
-    #         pre_model=pre_model,
-    #         filtered=meta.get("filtered", False),
-    #         threshold_used=meta.get("threshold_used"),
-    #         confident=not below_thresh,
-    #     )
 
     @classmethod
     def load(cls, raw_pred):

@@ -411,11 +411,9 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
     if err is not None and not future.done():
         logger.error("Have exception %s while future is not done", err)
     if future.done() or err is not None:
-        # logger.info("Finished %s", job[2])
         (job_key, processor_id, docker_instance, future) = worker_pool.in_progress[
             recording_id
         ]
-        # self.docker_pool.finished(job[2])
 
         if future.cancelled():
             logger.info("Job %s was cancelled", recording_id)
@@ -426,7 +424,6 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
             if tb:
                 msg += f":\n{tb}"
             logger.error(msg)
-            # raise err
             try:
                 worker_pool.api.report_failed(recording_id, job_key)
             except:
@@ -437,9 +434,13 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
                 )
     if err is None:
         result = future.result()
-        worker_pool.api.report_done(
-            {"id": recording_id, "jobKey": job_key}, None, None, result
-        )
+        if result.get("success", True):
+            worker_pool.api.report_done(
+                {"id": recording_id, "jobKey": job_key}, None, None, result
+            )
+        else:
+            worker_pool.api.report_failed(recording_id, job_key)
+
     worker_pool.finished(recording_id, processor_id)
 
 

@@ -59,7 +59,7 @@ def track_analyse(api, recording, jwtKey, conf, docker_instance):
             "unsupported mimetype. Not processing %s", recording["rawMimeType"]
         )
         # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
-        return {}
+        return {"success": False}
     new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
@@ -141,7 +141,7 @@ def process_with_api(api, recording, jwtKey, conf, docker_instance, logger=None)
             "unsupported mimetype. Not processing %s", recording["rawMimeType"]
         )
         # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
-        return {}
+        return {"success": False}
 
     new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
@@ -402,7 +402,7 @@ def track_reprocess(recording, jwtKey, conf):
         )
         # return {"fileMimeType":recording["rawMimeType"]}
         # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
-        return
+        return {"success": "false"}
     new_metadata = {"additionalMetadata": {}}
     with tempfile.TemporaryDirectory() as temp:
         temp_path = Path(temp)
