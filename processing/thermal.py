@@ -47,10 +47,9 @@ FRAME_RATE = 9
 MIN_TRACK_CONFIDENCE = 0.85
 
 
-def track_classify_job(api, recording, rawJWT, conf, docker_instance):
-    logger = logs.worker_logger("track_classify_job", recording["id"])
-
-    # api = API(conf.api_url, conf.user, conf.password, logger)
+def classify_job(api, recording, rawJWT, conf, docker_instance):
+    logger = logs.worker_logger("classify_job", recording["id"])
+    tracking = recording["processingState"] == "trackAndAnalyse"
     mp4 = recording.get("type") == "irRaw"
     ext = ".mp4" if mp4 else ".cptv"
 
@@ -61,35 +60,42 @@ def track_classify_job(api, recording, rawJWT, conf, docker_instance):
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
         meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
+        if not tracking:
+            track_info = api.get_track_info(recording["id"]).get("tracks")
+            for track in track_info:
+                track["start_s"] = track["start"]
+                track["end_s"] = track["end"]
+                track["positions"] = track["positions"]
+            recording["tracks"] = track_info
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)
 
-        return classify(conf, recording, api, logger, do_tracking=True)
+        return classify(conf, recording, api, logger, do_tracking=tracking)
 
 
-def classify_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("classify", recording["id"])
+# def classify_job(recording, rawJWT, conf):
+#     logger = logs.worker_logger("classify", recording["id"])
 
-    api = API(conf.api_url, conf.user, conf.password, logger)
-    mp4 = recording.get("type") == "irRaw"
-    ext = ".mp4" if mp4 else ".cptv"
+#     api = API(conf.api_url, conf.user, conf.password, logger)
+#     mp4 = recording.get("type") == "irRaw"
+#     ext = ".mp4" if mp4 else ".cptv"
 
-    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
-        filename = Path(temp_dir) / DOWNLOAD_FILENAME
-        filename = filename.with_suffix(ext)
-        recording["filename"] = str(filename)
-        logger.debug("downloading recording")
-        api.download_file(rawJWT, str(filename))
-        meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
-        track_info = api.get_track_info(recording["id"]).get("tracks")
-        for track in track_info:
-            track["start_s"] = track["start"]
-            track["end_s"] = track["end"]
-            track["positions"] = track["positions"]
-        recording["tracks"] = track_info
-        with open(str(meta_filename), "w") as f:
-            json.dump(recording, f)
-        return classify(conf, recording, api, logger)
+#     with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
+#         filename = Path(temp_dir) / DOWNLOAD_FILENAME
+#         filename = filename.with_suffix(ext)
+#         recording["filename"] = str(filename)
+#         logger.debug("downloading recording")
+#         api.download_file(rawJWT, str(filename))
+#         meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
+#         track_info = api.get_track_info(recording["id"]).get("tracks")
+#         for track in track_info:
+#             track["start_s"] = track["start"]
+#             track["end_s"] = track["end"]
+#             track["positions"] = track["positions"]
+#         recording["tracks"] = track_info
+#         with open(str(meta_filename), "w") as f:
+#             json.dump(recording, f)
+#         return classify(conf, recording, api, logger, do_tracking=True)
 
 
 def classify_file(

@@ -168,7 +168,7 @@ def run_with_api(api, conf, exit_on_finished=False):
             processors.add(
                 "thermalRaw",
                 ["trackAndAnalyse", "analyse"],
-                [thermal.track_classify_job, thermal.classify_job],
+                [thermal.classify_job, thermal.classify_job],
                 conf.thermal_track_analyse_workers,
                 conf.no_job_sleep_seconds,
                 workers,
@@ -404,7 +404,6 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
     err = None
     try:
         err = future.exception(timeout=0)
-        print("Future exception is ", err, "done?", future.done())
     except:
         pass
     # for debugging
