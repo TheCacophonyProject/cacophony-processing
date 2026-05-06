@@ -51,6 +51,9 @@ def test_models():
     return [original, retrained, resnet, wallaby, wallaby_old]
 
 
+test_models.__test__ = False
+
+
 def test_config():
     return config.Config(
         restart_after=None,
@@ -82,6 +85,9 @@ def test_config():
         reprocess_audio_workers=1,
         reprocess_thermal_workers=1,
     )
+
+
+test_config.__test__ = False
 
 
 def model_result(model, tag):

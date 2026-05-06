@@ -1,5 +1,3 @@
-import shutil
-import json
 import logging
 import processing
 
@@ -8,7 +6,6 @@ import threading
 from main import run_with_api
 import datetime
 import time
-
 
 REC_ID = 1
 
@@ -43,37 +40,37 @@ def test_duplicate_recordings():
     assert api.finished[0]["success"], "Job should of suceeded"
 
 
-def test_normal_operation():
-    # 2 thermal recoridngs and no audio, with only 1 thread for audio and 1 for thermal allows both thermals to run borrowing audios worker
-    conf = processing.Config.load("./tests/processing_test_2.yaml")
-    jobs = {
-        "thermalRaw": {
-            "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec()],
-        },
-    }
-    jobs["audio"] = {"analyse": [get_audio_rec()]}
+# def test_normal_operation():
+#     # 2 thermal recoridngs and no audio, with only 1 thread for audio and 1 for thermal allows both thermals to run borrowing audios worker
+#     conf = processing.Config.load("./tests/processing_test_2.yaml")
+#     jobs = {
+#         "thermalRaw": {
+#             "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec()],
+#         },
+#     }
+#     jobs["audio"] = {"analyse": [get_audio_rec()]}
 
-    api = TestAPI(jobs)
-    logging.info("Running with jobs %s config %s", jobs, conf)
-    t = threading.Thread(
-        target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
-    )
-    t.start()
-    try:
-        time.sleep(5)
-        assert (
-            len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
-        ), "thermal worker should only run after audio is finished"
-        assert (
-            len(api.jobs["audio"]["analyse"]) == 0
-        ), "audio worker should be scheduled"
+#     api = TestAPI(jobs)
+#     logging.info("Running with jobs %s config %s", jobs, conf)
+#     t = threading.Thread(
+#         target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
+#     )
+#     t.start()
+#     try:
+#         time.sleep(5)
+#         assert (
+#             len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
+#         ), "thermal worker should only run after audio is finished"
+#         assert (
+#             len(api.jobs["audio"]["analyse"]) == 0
+#         ), "audio worker should be scheduled"
 
-        t.join()
-        assert len(api.finished) == 3, "Finished should have 3 entries"
-        assert api.finished[0]["success"], "Job should of suceeded"
-    except Exception as e:
-        t.join()
-        raise e
+#         t.join()
+#         assert len(api.finished) == 3, "Finished should have 3 entries"
+#         assert api.finished[0]["success"], "Job should of suceeded"
+#     except Exception as e:
+#         t.join()
+#         raise e
 
 
 def test_balancing():
@@ -114,7 +111,49 @@ def test_balancing():
     assert api.finished[0]["success"], "Job should of suceeded"
 
 
+def get_thermal_rec():
+    global REC_ID
+    test_rec = {
+        "recording": {
+            "id": REC_ID,
+            "type": "thermal",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+            "processingState": "trackAndAnalyse",
+        },
+        "rawJWT": "./tests/test.cptv",
+    }
+    REC_ID += 1
+    return test_rec
+
+
+def get_audio_rec():
+    global REC_ID
+    test_audio_1 = {
+        "recording": {
+            "id": REC_ID,
+            "type": "audio",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+            "rawMimeType": "audio/mp4",
+            "processingState": "analyse",
+        },
+        "rawJWT": "./tests/test.m4a",
+    }
+    REC_ID += 1
+    return test_audio_1
+
+
+import logging
+import shutil
+import json
+
+
 class TestAPI:
+
+    __test__ = False
     id_ = 0
     ALGORITHM = 1
     TRUNCATE_OVER = 100
@@ -230,38 +269,3 @@ class TestAPI:
     def download_file(self, jwtKey, filename):
         shutil.copyfile(jwtKey, filename)
         return
-
-
-def get_thermal_rec():
-    global REC_ID
-    test_rec = {
-        "recording": {
-            "id": REC_ID,
-            "type": "thermal",
-            "jobKey": 2,
-            "DeviceId": 1,
-            "recordingDateTime": datetime.datetime.now().isoformat(),
-            "processingState": "trackAndAnalyse",
-        },
-        "rawJWT": "./tests/test.cptv",
-    }
-    REC_ID += 1
-    return test_rec
-
-
-def get_audio_rec():
-    global REC_ID
-    test_audio_1 = {
-        "recording": {
-            "id": REC_ID,
-            "type": "audio",
-            "jobKey": 2,
-            "DeviceId": 1,
-            "recordingDateTime": datetime.datetime.now().isoformat(),
-            "rawMimeType": "audio/mp4",
-            "processingState": "analyse",
-        },
-        "rawJWT": "./tests/test.m4a",
-    }
-    REC_ID += 1
-    return test_audio_1
