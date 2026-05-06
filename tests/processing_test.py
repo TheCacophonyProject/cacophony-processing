@@ -13,6 +13,20 @@ import time
 REC_ID = 1
 
 
+def test_failed_mime_type():
+    conf = processing.Config.load("./tests/processing_test.yaml")
+    test_rec = get_audio_rec()
+    test_rec["recording"]["rawMimeType"] = "m4p"
+    jobs = {}
+    jobs["audio"] = {"analyse": [test_rec]}
+    api = TestAPI(jobs)
+    logging.info("Running with jobs %s config %s", jobs, conf)
+    run_with_api(api, conf, exit_on_finished=True)
+    assert (
+        len(api.finished) == 0
+    ), "Finished should have no entries as mime type is unsupported"
+
+
 def test_duplicate_recordings():
     # 2 recordings with the same recording id will cause the first to be cancelled and second completed
     conf = processing.Config.load("./tests/processing_test.yaml")
