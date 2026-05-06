@@ -192,13 +192,15 @@ def classify_file(
     logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command, file, conf.subprocess_timeout)
     tracks = []
-    for t in classify_info["tracks"]:
+    for t in classify_info.get("tracks", []):
         tracks.append(Track.load(t))
     # Auto tag the video
     filtered_tracks, tags = calculate_tags(tracks, conf)
     algorithm_id = 0
     if do_tracking:
-        algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
+        algorithm_id = api.get_algorithm_id(
+            classify_info.get("algorithm", "not-specified")
+        )
 
     return ClassifyResult.load(
         classify_info, algorithm_id, filtered_tracks, tags.get(MULTIPLE, None)

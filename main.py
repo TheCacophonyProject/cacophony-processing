@@ -26,7 +26,7 @@ import requests
 import functools
 from pebble import ProcessPool
 import processing
-from processing import API, logs, audio_analysis, thermal, trail_analysis
+from processing import API, logs, audio_analysis, thermal
 from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
@@ -129,33 +129,9 @@ def run_with_api(api, conf, exit_on_finished=False):
         conf,
         conf.audio_analysis_workers + conf.thermal_track_analyse_workers,
     )
-
-    if conf.audio_analysis_workers > 0:
-
-        processors.add(
-            "audio",
-            ["analyse", "FINISHED"],
-            [audio_analysis.process, audio_analysis.track_analyse],
-            conf.audio_analysis_workers,
-            conf.no_job_sleep_seconds,
-            workers,
-            "audio-compose.yml",
-        )
-
-    if conf.thermal_track_analyse_workers > 0:
-        processors.add(
-            "thermalRaw",
-            ["trackAndAnalyse", "analyse"],
-            [thermal.track_classify_job, thermal.classify_job],
-            conf.thermal_track_analyse_workers,
-            conf.no_job_sleep_seconds,
-            workers,
-            "thermal-compose.yml",
-        )
-
     # to be handled enfore that we either run as reprocessing instance or normal
     if conf.reprocess:
-        logger.infore("Running reprocess workers")
+        logger.info("Running reprocess workers")
         if conf.reprocess_thermal_workers > 0:
             processors.add(
                 "thermalRaw",
@@ -163,6 +139,8 @@ def run_with_api(api, conf, exit_on_finished=False):
                 [thermal.classify_job],
                 conf.reprocess_thermal_workers,
                 conf.no_job_sleep_seconds,
+                workers,
+                "thermal-compose.yml",
             )
         if conf.reprocess_audio_workers > 0:
             processors.add(
@@ -171,6 +149,30 @@ def run_with_api(api, conf, exit_on_finished=False):
                 [audio_analysis.track_reprocess],
                 conf.reprocess_audio_workers,
                 conf.no_job_sleep_seconds,
+                workers,
+                "audio-compose.yml",
+            )
+    else:
+        if conf.audio_analysis_workers > 0:
+            processors.add(
+                "audio",
+                ["analyse", "FINISHED"],
+                [audio_analysis.process, audio_analysis.track_analyse],
+                conf.audio_analysis_workers,
+                conf.no_job_sleep_seconds,
+                workers,
+                "audio-compose.yml",
+            )
+
+        if conf.thermal_track_analyse_workers > 0:
+            processors.add(
+                "thermalRaw",
+                ["trackAndAnalyse", "analyse"],
+                [thermal.track_classify_job, thermal.classify_job],
+                conf.thermal_track_analyse_workers,
+                conf.no_job_sleep_seconds,
+                workers,
+                "thermal-compose.yml",
             )
 
     logger.info("checking for recordings")
@@ -178,7 +180,7 @@ def run_with_api(api, conf, exit_on_finished=False):
         success = False
         try:
             for processor in processors:
-                success = processor.poll()
+                processor.poll()
                 success = True
         except requests.exceptions.RequestException as e:
             logger.error(
@@ -202,7 +204,7 @@ def run_with_api(api, conf, exit_on_finished=False):
         # [procesing_ids.extend(processor.in_progress.keys()) for processor in processors]
 
         done_sleep = False
-        if all(processor.has_no_work() for processor in processors):
+        if workers.in_use == 0:
             if exit_on_finished:
                 logger.info("Finished jobs")
                 workers.pool.stop()
@@ -249,6 +251,13 @@ class Processors(list):
             no_job_sleep_seconds,
             workers,
             docker_compose,
+        )
+        logger.info(
+            "Adding worker %s - %s states %s num workers %s ",
+            p.id,
+            recording_type,
+            processing_states,
+            num_workers,
         )
         self.append(p)
 
@@ -316,9 +325,29 @@ class Workers:
         self.in_progress = {}
         self.api = api
         self.lock = threading.Lock()
+        self.workers_by_id = {}
+        self.spare_workers = set()
 
-    def full(self):
-        return self.in_use >= self.total_workers
+    def add_spare_worker(self, processor_id):
+        self.spare_workers.add(processor_id)
+
+    def remove_spare_worker(self, processor_id):
+        if processor_id in self.spare_workers:
+            self.spare_workers.remove(processor_id)
+
+    def register_processor(self, processor_id, num_workers):
+        self.workers_by_id[processor_id] = num_workers
+
+    def full(self, processor_id):
+        num_jobs = self.jobs_in_progress(processor_id)
+        if num_jobs < self.workers_by_id[processor_id]:
+            return False, processor_id
+
+        for spare_id in self.spare_workers:
+            has_spare = self.jobs_in_progress(spare_id) < self.workers_by_id[spare_id]
+            if has_spare:
+                return False, spare_id
+        return True, 0
 
     def schedule(self, func, processor_id, recording, rawJWT, instance):
         if self.in_use < self.total_workers:
@@ -342,7 +371,6 @@ class Workers:
                     self.in_use_by_id[processor_id] = 1
                 self.in_use += 1
             future.add_done_callback(callback_with_args)
-            # do i need to check if the job is already finished??
             return future
         return None
 
@@ -350,16 +378,16 @@ class Workers:
         logger.info("Finished %s", recording_id)
         with self.lock:
             if recording_id in self.in_progress:
+                # be nice to return the borrow workers first
                 del self.in_progress[recording_id]
                 self.in_use_by_id[processor_id] -= 1
                 self.in_use -= 1
 
-    def cancel_job(self, recording_id, processor_id):
+    def cancel_job(self, recording_id):
         job = self.in_progress.get(recording_id)
         if job is None:
             return
-        future = job[3]
-        # either need to remove callback or check if job was cancelled
+        _, processor_id, _, future = job
 
         success = future.done() or future.cancel()
         logger.info("Job cancelled with success? %s", success)
@@ -448,19 +476,15 @@ class Processor:
         self.audio_workers = 4
         self.thermal_workers = 4
         self.poll_index = 0
+        self.pool.register_processor(self.id, num_workers)
+        self.borrowed = []
 
     def full(self):
-        return self.pool.full()
+        return self.pool.full(self.id)
         # self.in_progress(self.id) >= self.num_workers
 
-    def has_no_work(self):
-        return self.pool.jobs_in_progress(self.id) == 0
-
-    def has_work(self):
-        return len(self.pool.jobs_in_progress(self.id)) > 0
-
     def should_poll(self):
-        return not self.full() and (
+        return (
             self.last_poll_success
             or self.last_poll is None
             or (time.time() - self.last_poll) > self.no_job_sleep_seconds
@@ -471,8 +495,12 @@ class Processor:
 
     def poll(self):
         if not self.should_poll():
+            # logger.info("Not polling %s no job %s",self.recording_type,self.no_job_sleep_seconds)
             return False
 
+        is_full, process_id = self.full()
+        if is_full:
+            return False
         working = False
         self.last_poll_success = False
         for index in range(len(self.processing_states)):
@@ -485,6 +513,8 @@ class Processor:
             self.last_poll_success = self.last_poll_success or response is not None
             if not response:
                 continue
+            self.pool.remove_spare_worker(self.id)
+
             recording = response["recording"]
             rawJWT = response["rawJWT"]
             if recording.get("id", 0) in self.pool.in_progress:
@@ -496,23 +526,32 @@ class Processor:
                     self.pool.in_progress[recording["id"]],
                 )
 
-                success = self.pool.cancel_job(recording["id"], self.id)
+                success = self.pool.cancel_job(recording["id"])
 
                 logger.info("Job cancelled with success? %s", success)
                 if not success:
                     continue
             logger.info(
-                "scheduling %s (%s: %s)",
+                "scheduling rec:#%s (%s: %s) under process %s",
                 recording["id"],
                 recording["type"],
                 state,
+                process_id,
             )
             # instance = self.docker_pool.get_instance()
             instance = "test-instance"
             logger.info("Scheduling for %s", instance)
-            self.pool.schedule(process_func, self.id, recording, rawJWT, instance)
+            self.pool.schedule(process_func, process_id, recording, rawJWT, instance)
             working = True
+            if process_id != self.id:
+                logger.info(
+                    "Processor %s is borrowing a worker from %s", self.id, process_id
+                )
             break
+        if not working:
+            if self.id not in self.pool.spare_workers:
+                self.pool.add_spare_worker(self.id)
+                logger.info("%s: %s has spare worker", self.recording_type, self.id)
         self.poll_index = (self.poll_index + 1) % len(self.processing_states)
         return working
 

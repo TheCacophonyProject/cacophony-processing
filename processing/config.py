@@ -39,22 +39,14 @@ configTuple = namedtuple(
         "track_cmd",
         "min_confidence",
         "min_tag_clarity",
-        "min_tag_clarity_secondary",
         "audio_analysis_cmd",
         "audio_analysis_tag",
         "audio_analysis_workers",
-        "thermal_analyse_workers",
         "thermal_track_analyse_workers",
-        "thermal_tracking_workers",
         "ignore_tags",
         "wallaby_devices",
         "master_tag",
         "cache_clips_bigger_than",
-        "classify_trail_cmd",
-        "trail_workers",
-        "ir_tracking_workers",
-        "ir_analyse_workers",
-        "do_retrack",
         "filter_false_positive",
         "false_positive_min_confidence",
         "max_tracks",
@@ -82,8 +74,11 @@ class Config(configTuple):
 
     @classmethod
     def load(cls, filename=None):
+        import logging
+
         if filename is None:
             filename = find_config()
+        logging.info("loading %s", filename)
         return cls.load_from(filename)
 
     @classmethod
@@ -92,8 +87,6 @@ class Config(configTuple):
             y = yaml.load(stream, Loader=yaml.FullLoader)
             thermal = y["thermal"]
             audio = y["audio"]
-            trail = y["trailcam"]
-            ir = y["ir"]
             restart_after = y.get("restart_after")
             if restart_after is not None:
                 # convert to seconds
@@ -108,33 +101,23 @@ class Config(configTuple):
                     password=y["api_password"],
                 ),
                 no_recordings_wait_secs=y["no_recordings_wait_secs"],
-                classify_image=thermal["classify_image"],
+                classify_image=thermal.get("classify_image", "latest"),
                 classify_cmd=thermal["classify_cmd"],
                 track_cmd=thermal["track_cmd"],
                 master_tag=thermal.get("master_tag", "Master"),
                 wallaby_devices=thermal["wallaby_devices"],
                 min_confidence=thermal["tagging"]["min_confidence"],
                 min_tag_clarity=thermal["tagging"]["min_tag_clarity"],
-                min_tag_clarity_secondary=thermal["tagging"][
-                    "min_tag_clarity_secondary"
-                ],
                 audio_analysis_cmd=audio["analysis_command"],
                 audio_analysis_tag=audio["analysis_tag"],
                 audio_analysis_workers=audio.get("analysis_workers", 1),
                 reprocess_audio_workers=audio.get("reprocess_workers", 1),
                 reprocess_thermal_workers=thermal.get("reprocess_workers", 1),
-                thermal_analyse_workers=thermal.get("analyse_workers", 1),
-                thermal_tracking_workers=thermal.get("tracking_workers", 1),
                 thermal_track_analyse_workers=thermal.get(
                     "thermal_track_analyse_workers", 1
                 ),
                 ignore_tags=thermal["tagging"].get("ignore_tags", None),
                 cache_clips_bigger_than=thermal.get("cache_clips_bigger_than"),
-                classify_trail_cmd=trail["run_cmd"],
-                trail_workers=trail.get("trail_workers", 1),
-                ir_tracking_workers=ir.get("tracking_workers", 0),
-                ir_analyse_workers=ir.get("analyse_workers", 0),
-                do_retrack=thermal.get("do_retrack", True),
                 filter_false_positive=thermal.get("filter_false_positive", False),
                 false_positive_min_confidence=thermal.get(
                     "false_positive_min_confidence", 0.7

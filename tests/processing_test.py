@@ -8,25 +8,22 @@ from processing import thermal, audio_analysis
 from pathlib import Path
 
 import datetime
+import threading
 from main import run_with_api
 import pytest
 import datetime
+import time
+
+
+REC_ID = 1
 
 
 def test_duplicate_recordings():
-
-    # init_logging()
-    conf = processing.Config.load()
-    test_rec = {
-        "recording": {
-            "id": 1,
-            "type": "thermal",
-            "jobKey": 2,
-            "DeviceId": 1,
-            "recordingDateTime": datetime.datetime.now().isoformat(),
-        },
-        "rawJWT": "./tests/test.cptv",
-    }
+    # 2 recordings with the same recording id will cause the first to be cancelled and second completed
+    conf = processing.Config.load("./tests/processing_test.yaml")
+    test_rec = get_thermal_rec()
+    test_rec_2 = get_thermal_rec()
+    test_rec_2["recording"]["id"] = test_rec["recording"]["id"]
     jobs = {"thermalRaw": {"trackAndAnalyse": [test_rec, test_rec]}}
     api = TestAPI(jobs)
     logging.info("Running with jobs %s config %s", jobs, conf)
@@ -34,6 +31,106 @@ def test_duplicate_recordings():
     assert (
         len(api.finished) == 1
     ), "Finished should have 1 entry (first job cancelled, second job finished)"
+    assert api.finished[0]["success"], "Job should of suceeded"
+
+
+def test_normal_operation():
+    # 2 thermal recoridngs and no audio, with only 1 thread for audio and 1 for thermal allows both thermals to run borrowing audios worker
+    conf = processing.Config.load("./tests/processing_test_2.yaml")
+    jobs = {
+        "thermalRaw": {
+            "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec()],
+        },
+    }
+    jobs["audio"] = {"analyse": [get_audio_rec()]}
+
+    api = TestAPI(jobs)
+    logging.info("Running with jobs %s config %s", jobs, conf)
+    t = threading.Thread(
+        target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
+    )
+    t.start()
+    time.sleep(5)
+    assert (
+        len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
+    ), "thermal worker should only run after audio is finished"
+    assert len(api.jobs["audio"]["analyse"]) == 0, "audio worker should be scheduled"
+
+    t.join()
+    assert (
+        len(api.finished) == 1
+    ), "Finished should have 1 entry (first job cancelled, second job finished)"
+    assert api.finished[0]["success"], "Job should of suceeded"
+
+
+def get_thermal_rec():
+    global REC_ID
+    test_rec = {
+        "recording": {
+            "id": REC_ID,
+            "type": "thermal",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+        },
+        "rawJWT": "./tests/test.cptv",
+    }
+    REC_ID += 1
+    return test_rec
+
+
+def get_audio_rec():
+    global REC_ID
+    test_audio_1 = {
+        "recording": {
+            "id": REC_ID,
+            "type": "audio",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+            "rawMimeType": "audio/mp4",
+        },
+        "rawJWT": "./tests/test.m4a",
+    }
+    REC_ID += 1
+    return test_audio_1
+
+
+def test_balancing():
+    # 3 thermal recoridngs and no audio, with only 1 thread for audio and 2 for thermal allows all thermals to run borrowing audios worker
+    # audio waits for a thermal rec to finish
+    conf = processing.Config.load("./tests/processing_test.yaml")
+    jobs = {
+        "thermalRaw": {
+            "trackAndAnalyse": [
+                get_thermal_rec(),
+                get_thermal_rec(),
+                get_thermal_rec(),
+            ],
+        },
+    }
+
+    api = TestAPI(jobs)
+    for rec_type, job in jobs.items():
+        for state, recs in job.items():
+            logging.info("Running %s %s: %s jobs", rec_type, state, len(recs))
+    t = threading.Thread(
+        target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
+    )
+    t.start()
+    time.sleep(2)
+    assert (
+        len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 0
+    ), "thermal worker should use audio worker slot"
+    jobs["audio"] = {"analyse": [get_audio_rec()]}
+
+    time.sleep(2)
+    assert (
+        len(api.jobs["audio"]["analyse"]) == 1
+    ), "audio worker that got added later has to wait for a slot"
+
+    t.join()
+    assert len(api.finished) == 4, "Finished should have 4 entries"
     assert api.finished[0]["success"], "Job should of suceeded"
 
 

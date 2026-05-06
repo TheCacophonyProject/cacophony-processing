@@ -32,7 +32,7 @@ from .thermal import Prediction
 MAX_FRQUENCY = 48000 / 2
 
 
-def track_analyse(recording, jwtKey, conf):
+def track_analyse(api, recording, jwtKey, conf, docker_instance):
     """Analyse a track from the audio file.
 
     Downloads the file, runs the AI model on tracks that have been made by users and dont yet have an AI tag
@@ -50,8 +50,6 @@ def track_analyse(recording, jwtKey, conf):
     mimetypes.add_type("audio/mp4", ".m4a")
 
     logger = logs.worker_logger("audio.track_analysis", recording["id"])
-
-    api = APwI(conf.api_url, conf.user, conf.password, logger)
 
     input_extension = mimetypes.guess_extension(recording["rawMimeType"])
 
@@ -110,13 +108,12 @@ def track_analyse(recording, jwtKey, conf):
 SPECIFIC_NOISE = ["insect"]
 
 
-def process(recording, jwtKey, conf):
+def process(api, recording, jwtKey, conf, docker_instance):
     logger = logs.worker_logger("audio.analysis", recording["id"])
-    api = API(conf.api_url, conf.user, conf.password, logger)
-    return process_with_api(recording, jwtKey, api, conf, logger)
+    return process_with_api(api, recording, jwtKey, conf, docker_instance, logger)
 
 
-def process_with_api(recording, jwtKey, api, conf, logger=None):
+def process_with_api(api, recording, jwtKey, conf, docker_instance, logger=None):
     """Process the audio file.
 
     Downloads the file, runs the AI models & cacophony index algorithm,

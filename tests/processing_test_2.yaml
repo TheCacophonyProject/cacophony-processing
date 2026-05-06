@@ -1,32 +1,22 @@
 # enter object store and API settings and save as processing.yaml.
 # the options listed below should work for the test api-server, set up with the ./run command
----
 
-api_url: "https://api.cacophony.org.nz"
-api_user: test-user
-api_password: test-password
-temp_dir: /tmp/cacophony
+api_url: "http://localhost:1080"
+api_user: admin@email.com
+api_password: admin_test
+temp_dir: /tmp
 # extra-delay before polling the api server again when previous call(s) indicated there were no recordings to process
 no_recordings_wait_secs : 30
-
+no_job_sleep_seconds: 0.1
 # restart after x hours
 restart_after: 10
 
-# if no job was found last poll don't poll for x seconds
-no_job_sleep_seconds: 30
-
-# timeout subprocess after 20 minutes should stop docker hanging
-subprocess_timeout: 1200
-
-reprocess: False
-
 thermal:
+    thermal_track_analyse_workers: 2
+    classify_image: "cacophonyproject/classifier:v2.40.1"
+    classify_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 classify.py '{source}' --cache {cache}"
+    
 
-    #cache clips that have more than this amount of frames, null is never cache
-    cache_clips_bigger_than: 2160
-
-    classify_image: "cacophonyproject/classifier:latest"
-    classify_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 classify.py {source} --cache {cache}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
     master_tag: "Master"
@@ -46,12 +36,9 @@ thermal:
       min_tag_clarity: .2
 
 
-
 audio:
-    analysis_workers: 2
-    reprocess_workers: 2
+    analysis_workers: 1
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
-    analysis_command: 'docker run --rm -v {folder}:/io cacophonyproject/audio-analysis:{tag} /io/"{basename}"  --morepork-model none --analyse-tracks {analyse_tracks}'
-
-    analysis_tag: latest
+    analysis_command: 'docker run --rm -v /var/lib/audio-analysis/models:/audio-models -v {folder}:/io cacophonyproject/audio-analysis:{tag} /io/"{basename}" --analyse-tracks {analyse_tracks}'
+    analysis_tag: v1.49.7
