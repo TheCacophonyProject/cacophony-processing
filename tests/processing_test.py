@@ -1,16 +1,11 @@
 import shutil
-import argparse
 import json
 import logging
-import sys
 import processing
-from processing import thermal, audio_analysis
-from pathlib import Path
 
 import datetime
 import threading
 from main import run_with_api
-import pytest
 import datetime
 import time
 
@@ -50,50 +45,21 @@ def test_normal_operation():
         target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
     )
     t.start()
-    time.sleep(5)
-    assert (
-        len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
-    ), "thermal worker should only run after audio is finished"
-    assert len(api.jobs["audio"]["analyse"]) == 0, "audio worker should be scheduled"
+    try:
+        time.sleep(5)
+        assert (
+            len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
+        ), "thermal worker should only run after audio is finished"
+        assert (
+            len(api.jobs["audio"]["analyse"]) == 0
+        ), "audio worker should be scheduled"
 
-    t.join()
-    assert (
-        len(api.finished) == 1
-    ), "Finished should have 1 entry (first job cancelled, second job finished)"
-    assert api.finished[0]["success"], "Job should of suceeded"
-
-
-def get_thermal_rec():
-    global REC_ID
-    test_rec = {
-        "recording": {
-            "id": REC_ID,
-            "type": "thermal",
-            "jobKey": 2,
-            "DeviceId": 1,
-            "recordingDateTime": datetime.datetime.now().isoformat(),
-        },
-        "rawJWT": "./tests/test.cptv",
-    }
-    REC_ID += 1
-    return test_rec
-
-
-def get_audio_rec():
-    global REC_ID
-    test_audio_1 = {
-        "recording": {
-            "id": REC_ID,
-            "type": "audio",
-            "jobKey": 2,
-            "DeviceId": 1,
-            "recordingDateTime": datetime.datetime.now().isoformat(),
-            "rawMimeType": "audio/mp4",
-        },
-        "rawJWT": "./tests/test.m4a",
-    }
-    REC_ID += 1
-    return test_audio_1
+        t.join()
+        assert len(api.finished) == 3, "Finished should have 3 entries"
+        assert api.finished[0]["success"], "Job should of suceeded"
+    except Exception as e:
+        t.join()
+        raise e
 
 
 def test_balancing():
@@ -143,11 +109,12 @@ class TestAPI:
         self.jobs = jobs
         self.finished = []
 
-    def next_job(self, recording_type, state):
+    def next_job(self, recording_type, states):
         jobs = self.jobs.get(recording_type)
         if jobs is None:
             return None
-        jobs = jobs.get(state)
+
+        jobs = jobs.get(states[0])
         if jobs is None or len(jobs) == 0:
             return None
         return jobs.pop()
@@ -251,4 +218,36 @@ class TestAPI:
         return
 
 
-# test_duplicate_recordings()
+def get_thermal_rec():
+    global REC_ID
+    test_rec = {
+        "recording": {
+            "id": REC_ID,
+            "type": "thermal",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+            "processingState": "trackAndAnalyse",
+        },
+        "rawJWT": "./tests/test.cptv",
+    }
+    REC_ID += 1
+    return test_rec
+
+
+def get_audio_rec():
+    global REC_ID
+    test_audio_1 = {
+        "recording": {
+            "id": REC_ID,
+            "type": "audio",
+            "jobKey": 2,
+            "DeviceId": 1,
+            "recordingDateTime": datetime.datetime.now().isoformat(),
+            "rawMimeType": "audio/mp4",
+            "processingState": "analyse",
+        },
+        "rawJWT": "./tests/test.m4a",
+    }
+    REC_ID += 1
+    return test_audio_1

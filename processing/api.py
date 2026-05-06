@@ -146,8 +146,8 @@ class API:
         if self._expiry < time.time():
             self.login()
 
-    def next_job(self, recording_type, state):
-        params = {"type": recording_type, "state": state}
+    def next_job(self, recording_type, states):
+        params = {"type": recording_type, "state": states}
         r = self.get(self.file_url, params=params)
         if r.status_code == 204:
             return None

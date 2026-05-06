@@ -12,7 +12,7 @@ no_job_sleep_seconds: 0.1
 restart_after: 10
 
 thermal:
-    thermal_track_analyse_workers: 2
+    thermal_track_analyse_workers: 1
     classify_image: "cacophonyproject/classifier:v2.40.1"
     classify_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 classify.py '{source}' --cache {cache}"
     

@@ -440,7 +440,6 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
         worker_pool.api.report_done(
             {"id": recording_id, "jobKey": job_key}, None, None, result
         )
-        logger.info("Future result is %s", result)
     worker_pool.finished(recording_id, processor_id)
 
 
@@ -475,7 +474,6 @@ class Processor:
 
         self.audio_workers = 4
         self.thermal_workers = 4
-        self.poll_index = 0
         self.pool.register_processor(self.id, num_workers)
         self.borrowed = []
 
@@ -503,56 +501,56 @@ class Processor:
             return False
         working = False
         self.last_poll_success = False
-        for index in range(len(self.processing_states)):
-            corrected_index = (index + self.poll_index) % len(self.processing_states)
-            state = self.processing_states[corrected_index]
-            process_func = self.process_funcs[corrected_index]
 
-            self.last_poll = time.time()
-            response = self.api.next_job(self.recording_type, state)
-            self.last_poll_success = self.last_poll_success or response is not None
-            if not response:
-                continue
-            self.pool.remove_spare_worker(self.id)
-
-            recording = response["recording"]
-            rawJWT = response["rawJWT"]
-            if recording.get("id", 0) in self.pool.in_progress:
-                logger.info(
-                    "Recording %s (%s: %s) is already scheduled, cancelling %s",
-                    recording["id"],
-                    recording["type"],
-                    state,
-                    self.pool.in_progress[recording["id"]],
-                )
-
-                success = self.pool.cancel_job(recording["id"])
-
-                logger.info("Job cancelled with success? %s", success)
-                if not success:
-                    continue
-            logger.info(
-                "scheduling rec:#%s (%s: %s) under process %s",
-                recording["id"],
-                recording["type"],
-                state,
-                process_id,
-            )
-            # instance = self.docker_pool.get_instance()
-            instance = "test-instance"
-            logger.info("Scheduling for %s", instance)
-            self.pool.schedule(process_func, process_id, recording, rawJWT, instance)
-            working = True
-            if process_id != self.id:
-                logger.info(
-                    "Processor %s is borrowing a worker from %s", self.id, process_id
-                )
-            break
-        if not working:
+        self.last_poll = time.time()
+        response = self.api.next_job(self.recording_type, self.processing_states)
+        self.last_poll_success = self.last_poll_success or response is not None
+        if not response:
             if self.id not in self.pool.spare_workers:
                 self.pool.add_spare_worker(self.id)
                 logger.info("%s: %s has spare worker", self.recording_type, self.id)
-        self.poll_index = (self.poll_index + 1) % len(self.processing_states)
+            return False
+        self.pool.remove_spare_worker(self.id)
+
+        recording = response["recording"]
+        rawJWT = response["rawJWT"]
+        state = recording["processingState"]
+        if recording.get("id", 0) in self.pool.in_progress:
+            logger.info(
+                "Recording %s (%s: %s) is already scheduled, cancelling %s",
+                recording["id"],
+                recording["type"],
+                state,
+                self.pool.in_progress[recording["id"]],
+            )
+
+            success = self.pool.cancel_job(recording["id"])
+
+            logger.info("Job cancelled with success? %s", success)
+            if not success:
+                return False
+        logger.info(
+            "scheduling rec:#%s (%s: %s) under process %s",
+            recording["id"],
+            recording["type"],
+            state,
+            process_id,
+        )
+        # instance = self.docker_pool.get_instance()
+        instance = "test-instance"
+        logger.info("Scheduling for %s", instance)
+        process_func = None
+        for process_state, function in zip(self.processing_states, self.process_funcs):
+            if process_state == state:
+                process_func = function
+                break
+        self.pool.schedule(process_func, process_id, recording, rawJWT, instance)
+        working = True
+        if process_id != self.id:
+            logger.info(
+                "Processor %s is borrowing a worker from %s", self.id, process_id
+            )
+
         return working
 
 
