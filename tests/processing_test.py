@@ -40,37 +40,37 @@ def test_duplicate_recordings():
     assert api.finished[0]["success"], "Job should of suceeded"
 
 
-# def test_normal_operation():
-#     # 2 thermal recoridngs and no audio, with only 1 thread for audio and 1 for thermal allows both thermals to run borrowing audios worker
-#     conf = processing.Config.load("./tests/processing_test_2.yaml")
-#     jobs = {
-#         "thermalRaw": {
-#             "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec()],
-#         },
-#     }
-#     jobs["audio"] = {"analyse": [get_audio_rec()]}
+def test_normal_operation():
+    # 2 thermal recoridngs and no audio, with only 1 thread for audio and 1 for thermal allows both thermals to run borrowing audios worker
+    conf = processing.Config.load("./tests/processing_test_2.yaml")
+    jobs = {
+        "thermalRaw": {
+            "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec()],
+        },
+    }
+    jobs["audio"] = {"analyse": [get_audio_rec()]}
 
-#     api = TestAPI(jobs)
-#     logging.info("Running with jobs %s config %s", jobs, conf)
-#     t = threading.Thread(
-#         target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
-#     )
-#     t.start()
-#     try:
-#         time.sleep(5)
-#         assert (
-#             len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
-#         ), "thermal worker should only run after audio is finished"
-#         assert (
-#             len(api.jobs["audio"]["analyse"]) == 0
-#         ), "audio worker should be scheduled"
+    api = TestAPI(jobs)
+    logging.info("Running with jobs %s config %s", jobs, conf)
+    t = threading.Thread(
+        target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
+    )
+    t.start()
+    try:
+        time.sleep(5)
+        assert (
+            len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
+        ), "thermal worker should only run after audio is finished"
+        assert (
+            len(api.jobs["audio"]["analyse"]) == 0
+        ), "audio worker should be scheduled"
 
-#         t.join()
-#         assert len(api.finished) == 3, "Finished should have 3 entries"
-#         assert api.finished[0]["success"], "Job should of suceeded"
-#     except Exception as e:
-#         t.join()
-#         raise e
+        t.join()
+        assert len(api.finished) == 3, "Finished should have 3 entries"
+        assert api.finished[0]["success"], "Job should of suceeded"
+    except Exception as e:
+        t.join()
+        raise e
 
 
 def test_balancing():
@@ -95,20 +95,24 @@ def test_balancing():
         target=run_with_api, args=(api, conf), kwargs={"exit_on_finished": True}
     )
     t.start()
-    time.sleep(2)
-    assert (
-        len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 0
-    ), "thermal worker should use audio worker slot"
-    jobs["audio"] = {"analyse": [get_audio_rec()]}
+    try:
+        time.sleep(2)
+        assert (
+            len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 0
+        ), "thermal worker should use audio worker slot"
+        jobs["audio"] = {"analyse": [get_audio_rec()]}
 
-    time.sleep(2)
-    assert (
-        len(api.jobs["audio"]["analyse"]) == 1
-    ), "audio worker that got added later has to wait for a slot"
+        time.sleep(2)
+        assert (
+            len(api.jobs["audio"]["analyse"]) == 1
+        ), "audio worker that got added later has to wait for a slot"
 
-    t.join()
-    assert len(api.finished) == 4, "Finished should have 4 entries"
-    assert api.finished[0]["success"], "Job should of suceeded"
+        t.join()
+        assert len(api.finished) == 4, "Finished should have 4 entries"
+        assert api.finished[0]["success"], "Job should of suceeded"
+    except Exception as e:
+        t.join()
+        raise e
 
 
 def get_thermal_rec():
