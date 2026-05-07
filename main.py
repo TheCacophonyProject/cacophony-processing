@@ -463,9 +463,6 @@ class Processor:
         self.process_funcs = process_funcs
         self.num_workers = num_workers
         self.no_job_sleep_seconds = no_job_sleep_seconds
-        # self.pool = ProcessPool(
-        #     num_workers, initializer=logs.init_worker, initargs=(self.log_q,)
-        # )
         self.pool = worker_pool
 
         self.last_poll = None
@@ -508,7 +505,7 @@ class Processor:
         if not response:
             if self.id not in self.pool.spare_workers:
                 self.pool.add_spare_worker(self.id)
-                logger.info("%s: %s has spare worker", self.recording_type, self.id)
+                logger.info("%s: %s has spare workers", self.recording_type, self.id)
             return False
         self.pool.remove_spare_worker(self.id)
 

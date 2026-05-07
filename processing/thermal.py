@@ -73,31 +73,6 @@ def classify_job(api, recording, rawJWT, conf, docker_instance):
         return classify(conf, recording, api, logger, do_tracking=tracking)
 
 
-# def classify_job(recording, rawJWT, conf):
-#     logger = logs.worker_logger("classify", recording["id"])
-
-#     api = API(conf.api_url, conf.user, conf.password, logger)
-#     mp4 = recording.get("type") == "irRaw"
-#     ext = ".mp4" if mp4 else ".cptv"
-
-#     with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
-#         filename = Path(temp_dir) / DOWNLOAD_FILENAME
-#         filename = filename.with_suffix(ext)
-#         recording["filename"] = str(filename)
-#         logger.debug("downloading recording")
-#         api.download_file(rawJWT, str(filename))
-#         meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
-#         track_info = api.get_track_info(recording["id"]).get("tracks")
-#         for track in track_info:
-#             track["start_s"] = track["start"]
-#             track["end_s"] = track["end"]
-#             track["positions"] = track["positions"]
-#         recording["tracks"] = track_info
-#         with open(str(meta_filename), "w") as f:
-#             json.dump(recording, f)
-#         return classify(conf, recording, api, logger, do_tracking=True)
-
-
 def classify_file(
     api, file, conf, duration, logger, do_tracking=False, calculate_thumbnails=False
 ):
@@ -135,19 +110,6 @@ def classify_file(
     return ClassifyResult.load(
         classify_info, algorithm_id, filtered_tracks, tags.get(MULTIPLE, None)
     )
-
-
-def read_all(socket):
-    size = 4096
-    data = bytearray()
-
-    while True:
-        packet = socket.recv(size)
-        if packet:
-            data.extend(packet)
-        else:
-            break
-    return data
 
 
 def run_command(command, filename, timeout=None):
