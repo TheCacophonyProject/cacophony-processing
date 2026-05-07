@@ -30,7 +30,6 @@ from processing import API, logs, audio_analysis, thermal
 from processing.processutils import HandleCalledProcessError
 import subprocess
 import argparse
-import multiprocessing
 
 SLEEP_SECS = 0.2
 POLL_ERROR_SLEEP_SECS = 5

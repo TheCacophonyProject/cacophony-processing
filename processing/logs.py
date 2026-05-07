@@ -18,12 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
-import multiprocessing
+from multiprocessing import Queue
 from logging.handlers import QueueListener, QueueHandler
 
 
 def init_master():
-    q = multiprocessing.Queue()
+    q = Queue()
 
     handler = logging.StreamHandler()
     handler.setFormatter(
