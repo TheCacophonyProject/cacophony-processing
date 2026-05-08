@@ -1,0 +1,6 @@
+services:
+  audio:
+    image: cacophonyproject/audio-analysis
+    restart: always 
+    volumes:
+      - /tmp:/tmp
