@@ -25,7 +25,7 @@ thermal:
     #cache clips that have more than this amount of frames, null is never cache
     cache_clips_bigger_than: 2160
 
-    classify_image: "cacophonyproject/classifier:latest"
+    # image to use is defined in thermal-compose.yml
     classify_cmd: "docker run --rm -v {temp_dir}:{temp_dir} {classify_image} python3 classify.py {source} --cache {cache}"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
@@ -52,6 +52,5 @@ audio:
     reprocess_workers: 2
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
-    analysis_command: 'docker run --rm -v {folder}:/io cacophonyproject/audio-analysis:{tag} /io/"{basename}"  --morepork-model none --analyse-tracks {analyse_tracks}'
-
-    analysis_tag: latest
+    analysis_cmd: 'docker run --rm -v {folder}:/io cacophonyproject/audio-analysis:{tag} /io/"{source}"  --analyse-tracks {analyse_tracks}'
+    # image to use is defined in audio-compose.yml

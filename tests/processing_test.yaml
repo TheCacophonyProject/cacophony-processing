@@ -13,8 +13,8 @@ restart_after: 10
 
 thermal:
     thermal_track_analyse_workers: 2
-    classify_cmd: "docker run ubuntu sleep 5 && echo"
-
+    classify_cmd: "docker exec {docker_instance} sleep 5 && echo"
+    compose_file: "./tests/thermal-compose.yml"
     # Can be used to run multiple models, this will save a track tag per model
     # the tags of the first model will be used
     master_tag: "Master"
@@ -31,12 +31,13 @@ thermal:
       min_confidence: .4
 
       # This is the minimum difference in confidence between next choice a track should have in order to tag it as the chosen animal
-      min_tag_clarity: .2
+      min_tag_clarity: .2   
 
 
 audio:
     analysis_workers: 1
+    compose_file: "./tests/audio-compose.yml"
 
     # The command will be called to perform analysis on audio recordings (e.g. Cacophony Index, speech detection) using AI models
-    analysis_command: "docker run ubuntu sleep 5"
+    analysis_cmd: "docker exec {docker_instance} sleep 5"
     analysis_tag: v1.49.7

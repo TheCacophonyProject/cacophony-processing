@@ -64,14 +64,12 @@ def test_config():
             password="testpass",
         ),
         no_recordings_wait_secs=30,
-        classify_image="",
         classify_cmd="",
         wallaby_devices=[1, 2],
         master_tag="Master",
         min_confidence=0.4,
         min_tag_clarity=0.2,
         audio_analysis_cmd="",
-        audio_analysis_tag="v1.1.0",
         audio_analysis_workers=1,
         ignore_tags=["not"],
         cache_clips_bigger_than=0,
@@ -84,6 +82,8 @@ def test_config():
         reprocess=False,
         reprocess_audio_workers=1,
         reprocess_thermal_workers=1,
+        thermal_compose_file="thermal.yml",
+        audio_compose_file="audio.yml",
     )
 
 

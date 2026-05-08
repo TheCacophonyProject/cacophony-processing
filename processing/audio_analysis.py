@@ -61,7 +61,7 @@ def track_analyse(api, recording, jwtKey, conf, docker_instance):
         # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return {"success": False}
     new_metadata = {"additionalMetadata": {}}
-    with tempfile.TemporaryDirectory() as temp:
+    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
@@ -90,7 +90,7 @@ def track_analyse(api, recording, jwtKey, conf, docker_instance):
         with filename.open("w") as f:
             json.dump(recording, f)
 
-        metadata = analyse(input_filename, conf, analyse_tracks=True)
+        metadata = analyse(input_filename, docker_instance, conf, analyse_tracks=True)
         analysis = AudioResult.load(metadata, metadata.get("duration"), conf.master_tag)
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
@@ -144,7 +144,7 @@ def process_with_api(api, recording, jwtKey, conf, docker_instance, logger=None)
         return {"success": False}
 
     new_metadata = {"additionalMetadata": {}}
-    with tempfile.TemporaryDirectory() as temp:
+    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
@@ -166,7 +166,7 @@ def process_with_api(api, recording, jwtKey, conf, docker_instance, logger=None)
             del recording["tracks"]
         with filename.open("w") as f:
             json.dump(recording, f)
-        metadata = analyse(input_filename, conf)
+        metadata = analyse(input_filename, docker_instance, conf)
         new_metadata = {"additionalMetadata": {}}
         duration = recording.get("duration")
         if duration is not None:
@@ -204,15 +204,15 @@ def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
         track.id = track_id
 
 
-def analyse(filename, conf, analyse_tracks=False):
+def analyse(filename, docker_instance, conf, analyse_tracks=False):
     command = conf.audio_analysis_cmd.format(
-        folder=filename.parent,
-        basename=filename.name,
-        tag=conf.audio_analysis_tag,
-        analyse_tracks=analyse_tracks,
+        docker_instance=docker_instance,
+        source=filename,
     )
+    if analyse_tracks:
+        command = f"{command} --analyse_tracks"
     with HandleCalledProcessError():
-        proc = subprocess.run(
+        subprocess.run(
             command,
             shell=True,
             stderr=subprocess.PIPE,
@@ -372,7 +372,7 @@ class AudioTrack:
         return data
 
 
-def track_reprocess(recording, jwtKey, conf):
+def track_reprocess(recording, docker_instance, jwtKey, conf):
     """Reprocess the audio file.
 
     Downloads the file, runs the AI model on tracks that have been made by users and dont yet have an AI tag
@@ -404,7 +404,7 @@ def track_reprocess(recording, jwtKey, conf):
         # api.report_done(recording, recording["rawFileKey"], recording["rawMimeType"])
         return {"success": "false"}
     new_metadata = {"additionalMetadata": {}}
-    with tempfile.TemporaryDirectory() as temp:
+    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp:
         temp_path = Path(temp)
         input_filename = temp_path / ("recording" + input_extension)
         logger.debug("downloading recording to %s", input_filename)
@@ -436,7 +436,7 @@ def track_reprocess(recording, jwtKey, conf):
         with filename.open("w") as f:
             json.dump(recording, f)
 
-        metadata = analyse(input_filename, conf)
+        metadata = analyse(input_filename, docker_instance, conf)
         analysis = AudioResult.load(metadata, metadata.get("duration"), conf.master_tag)
         algorithm_meta = {"algorithm": "sliding_window"}
         if analysis.species_identify_version is not None:
@@ -472,7 +472,7 @@ def track_reprocess(recording, jwtKey, conf):
             new_metadata["additionalMetadata"]["regionCode"] = analysis.region_code
 
     # api.report_done(recording, metadata=new_metadata)
-    logger.info("Completed classifying for file: %s", recording["id"])
+    logger.info("Completed classifying for recording: %s", recording["id"])
     return new_metadata
 
 

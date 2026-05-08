@@ -70,11 +70,20 @@ def classify_job(api, recording, rawJWT, conf, docker_instance):
         with open(str(meta_filename), "w") as f:
             json.dump(recording, f)
 
-        return classify(conf, recording, api, logger, do_tracking=tracking)
+        return classify(
+            conf, recording, api, docker_instance, logger, do_tracking=tracking
+        )
 
 
 def classify_file(
-    api, file, conf, duration, logger, do_tracking=False, calculate_thumbnails=False
+    api,
+    docker_instance,
+    file,
+    conf,
+    duration,
+    logger,
+    do_tracking=False,
+    calculate_thumbnails=False,
 ):
     cache = False
     if (
@@ -85,16 +94,15 @@ def classify_file(
         cache = True
 
     command = conf.classify_cmd.format(
+        docker_instance=docker_instance,
         source=file,
         cache=cache,
-        classify_image=conf.classify_image,
-        temp_dir=conf.temp_dir,
     )
     if do_tracking:
         command = f"{command} --track"
     if calculate_thumbnails:
         command = f"{command} --calculate-thumbnails"
-    logger.info("Classifying %s with command %s", file, command)
+    # logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command, file, conf.subprocess_timeout)
     tracks = []
     for t in classify_info.get("tracks", []):
@@ -148,12 +156,13 @@ def fp_score(track):
     return 0
 
 
-def classify(conf, recording, api, logger, do_tracking=False):
+def classify(conf, recording, api, docker_instance, logger, do_tracking=False):
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
     logger.debug("processing %s ", recording["filename"])
     calculate_thumbnails = recording.get("metadataSource") == "PI"
     classify_result = classify_file(
         api,
+        docker_instance,
         recording["filename"],
         conf,
         recording.get("duration", 0),

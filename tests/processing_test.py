@@ -10,6 +10,20 @@ import time
 REC_ID = 1
 
 
+def test_docker_pool():
+    conf = processing.Config.load("./tests/processing_test.yaml")
+    jobs = {}
+    jobs = {
+        "thermalRaw": {
+            "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec(), get_thermal_rec()]
+        }
+    }
+    api = TestAPI(jobs)
+    logging.info("Running with jobs %s config %s", jobs, conf)
+    run_with_api(api, conf, exit_on_finished=True)
+    assert len(api.finished) == 2, "Finished should have 2 entries"
+
+
 def test_failed_mime_type():
     conf = processing.Config.load("./tests/processing_test.yaml")
     test_rec = get_audio_rec()
@@ -57,7 +71,8 @@ def test_normal_operation():
     )
     t.start()
     try:
-        time.sleep(5)
+        wait_until_processing_has_started(api)
+        logging.info("Checking analyse is waiting")
         assert (
             len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
         ), "thermal worker should only run after audio is finished"
@@ -71,6 +86,13 @@ def test_normal_operation():
     except Exception as e:
         t.join()
         raise e
+
+
+def wait_until_processing_has_started(api):
+    while True:
+        if api.started:
+            break
+        time.sleep(1)
 
 
 def test_balancing():
@@ -165,8 +187,10 @@ class TestAPI:
     def __init__(self, jobs):
         self.jobs = jobs
         self.finished = []
+        self.started = False
 
     def next_job(self, recording_type, states):
+        self.started = True
         jobs = self.jobs.get(recording_type)
         if jobs is None:
             return None

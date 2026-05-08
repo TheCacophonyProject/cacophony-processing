@@ -139,7 +139,9 @@ def run_with_api(api, conf, exit_on_finished=False):
                 conf.reprocess_thermal_workers,
                 conf.no_job_sleep_seconds,
                 workers,
-                "thermal-compose.yml",
+                conf.thermal_compose_file,
+                workers.total_workers,
+                "thermal-reprocess",
             )
         if conf.reprocess_audio_workers > 0:
             processors.add(
@@ -149,7 +151,9 @@ def run_with_api(api, conf, exit_on_finished=False):
                 conf.reprocess_audio_workers,
                 conf.no_job_sleep_seconds,
                 workers,
-                "audio-compose.yml",
+                conf.audio_compose_file,
+                workers.total_workers,
+                "audio-reprocess",
             )
     else:
         if conf.audio_analysis_workers > 0:
@@ -160,7 +164,9 @@ def run_with_api(api, conf, exit_on_finished=False):
                 conf.audio_analysis_workers,
                 conf.no_job_sleep_seconds,
                 workers,
-                "audio-compose.yml",
+                conf.audio_compose_file,
+                workers.total_workers,
+                "audio-analyse",
             )
 
         if conf.thermal_track_analyse_workers > 0:
@@ -171,9 +177,13 @@ def run_with_api(api, conf, exit_on_finished=False):
                 conf.thermal_track_analyse_workers,
                 conf.no_job_sleep_seconds,
                 workers,
-                "thermal-compose.yml",
+                conf.thermal_compose_file,
+                workers.total_workers,
+                "thermal-analyse",
             )
-
+    logger.info("Waiting for docker startup")
+    for processor in processors:
+        processor.docker_pool.wait_for_ready()
     logger.info("checking for recordings")
     while True:
         success = False
@@ -199,15 +209,14 @@ def run_with_api(api, conf, exit_on_finished=False):
             time.sleep(POLL_ERROR_SLEEP_SECS)
             continue
 
-        # procesing_ids = []
-        # [procesing_ids.extend(processor.in_progress.keys()) for processor in processors]
-
         done_sleep = False
         if workers.in_use == 0:
             if exit_on_finished:
                 logger.info("Finished jobs")
                 workers.pool.stop()
                 workers.pool.join()
+                for process in processors:
+                    process.stop()
                 break
             if (
                 conf.restart_after is not None
@@ -239,6 +248,8 @@ class Processors(list):
         no_job_sleep_seconds,
         workers,
         docker_compose,
+        total_workers,
+        unique_id,
     ):
         if num_workers < 1:
             return
@@ -250,6 +261,8 @@ class Processors(list):
             no_job_sleep_seconds,
             workers,
             docker_compose,
+            total_workers,
+            unique_id,
         )
         logger.info(
             "Adding worker %s - %s states %s num workers %s ",
@@ -261,6 +274,7 @@ class Processors(list):
         self.append(p)
 
 
+2
 PROCESS_ID = 1
 
 
@@ -269,13 +283,32 @@ class DockerInstance:
         self.name = name
         self.compose_file = compose_file
         self.num_instances = num_instances
-        self.cmd = f"docker compose -f {self.compose_file} --scale {self.name}={self.num_instances} -d"
-        self.restart()
+        self.cmd = f"docker compose -f {self.compose_file} up --scale {self.name}={self.num_instances} -d"
         self.instances = []
+        self.restart()
         self.in_use = []
 
+    def wait_for_ready(self):
+        for instance in self.instances:
+            while True:
+                try:
+                    ready_output = run_command(f"docker exec {instance} bash ready.sh")
+                    break
+                except:
+                    logger.info(
+                        "%s instance %s is not ready waiting 10 seconds",
+                        self.compose_file,
+                        instance,
+                    )
+                    time.sleep(10)
+
+    def get_running_instances(self):
+        instances = run_command(f"docker container ls -q --filter name={self.name}*")
+        instances = instances.rstrip().split("\n")
+        return instances
+
     def stop(self):
-        logger.info("Stopping running instances of %s", self.name)
+        logger.info("Stopping running docker instances of %s", self.name)
         try:
             run_command(
                 f"docker stop $(docker container ls -q --filter name={self.name}*)"
@@ -283,19 +316,12 @@ class DockerInstance:
         except:
             logger.error("Error stopping instances ", exc_info=True)
         self.instances = []
+        self.in_use = []
 
     def start(self):
-        logger.info(
-            "Starting docker %s %s",
-            self.num_instances,
-            f"docker compose up -f {self.compose_file} --scale {self.name}={self.num_instances} -d",
-        )
-        output = run_command(
-            f"docker compose up -f {self.compose_file} --scale {self.name}={self.num_instances} -d"
-        )
-        for i in range(self.num_instances):
-            self.instances.append(f"docker-{self.name}-{i+1}")
-        logger.info("Docker up %s instances %s", output, self.instances)
+        logger.info("Starting docker %s %s", self.num_instances, self.cmd)
+        run_command(self.cmd)
+        self.instances = self.get_running_instances()
 
     def restart(self):
         self.stop()
@@ -310,6 +336,7 @@ class DockerInstance:
     def finished(self, instance):
         self.in_use.remove(instance)
         self.instances.append(instance)
+        logger.info("Docker instance %s finished", instance)
 
 
 class Workers:
@@ -348,7 +375,9 @@ class Workers:
                 return False, spare_id
         return True, 0
 
-    def schedule(self, func, processor_id, recording, rawJWT, instance):
+    def schedule(
+        self, func, processor_id, recording, rawJWT, instance, instance_callback
+    ):
         if self.in_use < self.total_workers:
             future = self.pool.schedule(
                 func, (self.api, recording, rawJWT, self.config, instance)
@@ -357,6 +386,7 @@ class Workers:
                 recording["jobKey"],
                 processor_id,
                 instance,
+                instance_callback,
                 future,
             )
             callback_with_args = functools.partial(
@@ -386,11 +416,11 @@ class Workers:
         job = self.in_progress.get(recording_id)
         if job is None:
             return
-        _, processor_id, _, future = job
-
+        _, processor_id, instance, instance_callback, future = job
         success = future.done() or future.cancel()
         logger.info("Job cancelled with success? %s", success)
-
+        if instance_callback:
+            instance_callback(instance)
         if success:
             self.finished(recording_id, processor_id)
         return success
@@ -409,10 +439,11 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
     if err is not None and not future.done():
         logger.error("Have exception %s while future is not done", err)
     if future.done() or err is not None:
-        (job_key, processor_id, docker_instance, future) = worker_pool.in_progress[
-            recording_id
-        ]
-
+        (job_key, processor_id, docker_instance, instance_callback, future) = (
+            worker_pool.in_progress[recording_id]
+        )
+        if instance_callback:
+            instance_callback(docker_instance)
         if future.cancelled():
             logger.info("Job %s was cancelled", recording_id)
             return
@@ -452,11 +483,11 @@ class Processor:
         num_workers,
         no_job_sleep_seconds,
         worker_pool,
-        docker_compose=None,
+        docker_compose,
+        total_workers,
+        unique_id,
     ):
-        global PROCESS_ID
-        self.id = PROCESS_ID
-        PROCESS_ID += 1
+        self.id = unique_id
         self.recording_type = recording_type
         self.processing_states = processing_states
         self.process_funcs = process_funcs
@@ -466,12 +497,15 @@ class Processor:
 
         self.last_poll = None
         self.last_poll_success = None
-        # self.docker_pool = DockerInstance(recording_type, docker_compose, num_workers)
+        self.docker_pool = DockerInstance(recording_type, docker_compose, total_workers)
 
         self.audio_workers = 4
         self.thermal_workers = 4
         self.pool.register_processor(self.id, num_workers)
         self.borrowed = []
+
+    def stop(self):
+        self.docker_pool.stop()
 
     def full(self):
         return self.pool.full(self.id)
@@ -504,7 +538,7 @@ class Processor:
         if not response:
             if self.id not in self.pool.spare_workers:
                 self.pool.add_spare_worker(self.id)
-                logger.info("%s: %s has spare workers", self.recording_type, self.id)
+                logger.info("%s has spare workers", self.id)
             return False
         self.pool.remove_spare_worker(self.id)
 
@@ -532,15 +566,21 @@ class Processor:
             state,
             process_id,
         )
-        # instance = self.docker_pool.get_instance()
-        instance = "test-instance"
-        logger.info("Scheduling for %s", instance)
+        instance = self.docker_pool.get_instance()
+        logger.info("Scheduling on docker instance %s", instance)
         process_func = None
         for process_state, function in zip(self.processing_states, self.process_funcs):
             if process_state == state:
                 process_func = function
                 break
-        self.pool.schedule(process_func, process_id, recording, rawJWT, instance)
+        self.pool.schedule(
+            process_func,
+            process_id,
+            recording,
+            rawJWT,
+            instance,
+            self.docker_pool.finished,
+        )
         working = True
         if process_id != self.id:
             logger.info(
