@@ -24,5 +24,13 @@ contents:
     dst: "/etc/cacophony/processing.yaml"
     type: config
 
+  - src: thermal-compose.yaml
+    dst: "/etc/cacophony/thermal-compose.yaml"
+    type: config
+
+  - src: audio-compose.yaml
+    dst: "/etc/cacophony/audio-compose.yaml"
+    type: config
+
 scripts:
   postinstall: "_release/postinstall.sh"
