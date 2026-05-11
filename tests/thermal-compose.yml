@@ -1,0 +1,10 @@
+services:
+  thermalRaw:
+    image: ubuntu
+    # cacophonyproject/classifier
+    # Keeps the container idle but active indefinitely
+    # command: tail -F /dev/null 
+    # Optional: ensures it restarts if the server reboots or it crashes
+    tty: true
+
+    restart: always 
