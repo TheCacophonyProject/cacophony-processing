@@ -305,24 +305,29 @@ class DockerInstance:
 
     def get_running_instances(self):
         instances = run_command(f"docker container ls -q --filter name={self.name}*")
-        instances = instances.rstrip().split("\n")
-        return instances
+        instances = instances.rstrip()
+        if len(instances) == 0:
+            return []
+        return instances.split("\n")
 
     def stop(self):
         logger.info("Stopping running docker instances of %s", self.name)
-        try:
-            run_command(
-                f"docker stop $(docker container ls -q --filter name={self.name}*)"
-            )
-        except:
-            logger.error("Error stopping instances ", exc_info=True)
+        instances = self.get_running_instances()
+        if len(instances) > 0:
+            try:
+                run_command(
+                    f"docker stop $(docker container ls -q --filter name={self.name}*)"
+                )
+            except:
+                logger.error("Error stopping instances ", exc_info=True)
         self.instances = []
         self.in_use = []
 
     def start(self):
         logger.info("Starting docker %s %s", self.num_instances, self.cmd)
         run_command(self.cmd)
-        self.instances = self.get_running_instances()
+        # shouldnt ever get multiple of same instances but just for safety
+        self.instances = set(self.get_running_instances())
 
     def restart(self):
         self.stop()
@@ -335,8 +340,11 @@ class DockerInstance:
         return instance
 
     def finished(self, instance):
-        self.in_use.remove(instance)
-        self.instances.append(instance)
+        if instance in self.in_use:
+            self.in_use.remove(instance)
+        else:
+            logger.warning("In use was missing %s", instance)
+        self.instances.add(instance)
         logger.info("Docker instance %s finished", instance)
 
 
@@ -443,11 +451,13 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
         job_key, processor_id, docker_instance, instance_callback, future = (
             worker_pool.in_progress[recording_id]
         )
-        if instance_callback:
-            instance_callback(docker_instance)
+
         if future.cancelled():
             logger.info("Job %s was cancelled", recording_id)
             return
+
+        if instance_callback:
+            instance_callback(docker_instance)
         if err:
             msg = f"processing of {recording_id} failed: {err}"
             tb = getattr(err, "traceback", None)

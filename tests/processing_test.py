@@ -21,7 +21,7 @@ def test_docker_pool():
     api = TestAPI(jobs)
     logging.info("Running with jobs %s config %s", jobs, conf)
     run_with_api(api, conf, exit_on_finished=True)
-    assert len(api.finished) == 2, "Finished should have 2 entries"
+    assert len(api.finished) == 3, "Finished should have 3 entries"
 
 
 def test_failed_mime_type():
