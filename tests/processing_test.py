@@ -71,7 +71,7 @@ def test_normal_operation():
     )
     t.start()
     try:
-        wait_until_processing_has_started(api)
+        wait_until_processing_has_started(t, api)
         logging.info("Checking analyse is waiting")
         assert (
             len(api.jobs["thermalRaw"]["trackAndAnalyse"]) == 1
@@ -88,9 +88,9 @@ def test_normal_operation():
         raise e
 
 
-def wait_until_processing_has_started(api):
+def wait_until_processing_has_started(thread, api):
     while True:
-        if api.started:
+        if api.started or not thread.is_alive():
             break
         time.sleep(1)
 

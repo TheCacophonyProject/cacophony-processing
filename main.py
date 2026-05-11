@@ -18,6 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+
 import threading
 import contextlib
 import time
@@ -439,7 +440,7 @@ def on_finish(future, worker_pool=None, recording_id=None, recording_type=None):
     if err is not None and not future.done():
         logger.error("Have exception %s while future is not done", err)
     if future.done() or err is not None:
-        (job_key, processor_id, docker_instance, instance_callback, future) = (
+        job_key, processor_id, docker_instance, instance_callback, future = (
             worker_pool.in_progress[recording_id]
         )
         if instance_callback:
