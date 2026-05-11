@@ -24,12 +24,12 @@ contents:
     dst: "/etc/cacophony/processing.yaml"
     type: config
 
-  - src: thermal-compose.yaml
-    dst: "/etc/cacophony/thermal-compose.yaml"
+  - src: thermal-compose.yml
+    dst: "/etc/cacophony/thermal-compose.yml"
     type: config
 
-  - src: audio-compose.yaml
-    dst: "/etc/cacophony/audio-compose.yaml"
+  - src: audio-compose.yml
+    dst: "/etc/cacophony/audio-compose.yml"
     type: config
 
 scripts:
