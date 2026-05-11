@@ -32,7 +32,6 @@ jobs:
       - name: Run tests
         run: |
             pip install pytest
-            pytest -s -k "normal_oper"
             pytest -s
 
   pex-build:
