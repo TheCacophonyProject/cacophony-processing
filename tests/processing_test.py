@@ -56,7 +56,7 @@ def test_duplicate_recordings():
 
 def test_normal_operation():
     # 2 thermal recoridngs and no audio, with only 1 thread for audio and 1 for thermal allows both thermals to run borrowing audios worker
-    conf = processing.Config.load("./tests/processing_test_2.yaml")
+    conf = processing.Config.load("./tests/processing_test_docker_images.yaml")
     jobs = {
         "thermalRaw": {
             "trackAndAnalyse": [get_thermal_rec(), get_thermal_rec()],
