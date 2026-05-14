@@ -194,7 +194,7 @@ def process_with_api(api, recording, jwtKey, conf, docker_instance, logger=None)
         # new_metadata["additionalMetadata"] = analysis
     # api.report_done(recording, metadata=new_metadata)
     logger.info("Completed processing for file: %s", recording["id"])
-    return metadata
+    return new_metadata
 
 
 def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
