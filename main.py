@@ -585,10 +585,12 @@ class Processor:
         instance = self.docker_pool.get_instance()
         logger.info("Scheduling on docker instance %s", instance)
         process_func = None
+        state = state.replace(".failed","")
         for process_state, function in zip(self.processing_states, self.process_funcs):
             if process_state == state:
                 process_func = function
                 break
+        
         self.pool.schedule(
             process_func,
             process_id,
