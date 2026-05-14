@@ -49,30 +49,35 @@ MIN_TRACK_CONFIDENCE = 0.85
 
 def classify_job(api, recording, rawJWT, conf, docker_instance):
     logger = logs.worker_logger("classify_job", recording["id"])
-    tracking = recording["processingState"] == "trackAndAnalyse"
-    mp4 = recording.get("type") == "irRaw"
-    ext = ".mp4" if mp4 else ".cptv"
 
-    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
-        filename = Path(temp_dir) / DOWNLOAD_FILENAME
-        filename = filename.with_suffix(ext)
-        recording["filename"] = str(filename)
-        logger.debug("downloading recording")
-        api.download_file(rawJWT, str(filename))
-        meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
-        if not tracking:
-            track_info = api.get_track_info(recording["id"]).get("tracks")
-            for track in track_info:
-                track["start_s"] = track["start"]
-                track["end_s"] = track["end"]
-                track["positions"] = track["positions"]
-            recording["tracks"] = track_info
-        with open(str(meta_filename), "w") as f:
-            json.dump(recording, f)
+    try:
+        tracking = recording["processingState"] == "trackAndAnalyse"
+        mp4 = recording.get("type") == "irRaw"
+        ext = ".mp4" if mp4 else ".cptv"
 
-        return classify(
-            conf, recording, api, docker_instance, logger, do_tracking=tracking
-        )
+        with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
+            filename = Path(temp_dir) / DOWNLOAD_FILENAME
+            filename = filename.with_suffix(ext)
+            recording["filename"] = str(filename)
+            logger.debug("downloading recording")
+            api.download_file(rawJWT, str(filename))
+            meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
+            if not tracking:
+                track_info = api.get_track_info(recording["id"]).get("tracks")
+                for track in track_info:
+                    track["start_s"] = track["start"]
+                    track["end_s"] = track["end"]
+                    track["positions"] = track["positions"]
+                recording["tracks"] = track_info
+            with open(str(meta_filename), "w") as f:
+                json.dump(recording, f)
+
+            return classify(
+                conf, recording, api, docker_instance, logger, do_tracking=tracking
+            )
+    except Exception as ex:
+        logger.error("Classify job failed ",exc_info=True)
+        raise ex
 
 
 def classify_file(
