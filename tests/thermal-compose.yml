@@ -1,5 +1,5 @@
 services:
-  thermalRaw:
+  thermalTest:
     image: ubuntu
     tty: true
     restart: always 

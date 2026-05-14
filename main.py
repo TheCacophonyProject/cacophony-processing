@@ -275,19 +275,24 @@ class Processors(list):
         self.append(p)
 
 
-2
+
 PROCESS_ID = 1
 
 
 class DockerInstance:
-    def __init__(self, name, compose_file, num_instances):
-        self.name = name
+    def __init__(self,  compose_file, num_instances):
+        import yaml
+
         self.compose_file = compose_file
         self.num_instances = num_instances
+        with open(self.compose_file, 'r') as file:
+            compose_yml = yaml.safe_load(file)
+        self.name = next(iter(compose_yml["services"].keys()))
         self.cmd = f"docker compose -f {self.compose_file} up --scale {self.name}={self.num_instances} -d"
         self.instances = []
         self.restart()
         self.in_use = []
+        
 
     def wait_for_ready(self):
         for instance in self.instances:
@@ -508,7 +513,7 @@ class Processor:
 
         self.last_poll = None
         self.last_poll_success = None
-        self.docker_pool = DockerInstance(recording_type, docker_compose, total_workers)
+        self.docker_pool = DockerInstance(docker_compose, total_workers)
 
         self.audio_workers = 4
         self.thermal_workers = 4
