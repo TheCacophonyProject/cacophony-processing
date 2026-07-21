@@ -41,11 +41,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", help="Path to config file to use")
     parser.add_argument(
-        "--user", help="API server emai. This will override whats in the config file"
+        "--user", help="API server email. This will override whats in the config file"
     )
     parser.add_argument(
         "--password",
-        help="API server password. This will ocerride whats in the config file",
+        help="API server password. This will override whats in the config file",
     )
     parser.add_argument(
         "--api",
@@ -275,24 +275,22 @@ class Processors(list):
         self.append(p)
 
 
-
 PROCESS_ID = 1
 
 
 class DockerInstance:
-    def __init__(self,  compose_file, num_instances):
+    def __init__(self, compose_file, num_instances):
         import yaml
 
         self.compose_file = compose_file
         self.num_instances = num_instances
-        with open(self.compose_file, 'r') as file:
+        with open(self.compose_file, "r") as file:
             compose_yml = yaml.safe_load(file)
         self.name = next(iter(compose_yml["services"].keys()))
         self.cmd = f"docker compose -f {self.compose_file} up --scale {self.name}={self.num_instances} -d"
         self.instances = []
         self.restart()
         self.in_use = []
-        
 
     def wait_for_ready(self):
         for instance in self.instances:
@@ -309,8 +307,9 @@ class DockerInstance:
                     time.sleep(10)
 
     def get_running_instances(self):
-        instances = run_command(f"docker container ls --format '{{.ID}} {{.Names}}' | grep -E '{self.name}-[0-9]+$' | awk '{{print $1}}'")
-        
+        instances = run_command(
+            f"docker container ls --format '{{{{.ID}}}} {{{{.Names}}}}' | grep -E '{self.name}-[0-9]+$' | awk '{{print $1}}'"
+        )
         instances = instances.rstrip()
         if len(instances) == 0:
             return []
@@ -584,12 +583,12 @@ class Processor:
         instance = self.docker_pool.get_instance()
         logger.info("Scheduling on docker instance %s", instance)
         process_func = None
-        state = state.replace(".failed","")
+        state = state.replace(".failed", "")
         for process_state, function in zip(self.processing_states, self.process_funcs):
             if process_state == state:
                 process_func = function
                 break
-        
+
         self.pool.schedule(
             process_func,
             process_id,
