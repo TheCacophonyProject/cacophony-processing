@@ -32,6 +32,7 @@ jobs:
       - name: Run tests
         run: |
             pip install pytest
+            pytest -s
 
   pex-build:
     name: Build distribution 📦

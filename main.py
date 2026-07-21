@@ -309,7 +309,8 @@ class DockerInstance:
                     time.sleep(10)
 
     def get_running_instances(self):
-        instances = run_command(f"docker container ls -q --filter name={self.name}*")
+        instances = run_command(f"docker container ls --format '{{.ID}} {{.Names}}' | grep -E '{self.name}-[0-9]+$' | awk '{{print $1}}'")
+        
         instances = instances.rstrip()
         if len(instances) == 0:
             return []
@@ -320,9 +321,7 @@ class DockerInstance:
         instances = self.get_running_instances()
         if len(instances) > 0:
             try:
-                run_command(
-                    f"docker stop $(docker container ls -q --filter name={self.name}*)"
-                )
+                run_command(f"docker compose -f {self.compose_file} down")
             except:
                 logger.error("Error stopping instances ", exc_info=True)
         self.instances = []
