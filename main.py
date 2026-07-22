@@ -329,7 +329,7 @@ class DockerInstance:
     def start(self):
         logger.info("Starting docker %s %s", self.num_instances, self.cmd)
         run_command(self.cmd)
-        # shouldnt ever get multiple of same instances but just for safety
+        # should not ever get multiple of same instances but just for safety
         self.instances = set(self.get_running_instances())
 
     def restart(self):
