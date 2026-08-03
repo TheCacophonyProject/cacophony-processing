@@ -47,126 +47,43 @@ FRAME_RATE = 9
 MIN_TRACK_CONFIDENCE = 0.85
 
 
-def tracking_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("tracking", recording["id"])
-    retrack = recording["processingState"] == "retrack"
-    api = API(conf.api_url, conf.user, conf.password, logger)
+def classify_job(api, recording, rawJWT, conf, docker_instance):
+    logger = logs.worker_logger("classify_job", recording["id"])
+    tracking = recording["processingState"] == "trackAndAnalyse"
     mp4 = recording.get("type") == "irRaw"
+    ext = ".mp4" if mp4 else ".cptv"
+
     with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
-        ext = ".mp4" if mp4 else ".cptv"
         filename = Path(temp_dir) / DOWNLOAD_FILENAME
         filename = filename.with_suffix(ext)
         recording["filename"] = str(filename)
         logger.debug("downloading recording")
         api.download_file(rawJWT, str(filename))
-        if retrack:
+        meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
+        if not tracking:
             track_info = api.get_track_info(recording["id"]).get("tracks")
-            for t in track_info:
-                t["start_s"] = t["start"]
-                t["end_s"] = t["end"]
-                t["positions"] = t["positions"]
+            for track in track_info:
+                track["start_s"] = track["start"]
+                track["end_s"] = track["end"]
+                track["positions"] = track["positions"]
             recording["tracks"] = track_info
-            filename = filename.with_suffix(".txt")
-            with filename.open("w") as f:
-                json.dump(recording, f)
-        track(conf, recording, api, recording.get("duration", 0), retrack, logger)
+        with open(str(meta_filename), "w") as f:
+            json.dump(recording, f)
 
-
-def track(conf, recording, api, duration, retrack, logger):
-    cache = (
-        duration is not None
-        and conf.cache_clips_bigger_than
-        and duration > conf.cache_clips_bigger_than
-    )
-    command = conf.track_cmd.format(
-        source=recording["filename"],
-        cache=cache,
-        retrack=retrack,
-        classify_image=conf.classify_image,
-        temp_dir=conf.temp_dir,
-    )
-    logger.info("tracking %s", recording["filename"])
-    tracking_info = run_command(command, recording["filename"], conf.subprocess_timeout)
-    format_track_data(tracking_info["tracks"])
-    algorithm_id = api.get_algorithm_id(tracking_info["algorithm"])
-    tracks = []
-    for t in tracking_info["tracks"]:
-        tracks.append(Track.load(t))
-
-    tracking_result = ClassifyResult.load(tracking_info, algorithm_id, tracks)
-    if retrack:
-        for track in tracking_result.tracks:
-            if len(track.positions) == 0:
-                api.archive_track(recording, track.id)
-            else:
-                api.update_track(recording, track)
-    else:
-        add_tracks_and_tags(
-            api,
-            recording,
-            tracking_result.tracks,
-            tracking_result.tracking_algorithm,
-            logger,
+        return classify(
+            conf, recording, api, docker_instance, logger, do_tracking=tracking
         )
-
-    additionalMetadata = {"algorithm": tracking_result.tracking_algorithm}
-    if tracking_result.tracking_time is not None:
-        additionalMetadata["tracking_time"] = tracking_result.tracking_time
-    if tracking_result.thumbnail_region is not None:
-        additionalMetadata["thumbnail_region"] = tracking_result.thumbnail_region
-
-    metadata = {"additionalMetadata": additionalMetadata}
-    api.report_done(recording, None, None, metadata)
-    logger.info("Finished tracking")
-
-
-def track_classify_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("track_classify_job", recording["id"])
-
-    api = API(conf.api_url, conf.user, conf.password, logger)
-    mp4 = recording.get("type") == "irRaw"
-    ext = ".mp4" if mp4 else ".cptv"
-
-    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
-        filename = Path(temp_dir) / DOWNLOAD_FILENAME
-        filename = filename.with_suffix(ext)
-        recording["filename"] = str(filename)
-        logger.debug("downloading recording")
-        api.download_file(rawJWT, str(filename))
-        meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
-        with open(str(meta_filename), "w") as f:
-            json.dump(recording, f)
-
-        classify(conf, recording, api, logger, do_tracking=True)
-
-
-def classify_job(recording, rawJWT, conf):
-    logger = logs.worker_logger("classify", recording["id"])
-
-    api = API(conf.api_url, conf.user, conf.password, logger)
-    mp4 = recording.get("type") == "irRaw"
-    ext = ".mp4" if mp4 else ".cptv"
-
-    with tempfile.TemporaryDirectory(dir=conf.temp_dir) as temp_dir:
-        filename = Path(temp_dir) / DOWNLOAD_FILENAME
-        filename = filename.with_suffix(ext)
-        recording["filename"] = str(filename)
-        logger.debug("downloading recording")
-        api.download_file(rawJWT, str(filename))
-        meta_filename = (Path(temp_dir) / DOWNLOAD_FILENAME).with_suffix(".txt")
-        track_info = api.get_track_info(recording["id"]).get("tracks")
-        for track in track_info:
-            track["start_s"] = track["start"]
-            track["end_s"] = track["end"]
-            track["positions"] = track["positions"]
-        recording["tracks"] = track_info
-        with open(str(meta_filename), "w") as f:
-            json.dump(recording, f)
-        classify(conf, recording, api, logger)
 
 
 def classify_file(
-    api, file, conf, duration, logger, do_tracking=False, calculate_thumbnails=False
+    api,
+    docker_instance,
+    file,
+    conf,
+    duration,
+    logger,
+    do_tracking=False,
+    calculate_thumbnails=False,
 ):
     cache = False
     if (
@@ -177,42 +94,30 @@ def classify_file(
         cache = True
 
     command = conf.classify_cmd.format(
+        docker_instance=docker_instance,
         source=file,
         cache=cache,
-        classify_image=conf.classify_image,
-        temp_dir=conf.temp_dir,
     )
     if do_tracking:
         command = f"{command} --track"
     if calculate_thumbnails:
         command = f"{command} --calculate-thumbnails"
-    logger.info("Classifying %s with command %s", file, command)
+    # logger.info("Classifying %s with command %s", file, command)
     classify_info = run_command(command, file, conf.subprocess_timeout)
     tracks = []
-    for t in classify_info["tracks"]:
+    for t in classify_info.get("tracks", []):
         tracks.append(Track.load(t))
     # Auto tag the video
     filtered_tracks, tags = calculate_tags(tracks, conf)
     algorithm_id = 0
     if do_tracking:
-        algorithm_id = api.get_algorithm_id(classify_info["algorithm"])
+        algorithm_id = api.get_algorithm_id(
+            classify_info.get("algorithm", "not-specified")
+        )
 
     return ClassifyResult.load(
         classify_info, algorithm_id, filtered_tracks, tags.get(MULTIPLE, None)
     )
-
-
-def read_all(socket):
-    size = 4096
-    data = bytearray()
-
-    while True:
-        packet = socket.recv(size)
-        if packet:
-            data.extend(packet)
-        else:
-            break
-    return data
 
 
 def run_command(command, filename, timeout=None):
@@ -251,12 +156,13 @@ def fp_score(track):
     return 0
 
 
-def classify(conf, recording, api, logger, do_tracking=False):
+def classify(conf, recording, api, docker_instance, logger, do_tracking=False):
     wallaby_device = is_wallaby_device(conf.wallaby_devices, recording)
     logger.debug("processing %s ", recording["filename"])
     calculate_thumbnails = recording.get("metadataSource") == "PI"
     classify_result = classify_file(
         api,
+        docker_instance,
         recording["filename"],
         conf,
         recording.get("duration", 0),
@@ -375,8 +281,9 @@ def classify(conf, recording, api, logger, do_tracking=False):
     additionalMetadata["models"] = model_info
     metadata = {"additionalMetadata": additionalMetadata}
 
-    api.report_done(recording, None, None, metadata)
+    # api.report_done(recording, None, None, metadata)
     logger.info("Finished")
+    return metadata
 
 
 def format_track_data(tracks):
@@ -539,48 +446,6 @@ def add_tracks_and_tags(api, recording, tracks, algorithm_id, logger):
         track.id = track_id
 
 
-# def add_track_tag(
-#     api,
-#     recording,
-#     track,
-#     prediction,
-#     logger,
-#     model_name=None,
-#     model_used=None,in
-#     rat_thresh_version=None,
-# ):
-#     if not track or prediction.tag is None:
-#         return False, None
-
-#     track_data = {"name": model_name}
-#     if model_used is not None:
-#         # specifically for master tag to see which model was chosen
-#         track_data["model_used"] = model_used
-#     if prediction.classify_time is not None:
-#         track_data["classify_time"] = prediction.classify_time
-#     track_data["clarity"] = prediction.clarity
-#     track_data["all_class_confidences"] = prediction.all_class_confidences
-#     # if prediction.predictions is not None:
-#     #     track_data["predictions"] = prediction.predictions
-#     # if prediction.prediction_frames is not None:
-#     #     track_data["prediction_frames"] = prediction.prediction_frames
-#     if prediction.message is not None:
-#         track_data[MESSAGE] = prediction.message
-#     track_data["tag"] = prediction.tag
-#     track_data["confident"] = prediction.confident
-#     if rat_thresh_version is not None:
-#         track_data["rat_thresh_version"] = rat_thresh_version
-#     logger.debug(
-#         "adding %s track tag %s for track %s",
-#         track_data["name"],
-#         prediction.tag,
-#         track.id,
-#     )
-
-#     api.add_track_tag(recording, track.id, prediction, data=track_data)
-#     return True, prediction.tag
-
-
 @attr.s
 class Track:
     id = attr.ib()
@@ -655,19 +520,6 @@ class Prediction:
     model_used = attr.ib(default=None)
     confident = attr.ib(default=False)
     threshold_used = attr.ib(default=0.8)
-
-    # @classmethod
-    # def from_audio_meta(cls, meta, model_name, pre_model, below_thresh=False):
-
-    #     return cls(
-    #         tag=meta["what"],
-    #         model_name=model_name,
-    #         confidence=meta["confidence"],
-    #         pre_model=pre_model,
-    #         filtered=meta.get("filtered", False),
-    #         threshold_used=meta.get("threshold_used"),
-    #         confident=not below_thresh,
-    #     )
 
     @classmethod
     def load(cls, raw_pred):

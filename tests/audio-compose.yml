@@ -1,0 +1,7 @@
+services:
+  audioTest:
+    image: ubuntu
+    tty: true
+    restart: always 
+    volumes:
+      - ./ready.sh:/ready.sh

@@ -51,6 +51,9 @@ def test_models():
     return [original, retrained, resnet, wallaby, wallaby_old]
 
 
+test_models.__test__ = False
+
+
 def test_config():
     return config.Config(
         restart_after=None,
@@ -61,27 +64,16 @@ def test_config():
             password="testpass",
         ),
         no_recordings_wait_secs=30,
-        classify_image="",
         classify_cmd="",
-        track_cmd="",
         wallaby_devices=[1, 2],
         master_tag="Master",
         min_confidence=0.4,
         min_tag_clarity=0.2,
-        min_tag_clarity_secondary=0.05,
         audio_analysis_cmd="",
-        audio_analysis_tag="v1.1.0",
         audio_analysis_workers=1,
-        thermal_analyse_workers=1,
         ignore_tags=["not"],
         cache_clips_bigger_than=0,
-        thermal_tracking_workers=1,
         thermal_track_analyse_workers=1,
-        trail_workers=1,
-        classify_trail_cmd="",
-        do_retrack=False,
-        ir_tracking_workers=0,
-        ir_analyse_workers=0,
         filter_false_positive=True,
         false_positive_min_confidence=0.7,
         max_tracks=10,
@@ -90,7 +82,12 @@ def test_config():
         reprocess=False,
         reprocess_audio_workers=1,
         reprocess_thermal_workers=1,
+        thermal_compose_file="thermal.yml",
+        audio_compose_file="audio.yml",
     )
+
+
+test_config.__test__ = False
 
 
 def model_result(model, tag):

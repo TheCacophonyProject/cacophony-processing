@@ -1,0 +1,8 @@
+services:
+  thermalRaw:
+    image: cacophonyproject/classifier:latest
+    restart: always
+    pull_policy: always
+
+    volumes:
+      - /tmp:/tmp

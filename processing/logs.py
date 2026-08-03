@@ -18,12 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
-import multiprocessing
+from multiprocessing import Queue
 from logging.handlers import QueueListener, QueueHandler
 
 
 def init_master():
-    q = multiprocessing.Queue()
+    q = Queue()
 
     handler = logging.StreamHandler()
     handler.setFormatter(
@@ -36,6 +36,8 @@ def init_master():
     ql = QueueListener(q, handler, respect_handler_level=True)
     ql.start()
 
+    # seems to stop pytest logging, but otherwise lines are repeated twice
+    # need to check this
     logging.getLogger().handlers = []
     logging.getLogger("botocore").setLevel(logging.ERROR)
 

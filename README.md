@@ -65,6 +65,17 @@ After configuring the config you can restart the service
 Or you can run it manually
 `/usr/bin/cacophony-processing.pex -m main`
 
+### Specifiy the versions of docker iamges
+
+For audio
+`/etc/cacophony/audio-compose.yml`
+    image: cacophonyproject/audio-analysis:<tag>
+
+For thermal
+`/etc/cacophony/thermal-compose.yml`
+    image: cacophonyproject/classifier:<tag>
+
+
 ### Specifying number of workers
 You can configure how many workers and of which type in the config under
 
