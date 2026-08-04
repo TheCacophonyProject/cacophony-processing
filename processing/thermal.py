@@ -240,7 +240,7 @@ def classify(conf, recording, api, docker_instance, logger, do_tracking=False):
         # once we remove tracking step can remove this
         if not do_tracking:
             for track in ordered[conf.max_tracks :]:
-                api.archive_track = True
+                track.archived = True
                 api.archive_track(recording, track.id)
         classify_result.tracks = ordered[: conf.max_tracks]
 
