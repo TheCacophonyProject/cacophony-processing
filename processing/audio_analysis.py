@@ -210,7 +210,7 @@ def analyse(filename, docker_instance, conf, analyse_tracks=False):
         source=filename,
     )
     if analyse_tracks:
-        command = f"{command} --analyse_tracks"
+        command = f"{command} --analyse-tracks"
     with HandleCalledProcessError():
         subprocess.run(
             command,

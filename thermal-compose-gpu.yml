@@ -1,0 +1,16 @@
+services:
+  thermalRaw:
+    image: cacophonyproject/classifier:latest
+    restart: always
+    pull_policy: always
+    environment:
+        - CUDA_DEVICE_ORDER=PCI_BUS_ID     # Enforces consistent sorting
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+          device_ids: ['1']   # Use quotes. This represents the first GPU.
+          capabilities: [gpu]
+    volumes:
+      - /tmp:/tmp
