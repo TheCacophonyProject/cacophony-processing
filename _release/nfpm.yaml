@@ -27,7 +27,9 @@ contents:
   - src: thermal-compose.yml
     dst: "/etc/cacophony/thermal-compose.yml"
     type: config
-
+  - src: thermal-compose-gpu.yml
+    dst: "/etc/cacophony/thermal-compose-gpu.yml"
+    type: config
   - src: audio-compose.yml
     dst: "/etc/cacophony/audio-compose.yml"
     type: config
